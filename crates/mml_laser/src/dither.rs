@@ -97,6 +97,32 @@ pub fn dither(
     match mode {
         DitherMode::Grayscale => levels.to_vec(),
         DitherMode::Threshold => levels.iter().map(|&level| f32::from(level > cut)).collect(),
+        DitherMode::Halftone => levels
+            .iter()
+            .enumerate()
+            .map(|(index, &level)| {
+                // Screen rotated 45°, one dot every 6 cells.
+                let (x, y) = ((index % width) as f32, (index / width) as f32);
+                let (u, v) = (
+                    (x + y) * std::f32::consts::FRAC_1_SQRT_2,
+                    (x - y) * std::f32::consts::FRAC_1_SQRT_2,
+                );
+                let period = std::f32::consts::TAU / 6.0;
+                let limit = ((u * period).cos() + (v * period).cos() + 2.0) / 4.0;
+                f32::from(level > limit)
+            })
+            .collect(),
+        DitherMode::LineScreen => levels
+            .iter()
+            .enumerate()
+            .map(|(index, &level)| {
+                let y = (index / width) as f32;
+                // Triangle profile: thresholds evenly spread, so the line
+                // width is proportional to the darkness.
+                let limit = (2.0 * ((y + 0.5) / 6.0).fract() - 1.0).abs();
+                f32::from(level > limit)
+            })
+            .collect(),
         DitherMode::Ordered => levels
             .iter()
             .enumerate()
@@ -145,6 +171,16 @@ mod tests {
             let mean = out.iter().sum::<f32>() / out.len() as f32;
             assert!((mean - 0.25).abs() < 0.02, "{mode:?} mean {mean}");
             assert!(out.iter().all(|&value| value == 0.0 || value == 1.0));
+        }
+    }
+
+    #[test]
+    fn screens_follow_the_tone() {
+        for mode in [DitherMode::Halftone, DitherMode::LineScreen] {
+            let light = dither(&vec![0.2f32; 60 * 60], 60, 60, mode, 128);
+            let dark = dither(&vec![0.8f32; 60 * 60], 60, 60, mode, 128);
+            let mean = |values: &[f32]| values.iter().sum::<f32>() / values.len() as f32;
+            assert!(mean(&light) < 0.4 && mean(&dark) > 0.6, "{mode:?}");
         }
     }
 }

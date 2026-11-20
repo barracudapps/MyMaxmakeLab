@@ -547,3 +547,7 @@ svgcode.title = Insert SVG code…
 svgcode.hint = Paste or type SVG (styles in CSS are supported) or HTML containing an <svg> element.
 svgcode.insert = Insert
 svgcode.name = SVG code
+op.style = Style
+op.solid = solid
+op.dashed = dashed
+op.dashed_hint = Burn / gap lengths: dotted lines, stitching marks, perforated fold lines

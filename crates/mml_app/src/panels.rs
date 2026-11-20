@@ -580,6 +580,28 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 ui.label(tr("op.passes"));
                 changed |= passes(ui, &mut params.passes);
                 ui.end_row();
+                ui.label(tr("op.style"));
+                ui.horizontal(|ui| {
+                    let mut dashed = params.dash_off > 0.0;
+                    if ui.selectable_label(!dashed, tr("op.solid")).clicked() && dashed {
+                        params.dash_off = 0.0;
+                        changed = true;
+                    }
+                    let dash = ui
+                        .selectable_label(dashed, tr("op.dashed"))
+                        .on_hover_text(tr("op.dashed_hint"));
+                    if dash.clicked() && !dashed {
+                        params.dash_off = 1.0;
+                        dashed = true;
+                        changed = true;
+                    }
+                    if dashed {
+                        changed |= number(ui, &mut params.dash_on, 0.05..=100.0, " mm", 0.05);
+                        ui.label("/");
+                        changed |= number(ui, &mut params.dash_off, 0.05..=100.0, " mm", 0.05);
+                    }
+                });
+                ui.end_row();
                 ui.label(tr("op.z_step"))
                     .on_hover_text(tr("op.z_step_hint"));
                 changed |= number(ui, &mut params.z_step, 0.0..=10.0, " mm", 0.05);

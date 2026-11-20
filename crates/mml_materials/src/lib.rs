@@ -165,7 +165,8 @@ fn translate_description(description: &str) -> Option<&'static str> {
 fn dither_from(name: &str) -> DitherMode {
     match name.to_ascii_lowercase().as_str() {
         "threshold" => DitherMode::Threshold,
-        "ordered" | "newsprint" | "halftone" => DitherMode::Ordered,
+        "ordered" => DitherMode::Ordered,
+        "newsprint" | "halftone" => DitherMode::Halftone,
         "atkinson" => DitherMode::Atkinson,
         "jarvis" => DitherMode::Jarvis,
         "stucki" => DitherMode::Stucki,

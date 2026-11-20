@@ -32,11 +32,16 @@ pub fn emit_line(
         for path in &ordered {
             let first = path.points[0];
             writer.rapid(first.x, first.y);
-            for point in &path.points[1..] {
-                writer.linear(point.x, point.y, params.speed, Some(power));
-            }
+            let mut points = path.points.clone();
             if path.closed {
-                writer.linear(first.x, first.y, params.speed, Some(power));
+                points.push(first);
+            }
+            if params.dash_off > 0.0 && params.dash_on > 0.0 {
+                dashed(writer, &points, params, power);
+            } else {
+                for point in &points[1..] {
+                    writer.linear(point.x, point.y, params.speed, Some(power));
+                }
             }
             writer.linear(first.x, first.y, params.speed, Some(0.0));
             *head = if path.closed {
@@ -49,5 +54,70 @@ pub fn emit_line(
     writer.tool_off();
     if params.air_assist {
         writer.air(false);
+    }
+}
+
+/// Burns `dash_on` mm, moves `dash_off` mm with the laser off, along the
+/// whole path, without stopping the head.
+fn dashed(writer: &mut GcodeWriter, points: &[Point], params: &LineParams, power: f64) {
+    let period = params.dash_on + params.dash_off;
+    let mut phase = 0.0;
+    for pair in points.windows(2) {
+        let (a, b) = (pair[0], pair[1]);
+        let length = a.distance(b);
+        let mut travelled = 0.0;
+        while travelled < length - 1e-9 {
+            let burning = phase < params.dash_on;
+            let to_boundary = if burning {
+                params.dash_on - phase
+            } else {
+                period - phase
+            };
+            let step = to_boundary.min(length - travelled);
+            travelled += step;
+            phase = (phase + step) % period;
+            let point = a.lerp(b, travelled / length);
+            writer.linear(
+                point.x,
+                point.y,
+                params.speed,
+                Some(if burning { power } else { 0.0 }),
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dashed_line_burns_the_requested_share() {
+        let params = LineParams {
+            dash_on: 2.0,
+            dash_off: 1.0,
+            ..LineParams::default()
+        };
+        let mut writer = GcodeWriter::new();
+        let path = Path::new(vec![Point::new(0.0, 0.0), Point::new(30.0, 0.0)], false);
+        let settings = LaserSettings {
+            max_s: 1000.0,
+            dynamic_power: true,
+        };
+        emit_line(
+            &mut writer,
+            &mut Point::default(),
+            vec![path],
+            &params,
+            &settings,
+        );
+        let program = mml_gcode::parse(&writer.finish());
+        let burned: f64 = program
+            .motions
+            .iter()
+            .filter(|motion| motion.is_cutting())
+            .map(|motion| motion.length())
+            .sum();
+        assert!((burned - 20.0).abs() < 1e-6, "burned {burned}");
     }
 }

@@ -104,6 +104,10 @@ pub struct LineParams {
     pub air_assist: bool,
     /// Lowers Z by this amount after each pass (thick materials).
     pub z_step: f64,
+    /// Dashed or dotted line: burn `on` mm, skip `off` mm. Zero `off`
+    /// means a solid line. Also used for perforations (fold lines).
+    pub dash_on: f64,
+    pub dash_off: f64,
 }
 
 impl Default for LineParams {
@@ -114,6 +118,8 @@ impl Default for LineParams {
             passes: 1,
             air_assist: true,
             z_step: 0.0,
+            dash_on: 2.0,
+            dash_off: 0.0,
         }
     }
 }
@@ -161,10 +167,15 @@ pub enum DitherMode {
     Atkinson,
     Jarvis,
     Stucki,
+    /// Clustered dots on a 45° screen, the look of old newspapers.
+    Halftone,
+    /// Horizontal lines thickening in dark areas, like a copper-plate
+    /// engraving.
+    LineScreen,
 }
 
 impl DitherMode {
-    pub const ALL: [DitherMode; 7] = [
+    pub const ALL: [DitherMode; 9] = [
         Self::Grayscale,
         Self::Threshold,
         Self::Ordered,
@@ -172,6 +183,8 @@ impl DitherMode {
         Self::Atkinson,
         Self::Jarvis,
         Self::Stucki,
+        Self::Halftone,
+        Self::LineScreen,
     ];
 
     pub fn label(self) -> &'static str {
@@ -183,6 +196,8 @@ impl DitherMode {
             Self::Atkinson => "Atkinson",
             Self::Jarvis => "Jarvis",
             Self::Stucki => "Stucki",
+            Self::Halftone => "Halftone (vintage)",
+            Self::LineScreen => "Line engraving",
         }
     }
 }

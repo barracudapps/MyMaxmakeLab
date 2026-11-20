@@ -547,3 +547,7 @@ svgcode.title = Insérer du code SVG…
 svgcode.hint = Collez ou saisissez du SVG (les styles CSS sont pris en charge) ou du HTML contenant un élément <svg>.
 svgcode.insert = Insérer
 svgcode.name = Code SVG
+op.style = Style
+op.solid = plein
+op.dashed = pointillé
+op.dashed_hint = Longueurs tracé / espace : pointillés, coutures, lignes de pliage perforées
