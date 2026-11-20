@@ -5,7 +5,7 @@ use crate::panels::{section, warning_text};
 use crate::settings::Settings;
 use eframe::egui::{self, Color32, DragValue, RichText};
 use mml_core::machine::MachineProfile;
-use mml_device::discovery::Discovered;
+use mml_device::detect::{Found, Link};
 use mml_device::{
     Anomaly, Command, Connection, Controller, Event, JobGuard, JobOutcome, MachineState,
     MachineStatus, realtime,
@@ -72,8 +72,10 @@ pub struct DeviceState {
     /// was sent (held longer than a click).
     pub hold: Option<([f64; 3], Instant, bool)>,
     /// Network search for Carvera machines in progress.
-    discovery: Option<std::sync::mpsc::Receiver<Result<Vec<Discovered>, String>>>,
-    pub discovered: Option<Result<Vec<Discovered>, String>>,
+    discovery: Option<std::sync::mpsc::Receiver<Vec<Found>>>,
+    pub discovered: Option<Vec<Found>>,
+    /// Probe USB ports too (resets Arduino boards).
+    pub detect_usb: bool,
 }
 
 impl DeviceState {
@@ -109,6 +111,7 @@ impl DeviceState {
             hold: None,
             discovery: None,
             discovered: None,
+            detect_usb: true,
         }
     }
 
@@ -425,6 +428,7 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
         )
         .on_hover_text(tr("device.protocol_other_hint"));
     });
+    discovery(device, ui);
     if device.use_tcp {
         ui.horizontal(|ui| {
             ui.label(tr("device.host"));
@@ -432,7 +436,6 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
             ui.label(tr("device.port"));
             ui.add(DragValue::new(&mut device.tcp_port).range(1..=65535));
         });
-        discovery(device, ui);
     } else {
         ui.horizontal(|ui| {
             let selected = device
@@ -473,13 +476,13 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
     }
 }
 
-/// Listens for the beacons Carvera machines broadcast and fills the
-/// address of the one picked.
+/// Finds machines on USB and on the network and fills the connection
+/// of the one picked.
 fn discovery(device: &mut DeviceState, ui: &mut egui::Ui) {
     if let Some(receiver) = &device.discovery {
         match receiver.try_recv() {
-            Ok(result) => {
-                device.discovered = Some(result);
+            Ok(found) => {
+                device.discovered = Some(found);
                 device.discovery = None;
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
@@ -493,45 +496,55 @@ fn discovery(device: &mut DeviceState, ui: &mut egui::Ui) {
             Err(std::sync::mpsc::TryRecvError::Disconnected) => device.discovery = None,
         }
     }
-    if ui
-        .button(tr("device.discover"))
-        .on_hover_text(tr("device.discover_hint"))
-        .clicked()
-    {
-        device.discovered = None;
-        device.discovery = Some(mml_device::discovery::discover(Duration::from_secs(4)));
-    }
+    ui.horizontal(|ui| {
+        if ui
+            .button(tr("device.discover"))
+            .on_hover_text(tr("device.discover_hint"))
+            .clicked()
+        {
+            device.discovered = None;
+            device.discovery = Some(mml_device::detect::detect_in_background(device.detect_usb));
+        }
+        ui.checkbox(&mut device.detect_usb, tr("device.detect_usb"))
+            .on_hover_text(tr("device.detect_usb_hint"));
+    });
     let mut picked = None;
     match &device.discovered {
-        Some(Ok(machines)) if machines.is_empty() => {
+        Some(found) if found.is_empty() => {
             ui.label(RichText::new(tr("device.discover_none")).weak());
         }
-        Some(Ok(machines)) => {
-            for machine in machines {
-                let text = if machine.busy {
-                    trf("device.discover_busy", &[&machine.name, &machine.host])
-                } else {
-                    format!("{}  {}", machine.name, machine.host)
+        Some(found) => {
+            for item in found {
+                let place = match &item.link {
+                    Link::Serial { port, baud } => format!("USB {port} @ {baud}"),
+                    Link::Network { host, port } => format!("{host}:{port}"),
                 };
+                let text = format!("{}  ·  {place}  {}", item.firmware.name(), item.details);
                 if ui
-                    .add_enabled(!machine.busy, egui::Button::new(text))
+                    .button(text)
+                    .on_hover_text(tr("device.discover_pick"))
                     .clicked()
                 {
-                    picked = Some(machine.clone());
+                    picked = Some(item.clone());
                 }
             }
         }
-        Some(Err(error)) => {
-            ui.label(
-                RichText::new(trf("device.discover_failed", &[error])).color(crate::theme::WARNING),
-            );
-        }
         None => {}
     }
-    if let Some(machine) = picked {
-        device.host = machine.host;
-        device.tcp_port = machine.port;
-        device.protocol = mml_device::Protocol::SendAndWait;
+    if let Some(item) = picked {
+        match item.link {
+            Link::Serial { port, baud } => {
+                device.use_tcp = false;
+                device.serial_port = port;
+                device.baud = baud;
+            }
+            Link::Network { host, port } => {
+                device.use_tcp = true;
+                device.host = host;
+                device.tcp_port = port;
+            }
+        }
+        device.protocol = item.firmware.protocol();
         device.discovered = None;
     }
 }
