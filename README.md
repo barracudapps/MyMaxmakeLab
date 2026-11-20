@@ -8,7 +8,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 
 ![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
-![Tests](https://img.shields.io/badge/tests-95%20passing-34a870)
+![Tests](https://img.shields.io/badge/tests-98%20passing-34a870)
 ![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL-informational)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -65,6 +65,9 @@ flowchart LR
 <td><b>Repair and lighten</b> any G-code file, same path, fewer lines.<br><img src="docs/images/optimize.png" alt="G-code optimiser"></td>
 <td><b>Light theme</b>: warm, rounded, readable.<br><img src="docs/images/design-light.png" alt="Light theme"></td>
 </tr>
+<tr>
+<td colspan="2"><b>4-axis</b>: a figurine finished in one continuous helix, the stock turning while cutting, shown around the A axis.<br><img src="docs/images/rotary-3d.png" alt="Continuous 4-axis finish"></td>
+</tr>
 </table>
 
 ## Features
@@ -110,7 +113,9 @@ flowchart LR
 - **3D model → G-code**: drop an STL or OBJ, choose the face, size, depth and
   tool, get roughing and finishing passes computed by drop-cutter (no gouge).
 - **4-axis**: wrap a relief around a cylinder, or machine the whole part
-  from 2 to 8 faces on round stock (indexed 3+1).
+  on round stock: roughing from 2 to 8 faces, then a **continuous finish**
+  where the stock turns while cutting (simultaneous 4-axis, inverse time
+  feed), with a holding stem so the part never comes loose.
 - **Automatic tool changer** (Makera Carvera): each CNC layer picks its
   slot, the machine changes and measures the tool by itself.
 - **Tool library**: quick or advanced tool creation, **Fusion 360 import**,
@@ -182,7 +187,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 95 tests
+cargo test --workspace      # 98 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -242,7 +247,8 @@ body): `git log` is the technical changelog. See
 - [x] Single-line (Hershey) fonts for pen and V-bit
 - [x] 4-axis reliefs wrapped on the A axis
 - [x] Indexed 4-axis machining (3+1): a whole part from 2 to 8 faces on round stock
-- [ ] Simultaneous 4/5-axis machining with tool orientation and a kinematics model
+- [x] Simultaneous 4-axis finish (helix, G93 inverse time), 3D preview around the A axis
+- [ ] Simultaneous 5-axis with tool orientation: needs the kinematics of a 5-axis machine
 
 ## 🇫🇷 En bref
 
@@ -253,7 +259,7 @@ surveillance de la machine avec pause automatique, vérification des limites
 sur la position réelle, cadrage à blanc et palpage obligatoires, assistant de
 réglages, bibliothèque d'outils compatible Fusion 360, relief 3D depuis un STL,
 gravure en V, styles de gravure laser, polices intégrées, texte en arc, 4e axe
-(relief enroulé ou pièce complète usinée sur plusieurs faces), contrôle des
+(relief enroulé, pièce complète ébauchée sur plusieurs faces puis finie en continu), contrôle des
 mouvements par caméra, Makera Carvera (découverte Wi-Fi, changeur d'outils),
 réparation de G-code. Interface en français et en anglais, thèmes clair et
 sombre.
