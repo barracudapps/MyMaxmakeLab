@@ -63,6 +63,10 @@ pub fn wrap_rotary(gcode: &str, rotary: Rotary) -> String {
         Rotary::ReplaceY { y_per_rotation, .. } => ('Y', y_per_rotation / circumference),
     };
     let mut out = String::with_capacity(gcode.len() + gcode.len() / 8);
+    if let Rotary::AxisA { diameter } = rotary {
+        // Lets previews wrap the program around the axis.
+        out.push_str(&format!("; Rotary stock diameter {diameter:.3} mm\n"));
+    }
     for line in gcode.lines() {
         let (code, comment) = match line.find(';') {
             Some(index) => line.split_at(index),
@@ -556,7 +560,11 @@ mod tests {
             "G1X1Y10F600 ; Y in comment\nG0 Y-5",
             Rotary::AxisA { diameter },
         );
-        assert_eq!(chuck, "G1X1A10.000F600 ; Y in comment\nG0 A-5.000\n");
+        assert_eq!(
+            chuck,
+            "; Rotary stock diameter 114.592 mm\nG1X1A10.000F600 ; Y in comment\nG0 A-5.000\n"
+        );
+        assert_eq!(mml_gcode::parse(&chuck).rotary_diameter, Some(114.592));
         let rollers = wrap_rotary(
             "G1 Y180",
             Rotary::ReplaceY {
