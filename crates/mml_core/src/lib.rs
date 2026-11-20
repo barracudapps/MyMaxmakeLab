@@ -11,6 +11,7 @@ pub mod history;
 pub mod layer;
 pub mod machine;
 pub mod ordering;
+pub mod ornament;
 pub mod project;
 pub mod region;
 pub mod warp;
