@@ -10,6 +10,7 @@ pub mod geometry;
 pub mod history;
 pub mod layer;
 pub mod machine;
+pub mod makers;
 pub mod ordering;
 pub mod ornament;
 pub mod project;
