@@ -760,3 +760,14 @@ sprue.apply = Ranger {0} pièces
 sprue.frame_layer = Cadre
 sprue.done = {0} pièces rangées en grappe
 history.sprue = Grappe
+
+relief.mold = Moule : empreinte du modèle dans le brut
+relief.mold_hint = Usine la forme en creux du modèle enfoncé dans le brut, à ses proportions réelles, là où vous le placez (X/Y ci-dessus)
+relief.mold_sink = Enfoncé de
+relief.mold_sink_hint = Profondeur du point le plus bas du modèle sous le dessus du brut : la moitié de sa hauteur pour un moule en deux parties
+relief.mold_offset = Décalage
+relief.mold_offset_hint = Jeu ajouté uniformément tout autour de l’empreinte, fond compris (retrait au moulage, agent démoulant, revêtement)
+relief.mold_islands = Supprimer les petits îlots
+relief.mold_islands_hint = Les petits morceaux de brut restés debout dans l’empreinte sont arasés au niveau du fond voisin ; les plus grands sont gardés (noyaux)
+relief.mold_mirror = Miroir (seconde moitié)
+relief.mold_mirror_hint = Empreinte en miroir pour l’autre moitié du moule ; retournez le modèle avec deux fois le bouton X 90°

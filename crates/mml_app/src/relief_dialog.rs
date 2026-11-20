@@ -4,7 +4,9 @@
 use crate::app::{BuiltJob, Level, Mode, MyApp};
 use crate::i18n::{tr, trf};
 use eframe::egui::{self, DragValue, RichText};
-use mml_relief::{IndexedParams, PositionalParams, ReliefParams, Side, ToolShape, Triangle};
+use mml_relief::{
+    IndexedParams, MoldParams, PositionalParams, ReliefParams, Side, ToolShape, Triangle,
+};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, channel};
 
@@ -19,6 +21,8 @@ pub struct ReliefDialog {
     pub indexed: Option<IndexedParams>,
     /// Positional 5-axis on the trunnion of the machine.
     pub positional: Option<PositionalParams>,
+    /// Imprint of the model in the stock instead of a relief.
+    pub mold: Option<MoldParams>,
 }
 
 impl ReliefDialog {
@@ -37,6 +41,7 @@ impl ReliefDialog {
             rotary_diameter: None,
             indexed: None,
             positional: None,
+            mold: None,
         }
     }
 
@@ -94,6 +99,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         .collapsible(false)
         .default_width(380.0)
         .show(ctx, |ui| {
+            let molding = dialog.mold.is_some();
             let params = &mut dialog.params;
             ui.label(
                 RichText::new(trf(
@@ -132,14 +138,17 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                             .speed(0.5),
                     );
                     ui.end_row();
-                    ui.label(tr("relief.depth"));
-                    ui.add(
-                        DragValue::new(&mut params.depth)
-                            .range(0.1..=100.0)
-                            .suffix(" mm")
-                            .speed(0.1),
-                    );
-                    ui.end_row();
+                    // A mold keeps the real proportions of the model.
+                    if !molding {
+                        ui.label(tr("relief.depth"));
+                        ui.add(
+                            DragValue::new(&mut params.depth)
+                                .range(0.1..=100.0)
+                                .suffix(" mm")
+                                .speed(0.1),
+                        );
+                        ui.end_row();
+                    }
                     ui.label(tr("relief.origin"));
                     ui.horizontal(|ui| {
                         ui.add(
@@ -268,6 +277,72 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     dialog.indexed = None;
                 }
             });
+            let flat = dialog.rotary_diameter.is_none()
+                && dialog.indexed.is_none()
+                && dialog.positional.is_none();
+            if !flat {
+                dialog.mold = None;
+            }
+            if flat {
+                let mut mold = dialog.mold.is_some();
+                if ui
+                    .checkbox(&mut mold, RichText::new(tr("relief.mold")).strong())
+                    .on_hover_text(tr("relief.mold_hint"))
+                    .changed()
+                {
+                    dialog.mold = mold.then(|| MoldParams {
+                        sink: (height.min(width) / 2.0).max(1.0),
+                        ..MoldParams::default()
+                    });
+                }
+            }
+            if let Some(mold) = &mut dialog.mold {
+                egui::Grid::new("mold-grid")
+                    .num_columns(2)
+                    .spacing([10.0, 5.0])
+                    .show(ui, |ui| {
+                        ui.label(tr("relief.mold_sink"))
+                            .on_hover_text(tr("relief.mold_sink_hint"));
+                        ui.add(
+                            DragValue::new(&mut mold.sink)
+                                .range(0.1..=500.0)
+                                .suffix(" mm")
+                                .speed(0.1),
+                        );
+                        ui.end_row();
+                        ui.label(tr("relief.mold_offset"))
+                            .on_hover_text(tr("relief.mold_offset_hint"));
+                        ui.add(
+                            DragValue::new(&mut mold.offset)
+                                .range(0.0..=20.0)
+                                .suffix(" mm")
+                                .speed(0.05),
+                        );
+                        ui.end_row();
+                        ui.label(tr("relief.mold_islands"))
+                            .on_hover_text(tr("relief.mold_islands_hint"));
+                        ui.horizontal(|ui| {
+                            let mut remove = mold.min_island > 0.0;
+                            if ui.checkbox(&mut remove, "").changed() {
+                                mold.min_island = if remove { 20.0 } else { 0.0 };
+                            }
+                            if remove {
+                                ui.add(
+                                    DragValue::new(&mut mold.min_island)
+                                        .range(0.5..=10_000.0)
+                                        .prefix("< ")
+                                        .suffix(" mm²")
+                                        .speed(0.5),
+                                );
+                            }
+                        });
+                        ui.end_row();
+                        ui.label(tr("relief.mold_mirror"))
+                            .on_hover_text(tr("relief.mold_mirror_hint"));
+                        ui.checkbox(&mut mold.mirror, "");
+                        ui.end_row();
+                    });
+            }
             if let Some(positional) = &mut dialog.positional {
                 ui.horizontal(|ui| {
                     ui.label(tr("relief.stock"));
@@ -381,8 +456,14 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         let rotary = dialog.rotary_diameter;
         let indexed = dialog.indexed;
         let positional = dialog.positional.clone();
+        let mold = dialog.mold;
         let repaint = ctx.clone();
         std::thread::spawn(move || {
+            if let Some(mold) = mold {
+                let _ = sender.send(Ok(mml_relief::mold_gcode(&triangles, &params, &mold)));
+                repaint.request_repaint();
+                return;
+            }
             if let (Some(positional), Some(trunnion)) = (positional, trunnion) {
                 let _ = sender.send(
                     mml_relief::positional_gcode(&triangles, &params, &positional, &trunnion)

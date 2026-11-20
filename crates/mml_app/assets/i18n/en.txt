@@ -728,3 +728,14 @@ sprue.apply = Arrange {0} parts
 sprue.frame_layer = Frame
 sprue.done = {0} parts arranged in a sprue
 history.sprue = Sprue
+
+relief.mold = Mold: imprint of the model in the stock
+relief.mold_hint = Machines the hollow shape of the model sunk into the stock, at its real proportions, where you place it (X/Y above)
+relief.mold_sink = Sunk by
+relief.mold_sink_hint = Depth of the lowest point of the model below the stock top: half its height for a two-part mold
+relief.mold_offset = Offset
+relief.mold_offset_hint = Clearance added evenly all around the imprint, bottom included (casting shrinkage, release agent, a coating)
+relief.mold_islands = Remove small islands
+relief.mold_islands_hint = Small pieces of stock left standing inside the imprint are cut down to the floor around them; larger ones are kept (cores)
+relief.mold_mirror = Mirror (second half)
+relief.mold_mirror_hint = Mirrored imprint for the other half of the mold; turn the model over with the X 90° buttons twice
