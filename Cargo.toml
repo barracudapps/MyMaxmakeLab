@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+authors = ["Pierre Lamotte"]
+rust-version = "1.88"
+
+[workspace.dependencies]
+mml_core = { path = "crates/mml_core" }
+mml_gcode = { path = "crates/mml_gcode" }
+mml_laser = { path = "crates/mml_laser" }
+mml_cnc = { path = "crates/mml_cnc" }
+mml_io = { path = "crates/mml_io" }
+mml_materials = { path = "crates/mml_materials" }
+mml_device = { path = "crates/mml_device" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2
