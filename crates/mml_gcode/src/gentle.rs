@@ -232,28 +232,29 @@ pub fn gentle(source: &str, options: &GentleOptions) -> (String, GentleReport) {
         };
         let (length, dx, dy) = horizontal(&item);
         let plunge = length < 1e-6 && item.to[2] < item.from[2] - 1e-6;
-        if plunge && let Some(angle) = options.ramp_angle {
-            if let Some(next) = next_cut(index) {
-                let (next_length, nx, ny) = horizontal(&next);
-                let depth = item.from[2] - item.to[2];
-                let ramp = depth / angle.to_radians().tan();
-                if next_length > 0.5 && ramp > 0.0 {
-                    let leg = next_length.min(ramp).max(0.5);
-                    // Even number of legs so the ramp ends where it began.
-                    let legs = ((ramp / leg / 2.0).ceil().max(1.0) as usize) * 2;
-                    let direction = [nx / next_length, ny / next_length];
-                    for step in 1..=legs {
-                        let out_leg = step % 2 == 1;
-                        let point = [
-                            item.from[0] + if out_leg { direction[0] * leg } else { 0.0 },
-                            item.from[1] + if out_leg { direction[1] * leg } else { 0.0 },
-                            item.from[2] - depth * step as f64 / legs as f64,
-                        ];
-                        emit(&mut out, &mut active_feed, point, item.feed);
-                    }
-                    report.ramps += 1;
-                    continue;
+        if plunge
+            && let Some(angle) = options.ramp_angle
+            && let Some(next) = next_cut(index)
+        {
+            let (next_length, nx, ny) = horizontal(&next);
+            let depth = item.from[2] - item.to[2];
+            let ramp = depth / angle.to_radians().tan();
+            if next_length > 0.5 && ramp > 0.0 {
+                let leg = next_length.min(ramp).max(0.5);
+                // Even number of legs so the ramp ends where it began.
+                let legs = ((ramp / leg / 2.0).ceil().max(1.0) as usize) * 2;
+                let direction = [nx / next_length, ny / next_length];
+                for step in 1..=legs {
+                    let out_leg = step % 2 == 1;
+                    let point = [
+                        item.from[0] + if out_leg { direction[0] * leg } else { 0.0 },
+                        item.from[1] + if out_leg { direction[1] * leg } else { 0.0 },
+                        item.from[2] - depth * step as f64 / legs as f64,
+                    ];
+                    emit(&mut out, &mut active_feed, point, item.feed);
                 }
+                report.ramps += 1;
+                continue;
             }
         }
         // Corner at the end of this move?
