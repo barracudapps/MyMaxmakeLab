@@ -13,7 +13,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 [![MCP](https://img.shields.io/badge/AI-MCP%20server-ec4899)](docs/MCP.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[Why](#why) · [Tour](#a-quick-tour) · [In 3D](#see-it-in-3d) · [Make](#what-you-can-make) ·
+**[📖 Manuel (FR)](docs/manuel/README.md)** · [Why](#why) · [Tour](#a-quick-tour) · [In 3D](#see-it-in-3d) · [Make](#what-you-can-make) ·
 [Features](#features) · [Safety](#safety-first) · [Install](#install) ·
 [Architecture](#architecture) · [Roadmap](#roadmap) · [Français](#-en-bref)
 
@@ -360,8 +360,8 @@ mouvements par caméra, Makera Carvera (découverte Wi-Fi, changeur d'outils),
 réparation de G-code, moule, faces 5 axes, générateurs (boîte, labyrinthe,
 puzzle, motifs par style), grappes à ponts automatiques, détection des
 machines, production sur plusieurs machines, serveur MCP pour les
-assistants IA et mises à jour automatiques. Interface en français et en anglais, thèmes clair et
-sombre.
+assistants IA et mises à jour automatiques. Interface en français, anglais, allemand, italien et espagnol, thèmes
+clair et sombre. **[Manuel complet en français](docs/manuel/README.md)**.
 
 ---
 

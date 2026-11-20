@@ -1,0 +1,69 @@
+<sub>[← Interface](02-interface.md) · [Sommaire](README.md) · [Gravure et découpe laser →](04-laser.md)</sub>
+
+# 3. Conception
+
+## Importer
+
+| Format | Ce qui est repris |
+|---|---|
+| **SVG** | tracés, styles CSS, textes, transformations ; un calque par couleur |
+| **DXF** | lignes, arcs, renflements, splines, unités |
+| **PNG / JPG / BMP** | image à graver ou à vectoriser (*Vectoriser l'image*) |
+| **STL / OBJ** | modèle 3D, ouvre l'assistant [3D](06-3d-multi-axes.md) |
+| **G-code** (`.nc`, `.gcode`) | programme existant, à prévisualiser, réparer et lancer |
+
+Glissez-déposez les fichiers sur la fenêtre ou utilisez `Ctrl/⌘ I`.
+
+**Lien dynamique** : un fichier importé se recharge tout seul quand votre
+logiciel de dessin l'enregistre (Inkscape, Affinity, Krita, Procreate via un
+dossier synchronisé).
+
+## Dessiner et écrire
+
+- Rectangle, ellipse, polygone, **main levée** (souris, stylet, tablette).
+- **Texte** avec 39 polices libres intégrées et 7 polices à trait unique
+  (Hershey) pour le stylo, la fraise en V et le marquage rapide ; vos
+  polices personnelles sont ajoutées depuis les préférences.
+
+![Spécimen des polices](../images/fonts.png)
+
+- **Déformations façon WordArt** : texte en arc au-dessus ou au-dessous d'un
+  cercle, vague, bombé, avec aperçu ; elles s'appliquent aussi à tout
+  dessin vectoriel.
+- **Code SVG** : collez du SVG ou le `<svg>` d'une page HTML.
+- **Tablette ou téléphone** : *Fichier › Appairer* affiche un QR code ; on
+  dessine au doigt ou au stylet sur une page web, les traits arrivent en
+  direct.
+
+## Organiser
+
+Poignées de déplacement, redimensionnement et rotation, magnétisme sur la
+grille, alignements, duplication, **répétitions** (grille de copies),
+**grappes** (voir [Générateurs](07-generateurs.md)).
+
+## Calques et opérations
+
+Chaque calque porte **une opération** et s'exécute de haut en bas :
+mettez les gravures avant les découpes.
+
+| Opération | Pour |
+|---|---|
+| Laser ligne | découper, graver un trait, pointillés, ponts |
+| Laser remplissage | remplir des zones (lignes, diagonale, cercles, contours) |
+| Laser image | graver une photo (tramages, motifs) |
+| CNC profil | détourer à l'extérieur, à l'intérieur ou sur la ligne |
+| CNC poche | vider une zone |
+| CNC gravure en V | graver du texte ou un dessin avec une fraise en V |
+
+Options d'un calque : **Pause avant ce calque** (changer d'outil),
+**Bride / obstacle (non usiné)** avec la hauteur de son sommet (voir
+[Sécurité](09-securite.md)), emplacement du **changeur d'outils** sur les
+machines équipées.
+
+**Suggérer les réglages…** analyse le contenu du calque (photo, dessin au
+trait, texte…) et propose l'opération et les réglages de votre bibliothèque
+de matériaux.
+
+---
+
+<sub>[← Interface](02-interface.md) · [Sommaire](README.md) · [Gravure et découpe laser →](04-laser.md)</sub>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="540" viewBox="0 0 860 540" font-family="Helvetica, Arial, sans-serif">
+  <rect width="860" height="540" rx="18" fill="#15171c"/>
+  <!-- table -->
+  <rect x="260" y="420" width="580" height="40" fill="#555b68"/>
+  <text x="550" y="446" fill="#e8e6ff" font-size="15" text-anchor="middle">Table (ou martyr)</text>
+  <!-- brut avec la poche -->
+  <rect x="280" y="310" width="540" height="110" fill="#8b6b4a"/>
+  <rect x="430" y="310" width="60" height="70" fill="#15171c"/>
+  <text x="700" y="378" fill="#f5e6d3" font-size="15" text-anchor="middle">Brut</text>
+  <text x="700" y="398" fill="#f5e6d3" font-size="13" text-anchor="middle">(épaisseur réglée)</text>
+  <!-- bride -->
+  <rect x="560" y="272" width="120" height="38" rx="4" fill="#d64545"/>
+  <text x="620" y="296" fill="#ffffff" font-size="14" text-anchor="middle">Bride</text>
+  <text x="620" y="262" fill="#ff9a9a" font-size="13" text-anchor="middle">calque « obstacle » + hauteur</text>
+  <!-- broche, écrou, outil -->
+  <rect x="400" y="20" width="120" height="100" rx="10" fill="#3a3f4b"/>
+  <text x="460" y="75" fill="#e8e6ff" font-size="16" text-anchor="middle">Broche</text>
+  <polygon points="420,120 500,120 490,165 430,165" fill="#6b63ff"/>
+  <text x="530" y="140" fill="#b9b4ff" font-size="14">Écrou de pince</text>
+  <text x="530" y="158" fill="#b9b4ff" font-size="13">(Ø du porte-outil)</text>
+  <rect x="451" y="165" width="18" height="95" fill="#9aa0ad"/>
+  <rect x="451" y="260" width="18" height="120" fill="#fa8c52"/>
+  <path d="M451 275 L469 290 M451 305 L469 320 M451 335 L469 350 M451 362 L469 377" stroke="#15171c" stroke-width="3"/>
+  <!-- empreinte de l'écrou -->
+  <line x1="420" y1="165" x2="420" y2="305" stroke="#6b63ff" stroke-dasharray="6 5"/>
+  <line x1="500" y1="165" x2="500" y2="305" stroke="#6b63ff" stroke-dasharray="6 5"/>
+  <!-- cotes à gauche -->
+  <line x1="230" y1="165" x2="230" y2="380" stroke="#e8e6ff" stroke-width="1.5"/>
+  <line x1="222" y1="165" x2="238" y2="165" stroke="#e8e6ff" stroke-width="1.5"/>
+  <line x1="222" y1="380" x2="238" y2="380" stroke="#e8e6ff" stroke-width="1.5"/>
+  <text x="215" y="250" fill="#e8e6ff" font-size="15" text-anchor="end">Longueur réelle</text>
+  <text x="215" y="270" fill="#b0b5c0" font-size="13" text-anchor="end">mesurée sur le capteur</text>
+  <line x1="250" y1="260" x2="250" y2="380" stroke="#fa8c52" stroke-width="1.5"/>
+  <line x1="244" y1="260" x2="256" y2="260" stroke="#fa8c52" stroke-width="1.5"/>
+  <line x1="244" y1="380" x2="256" y2="380" stroke="#fa8c52" stroke-width="1.5"/>
+  <text x="215" y="340" fill="#fa8c52" font-size="15" text-anchor="end">Longueur de coupe</text>
+  <line x1="250" y1="165" x2="420" y2="165" stroke="#3a3f4b" stroke-dasharray="3 4"/>
+  <line x1="250" y1="380" x2="451" y2="380" stroke="#3a3f4b" stroke-dasharray="3 4"/>
+  <!-- légende -->
+  <text x="30" y="492" fill="#e8e6ff" font-size="15">La pointe ne descend jamais plus bas que la plus exigeante des limites :</text>
+  <text x="30" y="516" fill="#b0b5c0" font-size="14">table · matière au-dessus de la longueur de coupe · écrou de pince au-dessus de la matière et des brides · bride</text>
+</svg>
