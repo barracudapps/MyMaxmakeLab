@@ -11,6 +11,7 @@ mod preview;
 mod relief_dialog;
 mod settings;
 mod theme;
+mod tools_dialog;
 mod view3d;
 mod workflow;
 

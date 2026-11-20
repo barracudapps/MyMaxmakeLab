@@ -1,5 +1,7 @@
 //! Turns a document into the program streamed to the machine.
 
+mod vcarve;
+
 use mml_cnc::CncSettings;
 use mml_core::document::{Document, Shape, ShapeId, ShapeKind};
 use mml_core::geometry::{Path, Point, Rect};
@@ -254,7 +256,11 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             .iter()
             .filter_map(|shape| vector_paths(shape))
             .collect();
-        if has_images && !matches!(layer.operation, Operation::LaserImage(_)) {
+        let takes_images = matches!(
+            layer.operation,
+            Operation::LaserImage(_) | Operation::CncVCarve(_)
+        );
+        if has_images && !takes_images {
             warnings.push(JobWarning::ImageOnVectorLayer(name.clone()));
         }
         match &layer.operation {
@@ -283,6 +289,9 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             }
             Operation::CncPocket(params) => {
                 mml_cnc::emit_pocket(&mut writer, &mut head, vectors, params, &cnc)
+            }
+            Operation::CncVCarve(params) => {
+                vcarve::emit_vcarve(&mut writer, &shapes, params, machine.safe_z)
             }
         }
     }
@@ -509,6 +518,25 @@ mod tests {
             },
         );
         assert_eq!(rollers, "G1 Y50.000\n");
+    }
+
+    #[test]
+    fn v_carved_letter_stays_within_the_depth_limit() {
+        let (mut document, _) = document_with_square(50.0);
+        document.layers[0].operation = Operation::CncVCarve(mml_core::layer::VCarveParams {
+            max_depth: 1.0,
+            line_spacing: 0.5,
+            ..Default::default()
+        });
+        let job = build_job(&document, &MachineProfile::generic_cnc());
+        let program = mml_gcode::parse(&job.gcode);
+        assert!(program.z_range.0 >= -1.0 - 1e-6);
+        assert!(
+            program.z_range.0 < -0.9,
+            "a 10 mm square must reach the depth limit"
+        );
+        let bounds = program.cut_bounds();
+        assert!(bounds.min.x >= 44.0 && bounds.max.x <= 56.0);
     }
 
     #[test]

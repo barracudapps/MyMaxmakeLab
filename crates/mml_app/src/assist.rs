@@ -7,8 +7,8 @@ use crate::i18n::{tr, trf};
 use eframe::egui::{self, RichText};
 use mml_core::document::{Document, ShapeKind};
 use mml_core::layer::{
-    CncPocketParams, CncProfileParams, DitherMode, FillParams, ImageParams, LayerId, LineParams,
-    Operation, ProfileSide,
+    CncProfileParams, DitherMode, FillParams, ImageParams, LayerId, LineParams, Operation,
+    ProfileSide,
 };
 use mml_core::machine::MachineKind;
 use mml_materials::Library;
@@ -98,6 +98,13 @@ pub fn suggest(
     library: &Library,
 ) -> (Operation, bool) {
     let default = match (content, machine) {
+        (Content::Photo | Content::LineArt, MachineKind::Cnc) => {
+            Operation::CncVCarve(mml_core::layer::VCarveParams {
+                max_depth: 1.0,
+                line_spacing: 0.2,
+                ..Default::default()
+            })
+        }
         (Content::Photo, _) => Operation::LaserImage(ImageParams {
             dither: DitherMode::Jarvis,
             dpi: 254.0,
@@ -130,10 +137,9 @@ pub fn suggest(
             passes: 2,
             ..LineParams::default()
         }),
-        (Content::Text, MachineKind::Cnc) => Operation::CncPocket(CncPocketParams {
-            depth: 1.0,
-            ..CncPocketParams::default()
-        }),
+        (Content::Text, MachineKind::Cnc) => {
+            Operation::CncVCarve(mml_core::layer::VCarveParams::default())
+        }
         (Content::Strokes, MachineKind::Cnc) => Operation::CncProfile(CncProfileParams {
             side: ProfileSide::On,
             depth: 0.5,

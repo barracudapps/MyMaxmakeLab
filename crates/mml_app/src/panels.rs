@@ -491,13 +491,14 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.label(RichText::new(tr("layers.order_hint")).weak().small());
 }
 
-fn all_operations() -> [Operation; 5] {
+fn all_operations() -> [Operation; 6] {
     [
         Operation::LaserLine(LineParams::default()),
         Operation::LaserFill(FillParams::default()),
         Operation::LaserImage(ImageParams::default()),
         Operation::CncProfile(CncProfileParams::default()),
         Operation::CncPocket(CncPocketParams::default()),
+        Operation::CncVCarve(mml_core::layer::VCarveParams::default()),
     ]
 }
 
@@ -547,6 +548,7 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
         });
     }
     material_picker(app, ui, &mut operation, &mut changed);
+    tool_picker(app, ui, &mut operation, &mut changed);
     let mut pause_before = app.document.layers[index].pause_before;
     if ui
         .checkbox(&mut pause_before, tr("op.pause_before"))
@@ -725,6 +727,33 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
                 ui.end_row();
             }
+            Operation::CncVCarve(params) => {
+                ui.label(tr("op.vbit_angle"));
+                changed |= number(ui, &mut params.angle, 10.0..=170.0, " °", 1.0);
+                ui.end_row();
+                ui.label(tr("op.tool_diameter"));
+                changed |= number(ui, &mut params.tool_diameter, 0.5..=40.0, " mm", 0.05);
+                ui.end_row();
+                ui.label(tr("op.max_depth"))
+                    .on_hover_text(tr("op.max_depth_hint"));
+                changed |= number(ui, &mut params.max_depth, 0.05..=20.0, " mm", 0.05);
+                ui.end_row();
+                ui.label(tr("op.line_spacing"));
+                changed |= number(ui, &mut params.line_spacing, 0.02..=2.0, " mm", 0.01);
+                ui.end_row();
+                ui.label(tr("op.feed"));
+                changed |= number(ui, &mut params.feed, 1.0..=20_000.0, " mm/min", 10.0);
+                ui.end_row();
+                ui.label(tr("op.plunge"));
+                changed |= number(ui, &mut params.plunge, 1.0..=5_000.0, " mm/min", 5.0);
+                ui.end_row();
+                ui.label(tr("op.spindle"));
+                changed |= number(ui, &mut params.spindle, 0.0..=60_000.0, " rpm", 100.0);
+                ui.end_row();
+                ui.label("");
+                ui.label(RichText::new(tr("op.vcarve_hint")).weak().small());
+                ui.end_row();
+            }
         });
     if changed {
         app.document.layers[index].operation = operation;
@@ -766,6 +795,74 @@ fn cnc_common(
     changed |= ui.checkbox(climb, "").changed();
     ui.end_row();
     changed
+}
+
+/// Fills the cutting data of a CNC operation from the tool library.
+fn tool_picker(app: &mut MyApp, ui: &mut egui::Ui, operation: &mut Operation, changed: &mut bool) {
+    use mml_materials::ToolKind;
+    if operation.is_laser() {
+        return;
+    }
+    let wants_v = matches!(operation, Operation::CncVCarve(_));
+    let tools: Vec<mml_materials::Tool> = app
+        .library
+        .tools
+        .iter()
+        .filter(|tool| matches!(tool.kind, ToolKind::VBit { .. }) == wants_v)
+        .cloned()
+        .collect();
+    ui.horizontal(|ui| {
+        ui.label(tr("tools.tool"));
+        let hint = if tools.is_empty() {
+            tr("tools.none")
+        } else {
+            tr("tools.choose")
+        };
+        egui::ComboBox::from_id_salt("op-tool")
+            .selected_text(hint)
+            .width(170.0)
+            .show_ui(ui, |ui| {
+                for tool in &tools {
+                    if ui.selectable_label(false, tool.label()).clicked() {
+                        match operation {
+                            Operation::CncProfile(params) => {
+                                params.tool_diameter = tool.diameter;
+                                params.feed = tool.feed;
+                                params.plunge = tool.plunge;
+                                params.spindle = tool.spindle;
+                                params.pass_depth = tool.stepdown;
+                            }
+                            Operation::CncPocket(params) => {
+                                params.tool_diameter = tool.diameter;
+                                params.feed = tool.feed;
+                                params.plunge = tool.plunge;
+                                params.spindle = tool.spindle;
+                                params.pass_depth = tool.stepdown;
+                                params.stepover = tool.stepover;
+                            }
+                            Operation::CncVCarve(params) => {
+                                if let ToolKind::VBit { angle } = tool.kind {
+                                    params.angle = angle;
+                                }
+                                params.tool_diameter = tool.diameter;
+                                params.feed = tool.feed;
+                                params.plunge = tool.plunge;
+                                params.spindle = tool.spindle;
+                            }
+                            _ => {}
+                        }
+                        *changed = true;
+                    }
+                }
+            });
+        if ui
+            .small_button("⚙")
+            .on_hover_text(tr("tools.manage"))
+            .clicked()
+        {
+            app.tools_open = true;
+        }
+    });
 }
 
 fn material_picker(
@@ -961,6 +1058,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::workflow::tutorial(app, ctx);
     crate::relief_dialog::show(app, ctx);
     crate::assist::show(app, ctx);
+    crate::tools_dialog::show(app, ctx);
     text_dialog(app, ctx);
     array_dialog(app, ctx);
     preset_dialog(app, ctx);

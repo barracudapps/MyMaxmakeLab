@@ -142,10 +142,15 @@ pub fn rotate_quarter(triangles: &mut [Triangle], axis: usize) {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ToolShape {
     Flat,
     Ball,
+    /// V-bit, included angle in degrees; `tool_diameter` is its widest
+    /// cutting diameter.
+    V {
+        angle: f64,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -206,6 +211,33 @@ pub struct HeightField {
 }
 
 impl HeightField {
+    /// Field sampled from a function of the work position.
+    pub fn from_fn(
+        origin: [f64; 2],
+        step: f64,
+        columns: usize,
+        rows: usize,
+        height: impl Fn(f64, f64) -> Option<f64>,
+    ) -> Self {
+        let (columns, rows) = (columns.max(2), rows.max(2));
+        let mut heights = Vec::with_capacity(columns * rows);
+        for row in 0..rows {
+            for column in 0..columns {
+                heights.push(height(
+                    origin[0] + column as f64 * step,
+                    origin[1] + row as f64 * step,
+                ));
+            }
+        }
+        Self {
+            origin,
+            step,
+            columns,
+            rows,
+            heights,
+        }
+    }
+
     pub fn width(&self) -> f64 {
         self.step * (self.columns - 1) as f64
     }
@@ -307,6 +339,9 @@ impl DropCutter {
                         ToolShape::Ball => {
                             (radius * radius - distance * distance).max(0.0).sqrt() - radius
                         }
+                        ToolShape::V { angle } => {
+                            -distance / (angle.clamp(5.0, 175.0) / 2.0).to_radians().tan()
+                        }
                     };
                     kernel.push((dx, dy, offset));
                 }
@@ -331,17 +366,9 @@ impl DropCutter {
 
 /// Raster roughing by levels then raster finishing along X.
 pub fn relief_gcode(triangles: &[Triangle], params: &ReliefParams) -> String {
-    let radius = params.tool_diameter / 2.0;
     let line_spacing = (params.tool_diameter * params.stepover.clamp(0.02, 0.9)).max(0.02);
     let step = (line_spacing / 2.0).clamp(0.05, 0.5);
     let field = height_field(triangles, params, step);
-    let cutter = DropCutter::new(params.tool, radius, step);
-    let tips: Vec<Option<f64>> = (0..field.rows)
-        .flat_map(|row| (0..field.columns).map(move |column| (column, row)))
-        .map(|(column, row)| cutter.tip(&field, column, row))
-        .collect();
-    let row_stride = ((line_spacing / step).round() as usize).max(1);
-
     let mut writer = GcodeWriter::new();
     writer.comment(&format!(
         "Relief {:.1} x {:.1} mm, depth {:.2} mm, {:?} tool {:.3} mm",
@@ -352,6 +379,30 @@ pub fn relief_gcode(triangles: &[Triangle], params: &ReliefParams) -> String {
         params.tool_diameter
     ));
     writer.preamble();
+    emit_field(&mut writer, &field, params);
+    writer.rapid(params.origin[0], params.origin[1]);
+    writer.program_end();
+    writer.finish()
+}
+
+/// Grid step that suits the stepover of `params`.
+pub fn field_step(params: &ReliefParams) -> f64 {
+    let line_spacing = (params.tool_diameter * params.stepover.clamp(0.02, 0.9)).max(0.02);
+    (line_spacing / 2.0).clamp(0.05, 0.5)
+}
+
+/// Machines a height field (roughing then finishing as configured) into
+/// an existing program; the spindle is started and stopped here.
+pub fn emit_field(writer: &mut GcodeWriter, field: &HeightField, params: &ReliefParams) {
+    let radius = params.tool_diameter / 2.0;
+    let line_spacing = (params.tool_diameter * params.stepover.clamp(0.02, 0.9)).max(0.02);
+    let step = field.step;
+    let cutter = DropCutter::new(params.tool, radius, step);
+    let tips: Vec<Option<f64>> = (0..field.rows)
+        .flat_map(|row| (0..field.columns).map(move |column| (column, row)))
+        .map(|(column, row)| cutter.tip(field, column, row))
+        .collect();
+    let row_stride = ((line_spacing / step).round() as usize).max(1);
     writer.spindle_on(params.spindle);
     writer.rapid_z(params.safe_z);
 
@@ -395,17 +446,14 @@ pub fn relief_gcode(triangles: &[Triangle], params: &ReliefParams) -> String {
         for level in 1..=levels {
             let floor = (-(level as f64) * params.pass_depth).max(lowest);
             writer.comment(&format!("Roughing level {floor:.2}"));
-            raster(&mut writer, floor, params.allowance, rough_stride);
+            raster(writer, floor, params.allowance, rough_stride);
         }
     }
     if params.finishing {
         writer.comment("Finishing");
-        raster(&mut writer, f64::NEG_INFINITY, 0.0, row_stride);
+        raster(writer, f64::NEG_INFINITY, 0.0, row_stride);
     }
     writer.tool_off();
-    writer.rapid(params.origin[0], params.origin[1]);
-    writer.program_end();
-    writer.finish()
 }
 
 #[cfg(test)]
@@ -468,6 +516,30 @@ mod tests {
             }
         }
         assert!(program.z_range.0 >= -4.0 - 1e-6);
+    }
+
+    #[test]
+    fn v_bit_reaches_depth_only_where_the_groove_is_wide_enough() {
+        // Groove 2 mm wide: with a 90° bit the bottom is 1 mm deep.
+        let field = HeightField::from_fn([0.0, 0.0], 0.05, 81, 21, |x, _| {
+            let distance = (1.0 - (x - 2.0).abs()).max(0.0);
+            Some(-distance.min(3.0))
+        });
+        let params = ReliefParams {
+            tool: ToolShape::V { angle: 90.0 },
+            tool_diameter: 6.0,
+            roughing: false,
+            stepover: 0.1,
+            ..ReliefParams::default()
+        };
+        let mut writer = GcodeWriter::new();
+        emit_field(&mut writer, &field, &params);
+        let program = mml_gcode::parse(&writer.finish());
+        assert!(
+            (program.z_range.0 + 1.0).abs() < 0.06,
+            "deepest {}",
+            program.z_range.0
+        );
     }
 
     #[test]

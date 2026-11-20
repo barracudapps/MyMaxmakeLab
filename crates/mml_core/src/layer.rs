@@ -68,6 +68,9 @@ pub enum Operation {
     LaserImage(ImageParams),
     CncProfile(CncProfileParams),
     CncPocket(CncPocketParams),
+    /// Engraving with a V-bit: V-carving of vectors (depth follows the
+    /// stroke width) or of pictures (depth follows darkness).
+    CncVCarve(VCarveParams),
 }
 
 impl Operation {
@@ -85,6 +88,7 @@ impl Operation {
             Self::LaserImage(_) => "op.laser_image",
             Self::CncProfile(_) => "op.cnc_profile",
             Self::CncPocket(_) => "op.cnc_pocket",
+            Self::CncVCarve(_) => "op.cnc_vcarve",
         }
     }
 }
@@ -262,6 +266,36 @@ impl Default for CncProfileParams {
             tabs: 0,
             tab_width: 4.0,
             tab_height: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VCarveParams {
+    /// Included angle of the bit, degrees.
+    pub angle: f64,
+    /// Widest cutting diameter of the bit, mm.
+    pub tool_diameter: f64,
+    /// Depth limit; wide areas are flat-bottomed at this depth.
+    pub max_depth: f64,
+    /// Distance between raster lines, mm.
+    pub line_spacing: f64,
+    pub feed: f64,
+    pub plunge: f64,
+    pub spindle: f64,
+}
+
+impl Default for VCarveParams {
+    fn default() -> Self {
+        Self {
+            angle: 60.0,
+            tool_diameter: 6.0,
+            max_depth: 1.5,
+            line_spacing: 0.15,
+            feed: 800.0,
+            plunge: 200.0,
+            spindle: 16000.0,
         }
     }
 }

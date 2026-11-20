@@ -12,3 +12,4 @@ mml_core.workspace = true
 mml_gcode.workspace = true
 mml_laser.workspace = true
 mml_cnc.workspace = true
+mml_relief.workspace = true

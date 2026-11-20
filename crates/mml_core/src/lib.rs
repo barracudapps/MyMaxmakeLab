@@ -17,7 +17,7 @@ pub use geometry::{Path, Point, Rect, Transform};
 pub use history::History;
 pub use layer::{
     CncPocketParams, CncProfileParams, DitherMode, FillParams, ImageParams, Layer, LayerId,
-    LineParams, Operation, ProfileSide,
+    LineParams, Operation, ProfileSide, VCarveParams,
 };
 pub use machine::{MachineKind, MachineProfile, Origin};
 pub use project::{Project, ProjectError};

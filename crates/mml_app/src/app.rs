@@ -162,6 +162,8 @@ pub struct MyApp {
     pub relief: Option<crate::relief_dialog::ReliefDialog>,
     pub assist: Option<crate::assist::AssistDialog>,
     pub view3d: crate::view3d::View3d,
+    pub tools_open: bool,
+    pub tool_selected: Option<usize>,
 }
 
 impl MyApp {
@@ -240,6 +242,8 @@ impl MyApp {
             relief: None,
             assist: None,
             view3d: crate::view3d::View3d::default(),
+            tools_open: false,
+            tool_selected: None,
         };
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);
@@ -1307,6 +1311,9 @@ impl MyApp {
                 ui.menu_button(tr("menu.machine"), |ui| {
                     if ui.button(tr("menu.machine_settings")).clicked() {
                         self.machine_dialog = Some(self.machine.clone());
+                    }
+                    if ui.button(tr("tools.title")).clicked() {
+                        self.tools_open = true;
                     }
                     ui.separator();
                     for preset in MachineProfile::presets() {
