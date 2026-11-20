@@ -14,6 +14,10 @@ pub struct PairingState {
     pub qr: Option<egui::TextureHandle>,
     pub shared_revision: u64,
     pub use_selection: bool,
+    /// Which page the QR code opens: drawing or job monitoring.
+    pub show_monitor: bool,
+    pub monitor_qr: Option<egui::TextureHandle>,
+    last_status: Option<std::time::Instant>,
 }
 
 impl Default for PairingState {
@@ -24,6 +28,9 @@ impl Default for PairingState {
             qr: None,
             shared_revision: u64::MAX,
             use_selection: false,
+            show_monitor: false,
+            monitor_qr: None,
+            last_status: None,
         }
     }
 }
@@ -55,8 +62,79 @@ fn qr_texture(ctx: &egui::Context, url: &str) -> Option<egui::TextureHandle> {
     ))
 }
 
+/// State of the machine and of the job for the monitoring page.
+fn status_json(app: &MyApp) -> String {
+    let device = &app.device;
+    let state = device.state();
+    let job = device.job.as_ref().filter(|job| job.kind == crate::machine_panel::JobKind::Main).map(|job| {
+        let share = if job.total > 0 { job.acknowledged as f64 / job.total as f64 } else { 0.0 };
+        let elapsed = job.started.elapsed().as_secs_f64();
+        let remaining = (job.estimate.as_secs_f64() * (1.0 - share)).max(0.0);
+        serde_json::json!({
+            "name": app.job.built.as_ref().and_then(|built| built.external.clone()).unwrap_or_else(|| app.document_name()),
+            "done": job.acknowledged,
+            "total": job.total,
+            "elapsed": elapsed,
+            "remaining": remaining,
+            "paused": job.paused,
+        })
+    });
+    let message = device
+        .anomaly
+        .as_ref()
+        .map(|(anomaly, _)| format!("{anomaly:?}"))
+        .or_else(|| device.alarm.map(crate::i18n::grbl_alarm));
+    serde_json::json!({
+        "machine": app.machine.name,
+        "state": format!("{state:?}"),
+        "state_label": if device.is_connected() { crate::machine_panel::state_label(state) } else { tr("device.disconnected") },
+        "job": job,
+        "position": device.status.as_ref().map(|status| status.work_position),
+        "message": message,
+        "labels": {
+            "pause": tr("monitor.pause"),
+            "estop": tr("monitor.estop"),
+            "remaining": tr("monitor.remaining"),
+            "idle": tr("monitor.idle"),
+            "offline": tr("monitor.offline"),
+            "note": tr("monitor.note"),
+        },
+    })
+    .to_string()
+}
+
 /// Receives strokes and keeps the design shown on the tablet current.
 pub fn poll(app: &mut MyApp) {
+    let Some(server) = &app.pairing.server else {
+        return;
+    };
+    // Commands from the phone: only pause and emergency stop.
+    let mut commands = Vec::new();
+    while let Ok(command) = server.remote.try_recv() {
+        commands.push(command);
+    }
+    let due = app
+        .pairing
+        .last_status
+        .is_none_or(|time| time.elapsed().as_millis() > 500);
+    if due {
+        server.update_status(status_json(app));
+        app.pairing.last_status = Some(std::time::Instant::now());
+    }
+    for command in commands {
+        match command {
+            crate::pairing::RemoteCommand::Pause => {
+                if app.device.job_running() {
+                    app.device.send(mml_device::Command::Pause);
+                    app.notify(tr("monitor.paused_remote"), Level::Warning);
+                }
+            }
+            crate::pairing::RemoteCommand::EmergencyStop => {
+                app.device.send(mml_device::Command::EmergencyStop);
+                app.notify(tr("monitor.estop_remote"), Level::Error);
+            }
+        }
+    }
     let Some(server) = &app.pairing.server else {
         return;
     };
@@ -155,16 +233,34 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     }
                 }
                 Some(server) => {
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(
+                            &mut app.pairing.show_monitor,
+                            false,
+                            tr("pairing.page_draw"),
+                        );
+                        ui.selectable_value(
+                            &mut app.pairing.show_monitor,
+                            true,
+                            tr("pairing.page_monitor"),
+                        )
+                        .on_hover_text(tr("pairing.page_monitor_hint"));
+                    });
                     ui.label(tr("pairing.scan"));
-                    if let Some(texture) = &app.pairing.qr {
+                    let (qr, url) = if app.pairing.show_monitor {
+                        (&app.pairing.monitor_qr, &server.monitor_url)
+                    } else {
+                        (&app.pairing.qr, &server.url)
+                    };
+                    if let Some(texture) = qr {
                         ui.vertical_centered(|ui| {
                             ui.image((texture.id(), egui::vec2(220.0, 220.0)))
                         });
                     }
                     ui.horizontal(|ui| {
-                        ui.monospace(&server.url);
+                        ui.monospace(url);
                         if ui.small_button(tr("pairing.copy")).clicked() {
-                            ui.ctx().copy_text(server.url.clone());
+                            ui.ctx().copy_text(url.clone());
                         }
                     });
                     ui.label(
@@ -187,6 +283,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         match Pairing::start(area) {
             Ok(server) => {
                 app.pairing.qr = qr_texture(ctx, &server.url);
+                app.pairing.monitor_qr = qr_texture(ctx, &server.monitor_url);
                 app.pairing.shared_revision = u64::MAX;
                 app.pairing.server = Some(server);
             }

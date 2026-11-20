@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15171c">
+<title>MyMaxmakeLab</title>
+<style>
+  :root { --bg:#15171c; --card:#20232b; --text:#ecebff; --weak:#9aa0ad; --accent:#6b63ff; --ok:#34a870; --warn:#e29828; --danger:#de4a42; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px -apple-system, system-ui, sans-serif; padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom)); }
+  h1 { font-size:18px; margin:0 0 12px; color:var(--weak); font-weight:600; }
+  .card { background:var(--card); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .state { display:inline-block; padding:6px 14px; border-radius:999px; font-weight:700; background:var(--accent); }
+  .state.Run { background:var(--ok); } .state.Hold, .state.Door { background:var(--warn); } .state.Alarm { background:var(--danger); }
+  .job { font-size:20px; font-weight:700; margin:12px 0 4px; word-break:break-word; }
+  .bar { height:14px; background:#2d313b; border-radius:7px; overflow:hidden; margin:12px 0 6px; }
+  .bar > div { height:100%; background:var(--accent); width:0; transition:width .4s; }
+  .row { display:flex; justify-content:space-between; color:var(--weak); }
+  .big { font-size:34px; font-weight:800; color:var(--text); }
+  .pos { font-family:ui-monospace, monospace; font-size:18px; }
+  .message { color:var(--warn); margin-top:8px; }
+  button { width:100%; border:0; border-radius:16px; padding:20px; font-size:20px; font-weight:800; color:#fff; margin-bottom:12px; }
+  #pause { background:var(--warn); }
+  #estop { background:var(--danger); font-size:24px; padding:26px; }
+  .offline { color:var(--danger); }
+  .note { color:var(--weak); font-size:13px; text-align:center; }
+</style>
+</head>
+<body>
+<h1 id="machine">MyMaxmakeLab</h1>
+<div class="card">
+  <span class="state" id="state">…</span>
+  <div class="job" id="job"></div>
+  <div class="bar"><div id="progress"></div></div>
+  <div class="row"><span id="percent"></span><span id="eta"></span></div>
+  <div class="message" id="message"></div>
+</div>
+<div class="card"><div class="pos" id="position"></div></div>
+<button id="pause">Pause</button>
+<button id="estop">STOP</button>
+<p class="note" id="note"></p>
+<script>
+const token = new URLSearchParams(location.search).get('t');
+const $ = id => document.getElementById(id);
+const duration = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60; return (h ? h + ' h ' : '') + m + ' min ' + String(r).padStart(2, '0') + ' s'; };
+async function send(path) { try { await fetch(path + '?t=' + token, { method: 'POST', body: '' }); } catch (e) {} }
+$('pause').onclick = () => send('/pause');
+$('estop').onclick = () => send('/estop');
+async function refresh() {
+  try {
+    const status = await (await fetch('/status?t=' + token, { cache: 'no-store' })).json();
+    const labels = status.labels || {};
+    $('pause').textContent = labels.pause || 'Pause';
+    $('estop').textContent = labels.estop || 'STOP';
+    $('note').textContent = labels.note || '';
+    $('machine').textContent = status.machine || 'MyMaxmakeLab';
+    $('state').textContent = status.state_label || status.state || '';
+    $('state').className = 'state ' + (status.state || '');
+    const job = status.job;
+    if (job) {
+      const share = job.total ? job.done / job.total : 0;
+      $('job').textContent = job.name || '';
+      $('progress').style.width = (share * 100).toFixed(1) + '%';
+      $('percent').textContent = (share * 100).toFixed(0) + ' %';
+      $('eta').textContent = job.remaining != null ? (labels.remaining || '') + ' ' + duration(job.remaining) : '';
+    } else {
+      $('job').textContent = labels.idle || '';
+      $('progress').style.width = '0';
+      $('percent').textContent = ''; $('eta').textContent = '';
+    }
+    const p = status.position;
+    $('position').textContent = p ? 'X ' + p[0].toFixed(2) + '   Y ' + p[1].toFixed(2) + '   Z ' + p[2].toFixed(2) : (labels.offline || '');
+    $('message').textContent = status.message || '';
+    document.body.classList.remove('offline');
+  } catch (e) {
+    $('state').textContent = '…';
+  }
+}
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

@@ -283,6 +283,7 @@ mod tests {
                     "collision",
                     "gate",
                     "palette",
+                    "monitor",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')

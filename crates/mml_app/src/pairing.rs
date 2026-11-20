@@ -15,6 +15,15 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const PAGE: &str = include_str!("../assets/web/draw.html");
+const MONITOR: &str = include_str!("../assets/web/monitor.html");
+
+/// What a phone may ask: only commands that make the machine safer.
+/// Nothing can start or resume a job from the network.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RemoteCommand {
+    Pause,
+    EmergencyStop,
+}
 
 /// What the page shows behind the drawing, and the drawing area.
 #[derive(Default)]
@@ -22,6 +31,8 @@ struct SharedView {
     svg: String,
     width: f64,
     height: f64,
+    /// Job and machine state for the monitoring page, as JSON.
+    status: String,
 }
 
 pub type Stroke = Vec<[f64; 2]>;
@@ -31,6 +42,9 @@ pub struct Pairing {
     /// Machine area the page maps to.
     pub area: Rect,
     pub strokes: Receiver<Vec<Stroke>>,
+    pub remote: Receiver<RemoteCommand>,
+    /// Address of the monitoring page.
+    pub monitor_url: String,
     shared: Arc<Mutex<SharedView>>,
     stop: Arc<AtomicBool>,
     pub received: usize,
@@ -72,12 +86,16 @@ impl Pairing {
         listener.set_nonblocking(true)?;
         let port = listener.local_addr()?.port();
         let token = random_token();
-        let url = format!("http://{}:{port}/?t={token}", local_address());
+        let address = local_address();
+        let url = format!("http://{address}:{port}/?t={token}");
+        let monitor_url = format!("http://{address}:{port}/monitor?t={token}");
         let shared = Arc::new(Mutex::new(SharedView {
             svg: String::new(),
             width: area.width(),
             height: area.height(),
+            status: "{}".into(),
         }));
+        let (remote_sender, remote) = channel();
         let stop = Arc::new(AtomicBool::new(false));
         let (sender, strokes) = channel();
         let thread_shared = shared.clone();
@@ -88,7 +106,7 @@ impl Pairing {
                 while !thread_stop.load(Ordering::Relaxed) {
                     match listener.accept() {
                         Ok((stream, _)) => {
-                            let _ = serve(stream, &token, &thread_shared, &sender);
+                            let _ = serve(stream, &token, &thread_shared, &sender, &remote_sender);
                         }
                         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(30));
@@ -101,10 +119,18 @@ impl Pairing {
             url,
             area,
             strokes,
+            remote,
+            monitor_url,
             shared,
             stop,
             received: 0,
         })
+    }
+
+    pub fn update_status(&self, json: String) {
+        if let Ok(mut shared) = self.shared.lock() {
+            shared.status = json;
+        }
     }
 
     pub fn update_view(&self, document: &Document) {
@@ -130,6 +156,7 @@ fn serve(
     token: &str,
     shared: &Mutex<SharedView>,
     sender: &Sender<Vec<Stroke>>,
+    remote: &Sender<RemoteCommand>,
 ) -> std::io::Result<()> {
     stream.set_nonblocking(false)?;
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -192,6 +219,27 @@ fn serve(
             "text/html; charset=utf-8",
             PAGE.as_bytes(),
         ),
+        ("GET", "/monitor") => respond(
+            &mut stream,
+            "200 OK",
+            "text/html; charset=utf-8",
+            MONITOR.as_bytes(),
+        ),
+        ("GET", "/status") => {
+            let json = shared
+                .lock()
+                .map(|view| view.status.clone())
+                .unwrap_or_default();
+            respond(&mut stream, "200 OK", "application/json", json.as_bytes())
+        }
+        ("POST", "/pause") => {
+            let _ = remote.send(RemoteCommand::Pause);
+            respond(&mut stream, "200 OK", "text/plain", b"ok")
+        }
+        ("POST", "/estop") => {
+            let _ = remote.send(RemoteCommand::EmergencyStop);
+            respond(&mut stream, "200 OK", "text/plain", b"ok")
+        }
         ("GET", "/area") => {
             let (width, height) = shared
                 .lock()
@@ -344,5 +392,23 @@ mod tests {
             .recv_timeout(Duration::from_secs(2))
             .unwrap();
         assert_eq!(received[0][1], [9.0, 9.0]);
+        // Monitoring: the page and the status need the code too, and a
+        // phone can only pause or stop.
+        assert!(request("/status", "").starts_with("HTTP/1.1 403"));
+        assert!(request("/pause", "x").starts_with("HTTP/1.1 403"));
+        pairing.update_status("{\"state\":\"Run\"}".into());
+        assert!(request(&format!("/monitor?t={token}"), "").contains("estop"));
+        assert!(request(&format!("/status?t={token}"), "").contains("\"Run\""));
+        assert!(request(&format!("/pause?t={token}"), "x").starts_with("HTTP/1.1 200"));
+        assert!(request(&format!("/estop?t={token}"), "x").starts_with("HTTP/1.1 200"));
+        assert_eq!(
+            pairing.remote.recv_timeout(Duration::from_secs(2)).unwrap(),
+            RemoteCommand::Pause
+        );
+        assert_eq!(
+            pairing.remote.recv_timeout(Duration::from_secs(2)).unwrap(),
+            RemoteCommand::EmergencyStop
+        );
+        assert!(request(&format!("/resume?t={token}"), "x").starts_with("HTTP/1.1 404"));
     }
 }

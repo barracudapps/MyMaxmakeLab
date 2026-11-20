@@ -27,6 +27,17 @@ flowchart LR
   suivant, pour partager l'usure.
 - Un bouton d'**arrêt d'urgence** commun arrête toutes les machines.
 
+## Suivre un travail depuis le téléphone
+
+*Fichier › Appairer*, puis **Suivi du travail** : scannez le QR code avec un
+téléphone ou une tablette du même réseau. La page affiche l'état de la
+machine, le travail, l'avancement, le temps restant et la position, mises
+à jour chaque seconde.
+
+Elle ne propose que **Pause** et **Arrêt d'urgence** : depuis le réseau, un
+travail ne peut jamais être lancé ni repris. Un code secret dans l'adresse
+bloque les autres appareils du réseau.
+
 ## Optimiser
 
 | Objectif | Comment |

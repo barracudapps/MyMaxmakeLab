@@ -359,7 +359,7 @@ impl DeviceState {
     }
 }
 
-fn state_label(state: MachineState) -> &'static str {
+pub fn state_label(state: MachineState) -> &'static str {
     match state {
         MachineState::Unknown => tr("state.unknown"),
         MachineState::Idle => tr("state.idle"),
