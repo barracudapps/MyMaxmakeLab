@@ -163,6 +163,7 @@ mod tests {
             include_str!("text_tools.rs"),
             include_str!("pairing_dialog.rs"),
             include_str!("camera_panel.rs"),
+            include_str!("firmware.rs"),
             include_str!("../../mml_materials/src/tools.rs"),
             include_str!("../../mml_core/src/layer.rs"),
         ];

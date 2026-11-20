@@ -4,6 +4,7 @@ mod app;
 mod assist;
 mod camera_panel;
 mod canvas;
+mod firmware;
 mod i18n;
 mod icons;
 mod machine_panel;

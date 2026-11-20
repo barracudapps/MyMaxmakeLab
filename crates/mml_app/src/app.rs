@@ -191,6 +191,7 @@ pub struct MyApp {
     pub closing_tab: Option<usize>,
     pub pairing: crate::pairing_dialog::PairingState,
     pub camera: crate::camera_panel::CameraState,
+    pub firmware: crate::firmware::FirmwareState,
 }
 
 impl MyApp {
@@ -279,6 +280,7 @@ impl MyApp {
             closing_tab: None,
             pairing: Default::default(),
             camera: Default::default(),
+            firmware: Default::default(),
         };
         if let Some(fonts) = crate::settings::fonts_dir().filter(|directory| directory.is_dir()) {
             mml_io::add_font_directory(&fonts);
@@ -1606,6 +1608,9 @@ impl MyApp {
                     }
                     if ui.button(tr("tools.title")).clicked() {
                         self.tools_open = true;
+                    }
+                    if self.settings.advanced && ui.button(tr("firmware.title")).clicked() {
+                        self.firmware.open = true;
                     }
                     ui.separator();
                     for preset in MachineProfile::presets() {

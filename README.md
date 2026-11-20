@@ -8,7 +8,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 
 ![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
-![Tests](https://img.shields.io/badge/tests-74%20passing-34a870)
+![Tests](https://img.shields.io/badge/tests-84%20passing-34a870)
 ![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL-informational)
 
 <img src="docs/images/design.png" alt="Design step" width="900">
@@ -175,7 +175,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 74 tests
+cargo test --workspace      # 84 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -230,9 +230,11 @@ body): `git log` is the technical changelog. See
 - [ ] Automatic movement consistency check by computer vision on the live camera
 - [x] GRBL-like firmwares (Smoothieware, Makera Carvera): send-and-wait streaming, legacy status reports
 - [ ] Makera Carvera specifics (automatic tool changer, its Wi-Fi discovery), to validate on the machine
-- [ ] Firmware update per vendor protocol
+- [x] Firmware update of open controllers (GRBL on Arduino via avrdude, grblHAL / FluidNC on ESP32 via esptool)
+- [ ] Vendor firmware update (HiMill): needs the vendor protocol
 - [x] Single-line (Hershey) fonts for pen and V-bit
-- [ ] 4-axis reliefs and 5-axis machining with a kinematics model
+- [x] 4-axis reliefs wrapped on the A axis
+- [ ] True 4/5-axis machining with tool orientation and a kinematics model
 
 ## 🇫🇷 En bref
 

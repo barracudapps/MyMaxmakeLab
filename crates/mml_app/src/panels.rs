@@ -1194,6 +1194,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::tools_dialog::show(app, ctx);
     crate::pairing_dialog::show(app, ctx);
     crate::camera_panel::show(app, ctx);
+    crate::firmware::show(app, ctx);
     crate::text_tools::text_dialog(app, ctx);
     crate::text_tools::deform_dialog(app, ctx);
     crate::text_tools::svg_code_dialog(app, ctx);
