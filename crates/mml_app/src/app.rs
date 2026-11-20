@@ -31,12 +31,53 @@ pub struct BuiltJob {
     pub warnings: Vec<JobWarning>,
     /// G-code opened from a file rather than generated.
     pub external: Option<String>,
+    pub pauses: Vec<mml_job::PauseReason>,
+    pub anchor: Option<Point>,
+}
+
+/// Where the job is placed on the machine.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Placement {
+    /// Design coordinates are machine work coordinates.
+    MachineOrigin,
+    /// The head marks this point of the design.
+    Head(Anchor),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Anchor {
+    Center,
+    BottomLeft,
+    BottomRight,
+    TopLeft,
+    TopRight,
+    Picked(Point),
+}
+
+impl Anchor {
+    pub fn resolve(self, bounds: mml_core::geometry::Rect) -> Point {
+        match self {
+            Self::Center => bounds.center(),
+            Self::BottomLeft => bounds.min,
+            Self::BottomRight => Point::new(bounds.max.x, bounds.min.y),
+            Self::TopLeft => Point::new(bounds.min.x, bounds.max.y),
+            Self::TopRight => bounds.max,
+            Self::Picked(point) => point,
+        }
+    }
 }
 
 pub struct JobState {
     pub built: Option<BuiltJob>,
-    pub built_revision: u64,
-    pub building: Option<(u64, Receiver<BuiltJob>)>,
+    pub built_revision: (u64, u64),
+    pub building: Option<((u64, u64), Receiver<BuiltJob>)>,
+    pub placement: Placement,
+    pub selection_only: bool,
+    /// Bumped when placement or selection-only change.
+    pub options_revision: u64,
+    pub picking_anchor: bool,
+    /// Pause the job reached and that the operator must handle.
+    pub waiting_pause: Option<mml_job::PauseReason>,
     pub simulate: Option<f32>,
     pub simulating: bool,
     pub preview_line: Option<Option<usize>>,
@@ -138,8 +179,13 @@ impl MyApp {
             canvas: Canvas::default(),
             job: JobState {
                 built: None,
-                built_revision: 0,
+                built_revision: (0, 0),
                 building: None,
+                placement: Placement::MachineOrigin,
+                selection_only: false,
+                options_revision: 0,
+                picking_anchor: false,
+                waiting_pause: None,
                 simulate: None,
                 simulating: false,
                 preview_line: None,
@@ -418,6 +464,8 @@ impl MyApp {
                         stats,
                         warnings: Vec::new(),
                         external: Some(name),
+                        pauses: Vec::new(),
+                        anchor: None,
                     });
                     self.job.preview_line = Some(None);
                     self.mode = Mode::Prepare;
@@ -630,7 +678,8 @@ impl MyApp {
             .as_ref()
             .is_some_and(|built| built.external.is_some());
         let wanted = self.mode != Mode::Design && !external;
-        let stale = self.job.built_revision != self.revision;
+        let key = (self.revision, self.job.options_revision);
+        let stale = self.job.built_revision != key;
         let idle = self
             .last_edit
             .is_none_or(|time| time.elapsed() > Duration::from_millis(250));
@@ -640,8 +689,9 @@ impl MyApp {
             let machine = self.machine.clone();
             let motion = self.motion_settings();
             let repaint = ctx.clone();
+            let options = self.job_options();
             std::thread::spawn(move || {
-                let job = mml_job::build_job(&document, &machine);
+                let job = mml_job::build_job_with(&document, &machine, &options);
                 let program = mml_gcode::parse(&job.gcode);
                 let stats = mml_gcode::analyze(&program, motion);
                 let _ = sender.send(BuiltJob {
@@ -650,10 +700,12 @@ impl MyApp {
                     stats,
                     warnings: job.warnings,
                     external: None,
+                    pauses: job.pauses,
+                    anchor: job.anchor,
                 });
                 repaint.request_repaint();
             });
-            self.job.building = Some((self.revision, receiver));
+            self.job.building = Some((key, receiver));
         }
         if let Some(line) = self.job.preview_line.take() {
             let preview = self.job.built.as_ref().and_then(|built| {
@@ -668,9 +720,82 @@ impl MyApp {
         }
     }
 
+    /// Shapes the job outputs, honouring "selection only".
+    pub fn output_bounds(&self) -> mml_core::geometry::Rect {
+        let only = self.job.selection_only.then_some(&self.selection);
+        self.document
+            .shapes
+            .iter()
+            .filter(|shape| {
+                self.document
+                    .layer(shape.layer)
+                    .is_some_and(|layer| layer.output && layer.visible)
+            })
+            .filter(|shape| only.is_none_or(|ids| ids.contains(&shape.id)))
+            .fold(mml_core::geometry::Rect::EMPTY, |rect, shape| {
+                rect.union(shape.bounds())
+            })
+    }
+
+    pub fn job_options(&self) -> mml_job::JobOptions {
+        let anchor = match self.job.placement {
+            Placement::MachineOrigin => None,
+            Placement::Head(anchor) => Some(anchor.resolve(self.output_bounds())),
+        };
+        mml_job::JobOptions {
+            only: self.job.selection_only.then(|| self.selection.clone()),
+            anchor,
+        }
+    }
+
+    pub fn set_placement(&mut self, placement: Placement) {
+        if self.job.placement != placement {
+            self.job.placement = placement;
+            self.job.options_revision += 1;
+        }
+    }
+
+    pub fn open_sequence_dialog(&mut self) {
+        let Some(paths) = rfd::FileDialog::new()
+            .add_filter("G-code", &["nc", "gcode", "ngc", "tap", "txt"])
+            .pick_files()
+        else {
+            return;
+        };
+        let mut files = Vec::new();
+        for path in &paths {
+            match std::fs::read_to_string(path) {
+                Ok(text) => files.push((Self::file_stem(path), text)),
+                Err(error) => {
+                    self.notify(
+                        trf("file.open_failed", &[&path.display(), &error]),
+                        Level::Error,
+                    );
+                    return;
+                }
+            }
+        }
+        let (text, pauses) = mml_job::sequence(&files);
+        let program = mml_gcode::parse(&text);
+        let stats = mml_gcode::analyze(&program, self.motion_settings());
+        let names: Vec<String> = files.iter().map(|(name, _)| name.clone()).collect();
+        self.job.built = Some(BuiltJob {
+            gcode: Arc::new(text),
+            program,
+            stats,
+            warnings: Vec::new(),
+            external: Some(names.join(" → ")),
+            pauses,
+            anchor: None,
+        });
+        self.job.preview_line = Some(None);
+        self.mode = Mode::Prepare;
+    }
+
     pub fn job_is_current(&self) -> bool {
         self.job.built.as_ref().is_some_and(|built| {
-            built.external.is_some() || self.job.built_revision == self.revision
+            built.external.is_some()
+                || self.job.built_revision == (self.revision, self.job.options_revision)
         })
     }
 
@@ -792,6 +917,41 @@ impl MyApp {
         }
     }
 
+    /// Homing durations are compared with the usual one: a much slower
+    /// homing is the typical sign of a binding axis or a loose belt.
+    fn process_machine_events(&mut self) {
+        for (duration, success) in std::mem::take(&mut self.device.homing_results) {
+            if !success {
+                continue;
+            }
+            let seconds = duration.as_secs_f64();
+            let history = &self.settings.homing_times;
+            if history.len() >= 3 {
+                let usual = history.iter().sum::<f64>() / history.len() as f64;
+                if seconds > usual * 1.4 + 2.0 {
+                    let text = trf(
+                        "safety.homing_slow",
+                        &[&format!("{seconds:.1}"), &format!("{usual:.1}")],
+                    );
+                    self.notify(text, Level::Warning);
+                }
+            }
+            self.settings.homing_times.push(seconds);
+            let excess = self.settings.homing_times.len().saturating_sub(10);
+            self.settings.homing_times.drain(..excess);
+        }
+        if let Some(index) = self.device.reached_pause.take() {
+            let reason = self
+                .job
+                .built
+                .as_ref()
+                .and_then(|built| built.pauses.get(index).cloned());
+            if let Some(reason) = reason {
+                self.job.waiting_pause = Some(reason);
+            }
+        }
+    }
+
     fn handle_dropped_files(&mut self, ctx: &egui::Context) {
         let dropped: Vec<PathBuf> = ctx.input(|input| {
             input
@@ -850,6 +1010,9 @@ impl MyApp {
                     }
                     if ui.button(tr("menu.export_gcode")).clicked() {
                         self.export_gcode();
+                    }
+                    if ui.button(tr("menu.open_sequence")).clicked() {
+                        self.open_sequence_dialog();
                     }
                 });
                 ui.menu_button(tr("menu.edit"), |ui| {
@@ -958,6 +1121,24 @@ impl MyApp {
                 ui.separator();
                 ui.label(RichText::new(&self.machine.name).weak());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if self.device.is_connected() {
+                        let stop = egui::Button::new(
+                            RichText::new(tr("device.emergency_stop"))
+                                .strong()
+                                .color(Color32::WHITE),
+                        )
+                        .fill(Color32::from_rgb(200, 30, 30))
+                        .min_size(egui::vec2(170.0, 30.0));
+                        if ui
+                            .add(stop)
+                            .on_hover_text(tr("device.emergency_stop_hint"))
+                            .clicked()
+                        {
+                            self.device.send(mml_device::Command::EmergencyStop);
+                            self.job.waiting_pause = None;
+                            self.notify(tr("device.emergency_stopped"), Level::Warning);
+                        }
+                    }
                     self.device.connection_badge(ui);
                 });
             });
@@ -1084,6 +1265,10 @@ impl MyApp {
                     } else {
                         Vec::new()
                     };
+                self.canvas.picking = self.job.picking_anchor && self.mode != Mode::Design;
+                self.canvas.anchor_marker = (self.mode != Mode::Design)
+                    .then(|| self.job_options().anchor)
+                    .flatten();
                 self.canvas.machine_position = (self.mode == Mode::Run)
                     .then(|| {
                         self.device.status.as_ref().map(|status| {
@@ -1108,6 +1293,10 @@ impl MyApp {
                     CanvasAction::Select(ids) => self.selection = ids,
                     CanvasAction::Transform(transform) => self.transform_selection(transform),
                     CanvasAction::Create(shape) => self.add_shape(shape),
+                    CanvasAction::Pick(point) => {
+                        self.job.picking_anchor = false;
+                        self.set_placement(Placement::Head(Anchor::Picked(point)));
+                    }
                     CanvasAction::TextAt(position) => {
                         self.text_dialog = Some(TextDialog {
                             position,
@@ -1153,6 +1342,7 @@ impl eframe::App for MyApp {
         self.apply_theme(&ctx);
         self.update_burst();
         self.device.poll(&ctx, &mut self.notices);
+        self.process_machine_events();
         self.handle_dropped_files(&ctx);
         self.shortcuts(&ctx);
         self.maintain_job(&ctx);

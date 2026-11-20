@@ -38,6 +38,8 @@ pub enum CanvasAction {
     Transform(Transform),
     Create(Shape),
     TextAt(Point),
+    /// A point clicked while picking the job anchor.
+    Pick(Point),
 }
 
 pub struct Canvas {
@@ -54,6 +56,8 @@ pub struct Canvas {
     pub cursor_world: Option<Point>,
     fit_requested: bool,
     pub machine_position: Option<Point>,
+    pub anchor_marker: Option<Point>,
+    pub picking: bool,
 }
 
 impl Default for Canvas {
@@ -72,6 +76,8 @@ impl Default for Canvas {
             cursor_world: None,
             fit_requested: true,
             machine_position: None,
+            anchor_marker: None,
+            picking: false,
         }
     }
 }
@@ -232,6 +238,19 @@ impl Canvas {
         }
 
         self.paint_shapes(ui.ctx(), &painter, &view, &input, &palette);
+        if let Some(anchor) = self.anchor_marker {
+            let center = view.to_screen(anchor);
+            let stroke = Stroke::new(2.0, palette.selection);
+            painter.circle_stroke(center, 9.0, stroke);
+            painter.circle_filled(center, 2.5, palette.selection);
+            painter.text(
+                center + Vec2::new(12.0, -12.0),
+                Align2::LEFT_BOTTOM,
+                "⊙",
+                FontId::proportional(13.0),
+                palette.selection,
+            );
+        }
         if let Some(position) = self.machine_position {
             let center = view.to_screen(position);
             let stroke = Stroke::new(1.5, palette.head);
@@ -240,6 +259,14 @@ impl Canvas {
             painter.line_segment([center - Vec2::Y * 12.0, center + Vec2::Y * 12.0], stroke);
         }
         if input.show_preview {
+            if self.picking {
+                ui.ctx().set_cursor_icon(CursorIcon::Crosshair);
+                if response.clicked()
+                    && let Some(pos) = response.interact_pointer_pos()
+                {
+                    return CanvasAction::Pick(view.to_world(pos));
+                }
+            }
             return self.handle_navigation_only(&response, &view);
         }
         self.interact(ui, &response, &painter, &view, &input, &palette)

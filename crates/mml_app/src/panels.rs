@@ -500,6 +500,15 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
             });
     });
     material_picker(app, ui, &mut operation, &mut changed);
+    let mut pause_before = app.document.layers[index].pause_before;
+    if ui
+        .checkbox(&mut pause_before, tr("op.pause_before"))
+        .on_hover_text(tr("op.pause_before_hint"))
+        .changed()
+    {
+        app.document.layers[index].pause_before = pause_before;
+        app.touch();
+    }
     egui::Grid::new("op-grid")
         .num_columns(2)
         .spacing([10.0, 6.0])
@@ -798,7 +807,7 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
         ui.label(RichText::new(trf("job.external", &[name])).strong());
         if ui.small_button(tr("job.back_to_design")).clicked() {
             app.job.built = None;
-            app.job.built_revision = 0;
+            app.job.built_revision = (0, 0);
             return;
         }
     }

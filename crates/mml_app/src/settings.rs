@@ -58,6 +58,10 @@ pub struct Settings {
     pub jog_feed: f64,
     pub frame_power: f64,
     pub library_import_offered: bool,
+    /// Feed hold automatically on a critical anomaly.
+    pub auto_pause: bool,
+    /// Recent successful homing durations in seconds, newest last.
+    pub homing_times: Vec<f64>,
 }
 
 impl Default for Settings {
@@ -86,6 +90,8 @@ impl Default for Settings {
             jog_feed: 3000.0,
             frame_power: 0.0,
             library_import_offered: false,
+            auto_pause: true,
+            homing_times: Vec::new(),
         }
     }
 }

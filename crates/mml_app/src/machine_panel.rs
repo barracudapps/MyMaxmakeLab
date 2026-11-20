@@ -1,3 +1,4 @@
+use crate::app::{Anchor, Placement};
 use crate::app::{Level, MyApp};
 use crate::i18n::{grbl_alarm, grbl_error, tr, trf};
 use crate::panels::{section, warning_text};
@@ -5,7 +6,8 @@ use crate::settings::Settings;
 use eframe::egui::{self, Color32, DragValue, RichText};
 use mml_core::machine::MachineProfile;
 use mml_device::{
-    Command, Connection, Controller, Event, JobOutcome, MachineState, MachineStatus, realtime,
+    Anomaly, Command, Connection, Controller, Event, JobGuard, JobOutcome, MachineState,
+    MachineStatus, realtime,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -45,6 +47,11 @@ pub struct DeviceState {
     pub tcp_port: u16,
     last_preview: Instant,
     pub new_macro: Option<(String, String)>,
+    /// Last anomaly and whether the job was paused for it.
+    pub anomaly: Option<(Anomaly, bool)>,
+    pub homing_results: Vec<(Duration, bool)>,
+    pub reached_pause: Option<usize>,
+    pub homed: bool,
 }
 
 impl DeviceState {
@@ -69,6 +76,10 @@ impl DeviceState {
             tcp_port: connection.tcp_port,
             last_preview: Instant::now(),
             new_macro: None,
+            anomaly: None,
+            homing_results: Vec::new(),
+            reached_pause: None,
+            homed: false,
         }
     }
 
@@ -229,7 +240,27 @@ impl DeviceState {
                         job.total = total;
                     }
                 }
-                Event::Anomaly { .. } | Event::HomingFinished { .. } | Event::ProgramPaused { .. } => {}
+                Event::Anomaly { anomaly, paused } => {
+                    let text = anomaly_text(&anomaly);
+                    self.log(ConsoleKind::Error, text.clone());
+                    let level = if anomaly.is_critical() {
+                        Level::Error
+                    } else {
+                        Level::Warning
+                    };
+                    notices.push((text, level, Instant::now()));
+                    self.anomaly = Some((anomaly, paused));
+                }
+                Event::HomingFinished { duration, success } => {
+                    self.homed = success;
+                    self.homing_results.push((duration, success));
+                }
+                Event::ProgramPaused { index } => {
+                    self.reached_pause = Some(index);
+                    if let Some(job) = &mut self.job {
+                        job.paused = true;
+                    }
+                }
                 Event::JobFinished { outcome, elapsed } => {
                     self.job = None;
                     let minutes = elapsed.as_secs() / 60;
@@ -568,8 +599,228 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
     });
 }
 
+pub fn anomaly_text(anomaly: &Anomaly) -> String {
+    match anomaly {
+        Anomaly::OutsideEnvelope {
+            axis,
+            value,
+            min,
+            max,
+        } => trf(
+            "safety.outside",
+            &[
+                axis,
+                &format!("{value:.2}"),
+                &format!("{min:.1}"),
+                &format!("{max:.1}"),
+            ],
+        ),
+        Anomaly::UnexpectedRotary { delta } => trf("safety.rotary", &[&format!("{delta:.1}")]),
+        Anomaly::MotionWhileIdle { distance } => {
+            trf("safety.idle_motion", &[&format!("{distance:.2}")])
+        }
+        Anomaly::LimitSwitch { pins } => trf("safety.limit", &[pins]),
+        Anomaly::StatusTimeout { seconds } => trf("safety.timeout", &[&format!("{seconds:.1}")]),
+    }
+}
+
+fn pause_text(reason: &mml_job::PauseReason) -> String {
+    match reason {
+        mml_job::PauseReason::HeadChange {
+            next_layer,
+            to_laser: true,
+        } => trf("pause.to_laser", &[next_layer]),
+        mml_job::PauseReason::HeadChange {
+            next_layer,
+            to_laser: false,
+        } => trf("pause.to_cnc", &[next_layer]),
+        mml_job::PauseReason::LayerPause { next_layer } => trf("pause.layer", &[next_layer]),
+        mml_job::PauseReason::NextFile { name } => trf("pause.next_file", &[name]),
+    }
+}
+
+/// Reasons that forbid starting, checked against the live position:
+/// the whole job envelope must fit in the machine travel.
+fn start_blockers(app: &MyApp) -> Vec<String> {
+    let mut blockers = Vec::new();
+    let Some(built) = &app.job.built else {
+        return blockers;
+    };
+    let Some(status) = &app.device.status else {
+        return blockers;
+    };
+    let bounds = built.program.bounds();
+    if bounds.is_empty() {
+        return blockers;
+    }
+    let (z_low, z_high) = built.program.z_range;
+    let travel = [
+        app.device.setting_f64(130).or(Some(app.machine.width)),
+        app.device.setting_f64(131).or(Some(app.machine.height)),
+        app.device.setting_f64(132).filter(|travel| *travel > 0.0),
+    ];
+    let position = status.machine_position;
+    let negative = position.iter().take(2).any(|value| *value < -1e-3);
+    let offset = status.work_offset;
+    let (min, max) = match built.anchor {
+        Some(anchor) => (
+            [
+                position[0] + bounds.min.x - anchor.x,
+                position[1] + bounds.min.y - anchor.y,
+                z_low + offset[2],
+            ],
+            [
+                position[0] + bounds.max.x - anchor.x,
+                position[1] + bounds.max.y - anchor.y,
+                z_high + offset[2],
+            ],
+        ),
+        None => (
+            [
+                bounds.min.x + offset[0],
+                bounds.min.y + offset[1],
+                z_low + offset[2],
+            ],
+            [
+                bounds.max.x + offset[0],
+                bounds.max.y + offset[1],
+                z_high + offset[2],
+            ],
+        ),
+    };
+    for (axis, low, high, allowed_low, allowed_high) in
+        mml_device::travel_violations(min, max, travel, negative)
+    {
+        blockers.push(trf(
+            "safety.travel",
+            &[
+                &axis,
+                &format!("{low:.1}"),
+                &format!("{high:.1}"),
+                &format!("{allowed_low:.1}"),
+                &format!("{allowed_high:.1}"),
+            ],
+        ));
+    }
+    blockers
+}
+
+fn guard_for(app: &MyApp) -> Option<JobGuard> {
+    let built = app.job.built.as_ref()?;
+    let bounds = built.program.bounds();
+    let (z_low, z_high) = built.program.z_range;
+    Some(JobGuard {
+        envelope: (!bounds.is_empty()).then_some([
+            [bounds.min.x, bounds.max.x],
+            [bounds.min.y, bounds.max.y],
+            [z_low, z_high],
+        ]),
+        uses_rotary: built.program.uses_rotary,
+        tolerance: 1.0,
+        auto_pause: app.settings.auto_pause,
+    })
+}
+
+fn placement(app: &mut MyApp, ui: &mut egui::Ui) {
+    let external = app
+        .job
+        .built
+        .as_ref()
+        .is_some_and(|built| built.external.is_some());
+    if external {
+        return;
+    }
+    ui.label(RichText::new(tr("place.title")).strong());
+    let mut placement = app.job.placement;
+    ui.horizontal(|ui| {
+        ui.radio_value(&mut placement, Placement::MachineOrigin, tr("place.origin"));
+        let on_head = matches!(placement, Placement::Head(_));
+        if ui.radio(on_head, tr("place.head")).clicked() && !on_head {
+            placement = Placement::Head(Anchor::Center);
+        }
+    });
+    if let Placement::Head(anchor) = placement {
+        ui.horizontal_wrapped(|ui| {
+            let options = [
+                (Anchor::Center, "place.center"),
+                (Anchor::BottomLeft, "place.bottom_left"),
+                (Anchor::BottomRight, "place.bottom_right"),
+                (Anchor::TopLeft, "place.top_left"),
+                (Anchor::TopRight, "place.top_right"),
+            ];
+            for (candidate, key) in options {
+                if ui.selectable_label(anchor == candidate, tr(key)).clicked() {
+                    placement = Placement::Head(candidate);
+                }
+            }
+            let picked = matches!(anchor, Anchor::Picked(_));
+            let label = if app.job.picking_anchor {
+                tr("place.picking")
+            } else {
+                tr("place.pick")
+            };
+            if ui
+                .selectable_label(picked || app.job.picking_anchor, label)
+                .on_hover_text(tr("place.pick_hint"))
+                .clicked()
+            {
+                app.job.picking_anchor = !app.job.picking_anchor;
+            }
+        });
+        ui.label(RichText::new(tr("place.head_hint")).weak().small());
+    }
+    app.set_placement(placement);
+    let count = app.selection.len();
+    let mut only = app.job.selection_only;
+    let response = ui.add_enabled(
+        count > 0 || only,
+        egui::Checkbox::new(&mut only, trf("place.selection_only", &[&count])),
+    );
+    if response
+        .on_hover_text(tr("place.selection_only_hint"))
+        .changed()
+    {
+        app.job.selection_only = only;
+        app.job.options_revision += 1;
+    }
+}
+
 fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     section(ui, tr("job.title"));
+    if let Some((anomaly, paused)) = app.device.anomaly.clone() {
+        egui::Frame::new()
+            .fill(Color32::from_rgb(200, 40, 30).gamma_multiply(0.2))
+            .corner_radius(8.0)
+            .inner_margin(8.0)
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(
+                    RichText::new(tr("safety.title"))
+                        .strong()
+                        .color(Color32::from_rgb(220, 60, 50)),
+                );
+                ui.label(anomaly_text(&anomaly));
+                if paused {
+                    ui.label(tr("safety.paused"));
+                }
+                ui.horizontal(|ui| {
+                    if paused && ui.button(tr("job.resume")).clicked() {
+                        app.device.send(Command::Resume);
+                        if let Some(job) = &mut app.device.job {
+                            job.paused = false;
+                        }
+                        app.device.anomaly = None;
+                    }
+                    if app.device.job_running() && ui.button(tr("job.stop")).clicked() {
+                        app.device.send(Command::Stop);
+                        app.device.anomaly = None;
+                    }
+                    if ui.button(tr("safety.dismiss")).clicked() {
+                        app.device.anomaly = None;
+                    }
+                });
+            });
+    }
     if let Some(job) = &app.device.job {
         let fraction = if job.total > 0 {
             job.acknowledged as f32 / job.total as f32
@@ -588,6 +839,17 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             &[&format_short(elapsed), &format_short(remaining)],
         ));
         let paused = job.paused;
+        if let Some(reason) = app.job.waiting_pause.clone() {
+            egui::Frame::new()
+                .fill(Color32::from_rgb(220, 150, 20).gamma_multiply(0.2))
+                .corner_radius(8.0)
+                .inner_margin(8.0)
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(RichText::new(pause_text(&reason)).strong());
+                    ui.label(tr("pause.how_to_resume"));
+                });
+        }
         ui.horizontal(|ui| {
             if paused {
                 if ui
@@ -598,6 +860,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
                     .clicked()
                 {
                     app.device.send(Command::Resume);
+                    app.job.waiting_pause = None;
                     if let Some(job) = &mut app.device.job {
                         job.paused = false;
                     }
@@ -618,8 +881,9 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
                 egui::Button::new(RichText::new(tr("job.stop")).strong().color(Color32::WHITE))
                     .fill(Color32::from_rgb(200, 45, 35))
                     .min_size(egui::vec2(110.0, 32.0));
-            if ui.add(stop).clicked() {
+            if ui.add(stop).on_hover_text(tr("job.stop_hint")).clicked() {
                 app.device.send(Command::Stop);
+                app.job.waiting_pause = None;
             }
         });
         overrides(app, ui);
@@ -631,6 +895,8 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         }
         return;
     }
+    placement(app, ui);
+    ui.add_space(4.0);
     let Some(built) = &app.job.built else {
         ui.label(RichText::new(tr("job.nothing_run")).weak());
         return;
@@ -639,6 +905,8 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     let bounds = built.stats.cut_bounds;
     let warnings = built.warnings.clone();
     let gcode = built.gcode.clone();
+    let anchor = built.anchor;
+    let pauses = built.pauses.len();
     for warning in &warnings {
         ui.label(
             RichText::new(format!("⚠ {}", warning_text(warning)))
@@ -646,9 +914,25 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         );
     }
     ui.label(trf("job.estimate", &[&format_short(estimate)]));
+    if pauses > 0 {
+        ui.label(RichText::new(trf("job.pauses", &[&pauses])).weak());
+    }
     let connected = app.device.is_connected();
     let idle = app.device.state() == MachineState::Idle;
     let current = app.job_is_current();
+    let blockers = if connected {
+        start_blockers(app)
+    } else {
+        Vec::new()
+    };
+    for blocker in &blockers {
+        ui.label(RichText::new(format!("⛔ {blocker}")).color(Color32::from_rgb(210, 50, 40)));
+    }
+    if connected && !app.device.homed && anchor.is_none() {
+        ui.label(RichText::new(tr("safety.not_homed")).weak().small());
+    }
+    ui.checkbox(&mut app.settings.auto_pause, tr("safety.auto_pause"))
+        .on_hover_text(tr("safety.auto_pause_hint"));
     ui.horizontal(|ui| {
         ui.label(tr("job.frame_power"));
         ui.add(egui::Slider::new(&mut app.settings.frame_power, 0.0..=5.0).suffix(" %"));
@@ -656,13 +940,18 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         let frame = ui
             .add_enabled(
-                connected && idle && !bounds.is_empty(),
+                connected && idle && !bounds.is_empty() && blockers.is_empty(),
                 egui::Button::new(tr("job.frame")).min_size(egui::vec2(100.0, 32.0)),
             )
             .on_hover_text(tr("job.frame_hint"));
         if frame.clicked() {
-            let program =
-                mml_job::frame_job(bounds, None, &app.machine, app.settings.frame_power, 3000.0);
+            let program = mml_job::frame_job(
+                bounds,
+                anchor,
+                &app.machine,
+                app.settings.frame_power,
+                3000.0,
+            );
             app.device.send(Command::StartJob {
                 lines: program.lines().map(str::to_owned).collect(),
                 guard: None,
@@ -683,21 +972,26 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         )
         .fill(Color32::from_rgb(40, 140, 80))
         .min_size(egui::vec2(150.0, 32.0));
-        let blocked = warnings.contains(&mml_job::JobWarning::OutOfBounds);
-        let response = ui.add_enabled(connected && idle && current && !blocked, start);
+        let out_of_bounds =
+            warnings.contains(&mml_job::JobWarning::OutOfBounds) && anchor.is_none();
+        let response = ui.add_enabled(
+            connected && idle && current && !out_of_bounds && blockers.is_empty(),
+            start,
+        );
         let response = if !connected {
             response.on_disabled_hover_text(tr("job.need_connection"))
         } else if !idle {
             response.on_disabled_hover_text(tr("job.need_idle"))
-        } else if blocked {
+        } else if out_of_bounds {
             response.on_disabled_hover_text(tr("warn.out_of_bounds"))
         } else {
             response
         };
         if response.clicked() {
+            let guard = guard_for(app);
             app.device.send(Command::StartJob {
                 lines: gcode.lines().map(str::to_owned).collect(),
-                guard: None,
+                guard,
             });
             app.device.job = Some(RunningJob {
                 total: gcode.lines().count(),
@@ -707,6 +1001,8 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
                 paused: false,
             });
             app.device.alarm = None;
+            app.device.anomaly = None;
+            app.job.waiting_pause = None;
             app.notify(tr("job.started"), Level::Info);
         }
     });
