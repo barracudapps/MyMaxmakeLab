@@ -8,7 +8,7 @@ mod line;
 pub use dither::{dither, prepare_levels};
 pub use fill::{emit_fill, scan_intervals};
 pub use image::{RasterGrid, emit_image, rasterize};
-pub use line::emit_line;
+pub use line::{emit_line, emit_line_shapes};
 
 /// Machine facts every laser operation needs.
 #[derive(Debug, Clone, Copy)]

@@ -282,7 +282,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         }
         match &layer.operation {
             Operation::LaserLine(params) => {
-                mml_laser::emit_line(&mut writer, &mut head, vectors.concat(), params, &laser)
+                mml_laser::emit_line_shapes(&mut writer, &mut head, vectors, params, &laser)
             }
             Operation::LaserFill(params) => {
                 if vectors.iter().flatten().any(|path| !path.closed) {
