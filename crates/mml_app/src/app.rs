@@ -957,7 +957,11 @@ impl MyApp {
                     self.mode == Mode::Run,
                 )
             });
+            let first = !self.canvas.has_preview();
             self.canvas.set_preview(ctx, preview);
+            if first && self.canvas.has_preview() && self.mode != Mode::Design {
+                self.canvas.request_fit();
+            }
         }
     }
 
@@ -1661,7 +1665,11 @@ impl eframe::App for MyApp {
             self.confirm_close = true;
         }
 
+        let mode_before = self.mode;
         self.top_bar(ui);
+        if self.mode != mode_before {
+            self.canvas.request_fit();
+        }
         self.status_bar(ui);
         match self.mode {
             Mode::Design => {
