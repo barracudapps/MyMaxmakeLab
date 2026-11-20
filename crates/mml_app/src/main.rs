@@ -7,6 +7,7 @@ mod icons;
 mod machine_panel;
 mod panels;
 mod preview;
+mod relief_dialog;
 mod settings;
 mod workflow;
 

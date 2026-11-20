@@ -159,6 +159,7 @@ pub struct MyApp {
     pub probe: crate::workflow::ProbeState,
     pub settings_editor: crate::workflow::SettingsEditor,
     pub tutorial_step: Option<usize>,
+    pub relief: Option<crate::relief_dialog::ReliefDialog>,
 }
 
 impl MyApp {
@@ -234,6 +235,7 @@ impl MyApp {
                 drafts: Default::default(),
             },
             tutorial_step: None,
+            relief: None,
         };
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);
@@ -442,6 +444,7 @@ impl MyApp {
                 tr("file.all_supported"),
                 &[
                     "mml", "svg", "dxf", "png", "jpg", "jpeg", "bmp", "nc", "gcode", "ngc", "tap",
+                    "stl", "obj",
                 ],
             )
             .pick_file()
@@ -516,6 +519,18 @@ impl MyApp {
                     }
                     .map_err(|error| error.to_string())?;
                     self.import_vectors(groups, path);
+                    Ok(())
+                }),
+            "stl" | "obj" => std::fs::read(path)
+                .map_err(|error| error.to_string())
+                .and_then(|data| {
+                    let triangles =
+                        mml_relief::load_mesh(&data).map_err(|error| error.to_string())?;
+                    let name = Self::file_stem(path);
+                    let bed = (self.machine.width, self.machine.height);
+                    self.relief = Some(crate::relief_dialog::ReliefDialog::open(
+                        name, triangles, bed,
+                    ));
                     Ok(())
                 }),
             "png" | "jpg" | "jpeg" | "bmp" => std::fs::read(path)
@@ -1164,6 +1179,13 @@ impl MyApp {
                     }
                     if ui.button(tr("menu.open_sequence")).clicked() {
                         self.open_sequence_dialog();
+                    }
+                    if ui.button(tr("menu.relief")).clicked()
+                        && let Some(path) = rfd::FileDialog::new()
+                            .add_filter("3D", &["stl", "obj"])
+                            .pick_file()
+                    {
+                        self.open_path(&path);
                     }
                 });
                 ui.menu_button(tr("menu.edit"), |ui| {
