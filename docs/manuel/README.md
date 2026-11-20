@@ -32,7 +32,7 @@ Laser et CNC, simplement et en sécurité : de l'idée à la pièce finie.
 flowchart LR
     A["Nouveau ?"] --> B["1. Prise en main"]
     B --> C["2. Interface"]
-    C --> DVotre machine
+    C --> D{"Votre machine"}
     D -- laser --> E["4. Laser"]
     D -- CNC --> F["5. Fraisage"]
     E --> G["9. Sécurité"]
