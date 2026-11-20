@@ -20,6 +20,8 @@ pub struct Motion {
     pub line: usize,
     /// Rotary (A) angle at the start and end of the move, degrees.
     pub a: [f64; 2],
+    /// Table (C) angle at the start and end of the move, degrees.
+    pub c: [f64; 2],
     /// Duration programmed in inverse time mode (G93), minutes.
     pub minutes: Option<f64>,
 }
@@ -74,6 +76,9 @@ pub struct Program {
     /// Diameter of the stock turned by the A axis, announced by the
     /// programs of this application (`; Rotary stock diameter 40 mm`).
     pub rotary_diameter: Option<f64>,
+    /// Table height of a 5-axis trunnion program
+    /// (`; Trunnion table height 10 mm`), for previews in part space.
+    pub trunnion_table: Option<f64>,
 }
 
 /// Point of a rotary program in the frame of the stock: the machine
@@ -108,6 +113,7 @@ impl Program {
 struct State {
     position: [f64; 3],
     a: f64,
+    c: f64,
     inverse_time: bool,
     absolute: bool,
     scale: f64,
@@ -126,6 +132,7 @@ pub fn parse(source: &str) -> Program {
     let mut state = State {
         position: [0.0; 3],
         a: 0.0,
+        c: 0.0,
         inverse_time: false,
         absolute: true,
         scale: 1.0,
@@ -142,6 +149,12 @@ pub fn parse(source: &str) -> Program {
                 .next()
                 .and_then(|value| value.parse().ok());
         }
+        if let Some(rest) = raw_line.trim().strip_prefix("; Trunnion table height ") {
+            program.trunnion_table = rest
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse().ok());
+        }
         let words = match tokenize(raw_line) {
             Ok(words) => words,
             Err(message) => {
@@ -154,6 +167,7 @@ pub fn parse(source: &str) -> Program {
         }
         let mut target: [Option<f64>; 3] = [None; 3];
         let mut target_a = None;
+        let mut target_c = None;
         let mut offsets = [None::<f64>; 2];
         let mut radius = None;
         let mut skip_motion = false;
@@ -189,7 +203,11 @@ pub fn parse(source: &str) -> Program {
                     program.uses_rotary = true;
                     target_a = Some(*value);
                 }
-                'B' | 'C' => program.uses_rotary = true,
+                'C' => {
+                    program.uses_rotary = true;
+                    target_c = Some(*value);
+                }
+                'B' => program.uses_rotary = true,
                 'N' | 'P' | 'T' | 'K' | 'L' => {}
                 other => push_warning(
                     &mut program,
@@ -198,7 +216,9 @@ pub fn parse(source: &str) -> Program {
                 ),
             }
         }
-        if skip_motion || (target.iter().all(Option::is_none) && target_a.is_none()) {
+        if skip_motion
+            || (target.iter().all(Option::is_none) && target_a.is_none() && target_c.is_none())
+        {
             continue;
         }
         let end_a = match target_a {
@@ -207,6 +227,12 @@ pub fn parse(source: &str) -> Program {
             None => state.a,
         };
         let a = [state.a, end_a];
+        let end_c = match target_c {
+            Some(value) if state.absolute => value,
+            Some(value) => state.c + value,
+            None => state.c,
+        };
+        let c = [state.c, end_c];
         let minutes = (state.inverse_time && state.motion != 0 && state.feed > 0.0)
             // G93: F is the inverse of the move duration in minutes.
             .then(|| state.scale / state.feed);
@@ -241,6 +267,7 @@ pub fn parse(source: &str) -> Program {
                     power: if kind == MoveKind::Rapid { 0.0 } else { power },
                     line: line_index,
                     a,
+                    c,
                     minutes,
                 });
             }
@@ -276,6 +303,7 @@ pub fn parse(source: &str) -> Program {
                         power,
                         line: line_index,
                         a: [end_a; 2],
+                        c: [end_c; 2],
                         minutes: share,
                     });
                     from = to;
@@ -285,6 +313,7 @@ pub fn parse(source: &str) -> Program {
         }
         state.position = end;
         state.a = end_a;
+        state.c = end_c;
     }
     program.z_range = program
         .motions
