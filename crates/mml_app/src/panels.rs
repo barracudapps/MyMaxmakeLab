@@ -258,6 +258,14 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
             });
         }
+        if !shape.is_image()
+            && ui
+                .button(tr("warp.open"))
+                .on_hover_text(tr("warp.open_hint"))
+                .clicked()
+        {
+            app.deform = Some((shape.id, Default::default()));
+        }
         primitive_editor(app, ui, &shape);
     }
 }
@@ -1059,7 +1067,9 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::relief_dialog::show(app, ctx);
     crate::assist::show(app, ctx);
     crate::tools_dialog::show(app, ctx);
-    text_dialog(app, ctx);
+    crate::text_tools::text_dialog(app, ctx);
+    crate::text_tools::deform_dialog(app, ctx);
+    crate::text_tools::svg_code_dialog(app, ctx);
     array_dialog(app, ctx);
     preset_dialog(app, ctx);
     machine_dialog(app, ctx);
@@ -1067,106 +1077,6 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     about(app, ctx);
     close_confirmation(app, ctx);
     library_offer(app, ctx);
-}
-
-fn text_dialog(app: &mut MyApp, ctx: &egui::Context) {
-    let Some(dialog) = &mut app.text_dialog else {
-        return;
-    };
-    let mut open = true;
-    let mut create = false;
-    egui::Window::new(tr("text.title"))
-        .open(&mut open)
-        .collapsible(false)
-        .resizable(false)
-        .show(ctx, |ui| {
-            ui.add(
-                egui::TextEdit::multiline(&mut dialog.text)
-                    .desired_rows(3)
-                    .hint_text(tr("text.hint")),
-            );
-            egui::Grid::new("text-grid").num_columns(2).show(ui, |ui| {
-                ui.label(tr("text.font"));
-                egui::ComboBox::from_id_salt("font")
-                    .selected_text(&dialog.style.family)
-                    .height(300.0)
-                    .show_ui(ui, |ui| {
-                        for family in [
-                            "sans-serif".to_owned(),
-                            "serif".to_owned(),
-                            "monospace".to_owned(),
-                        ]
-                        .iter()
-                        .chain(&dialog.families)
-                        {
-                            ui.selectable_value(&mut dialog.style.family, family.clone(), family);
-                        }
-                    });
-                ui.end_row();
-                ui.label(tr("text.size"));
-                ui.add(
-                    DragValue::new(&mut dialog.style.size)
-                        .range(1.0..=500.0)
-                        .suffix(" mm")
-                        .speed(0.2),
-                );
-                ui.end_row();
-                ui.label("");
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut dialog.style.bold, tr("text.bold"));
-                    ui.checkbox(&mut dialog.style.italic, tr("text.italic"));
-                });
-                ui.end_row();
-            });
-            if ui
-                .add_enabled(
-                    !dialog.text.trim().is_empty(),
-                    egui::Button::new(tr("text.create")),
-                )
-                .clicked()
-            {
-                create = true;
-            }
-        });
-    if create {
-        let dialog = app.text_dialog.take().unwrap();
-        let paths = mml_io::text_to_paths(&dialog.text, &dialog.style);
-        if paths.is_empty() {
-            app.notify(tr("text.no_font"), Level::Error);
-            return;
-        }
-        let bounds = mml_core::geometry::bounds_of(&paths);
-        let center = bounds.center();
-        let paths = paths
-            .into_iter()
-            .map(|path| {
-                mml_core::geometry::Path::new(
-                    path.points
-                        .into_iter()
-                        .map(|point| point - center)
-                        .collect(),
-                    path.closed,
-                )
-            })
-            .collect();
-        let layer = app.layer_for(false);
-        let name = dialog
-            .text
-            .lines()
-            .next()
-            .unwrap_or_default()
-            .chars()
-            .take(24)
-            .collect::<String>();
-        let mut shape = Shape::new(name, layer, ShapeKind::Paths { paths });
-        shape.transform = Transform::translate(
-            dialog.position.x + bounds.width() / 2.0,
-            dialog.position.y + bounds.height() / 2.0,
-        );
-        app.add_shape(shape);
-    } else if !open {
-        app.text_dialog = None;
-    }
 }
 
 fn array_dialog(app: &mut MyApp, ctx: &egui::Context) {

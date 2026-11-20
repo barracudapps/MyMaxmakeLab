@@ -133,6 +133,7 @@ mod tests {
             include_str!("assist.rs"),
             include_str!("theme.rs"),
             include_str!("tools_dialog.rs"),
+            include_str!("text_tools.rs"),
             include_str!("../../mml_materials/src/tools.rs"),
             include_str!("../../mml_core/src/layer.rs"),
         ];

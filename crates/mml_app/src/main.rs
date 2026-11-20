@@ -10,6 +10,7 @@ mod panels;
 mod preview;
 mod relief_dialog;
 mod settings;
+mod text_tools;
 mod theme;
 mod tools_dialog;
 mod view3d;

@@ -126,6 +126,11 @@ fn config_dir() -> Option<PathBuf> {
         .map(|dirs| dirs.config_dir().to_path_buf())
 }
 
+/// Fonts added by the user, loaded next to the system and bundled ones.
+pub fn fonts_dir() -> Option<PathBuf> {
+    config_dir().map(|dir| dir.join("fonts"))
+}
+
 pub fn library_path() -> Option<PathBuf> {
     config_dir().map(|dir| dir.join("materials.json"))
 }

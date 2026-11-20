@@ -97,12 +97,7 @@ pub enum Level {
     Error,
 }
 
-pub struct TextDialog {
-    pub position: Point,
-    pub text: String,
-    pub style: mml_io::TextStyle,
-    pub families: Vec<String>,
-}
+pub use crate::text_tools::TextDialog;
 
 pub struct ArrayDialog {
     pub columns: u32,
@@ -164,6 +159,8 @@ pub struct MyApp {
     pub view3d: crate::view3d::View3d,
     pub tools_open: bool,
     pub tool_selected: Option<usize>,
+    pub deform: Option<(ShapeId, crate::text_tools::WarpSettings)>,
+    pub svg_code: Option<crate::text_tools::SvgCodeDialog>,
 }
 
 impl MyApp {
@@ -244,7 +241,12 @@ impl MyApp {
             view3d: crate::view3d::View3d::default(),
             tools_open: false,
             tool_selected: None,
+            deform: None,
+            svg_code: None,
         };
+        if let Some(fonts) = crate::settings::fonts_dir().filter(|directory| directory.is_dir()) {
+            mml_io::add_font_directory(&fonts);
+        }
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);
         }
@@ -631,6 +633,11 @@ impl MyApp {
     }
 
     fn import_vectors(&mut self, groups: Vec<mml_io::ImportedGroup>, path: &Path) {
+        self.import_groups(groups, &Self::file_stem(path));
+        self.link(path);
+    }
+
+    pub fn import_groups(&mut self, groups: Vec<mml_io::ImportedGroup>, name: &str) {
         self.begin_edit();
         let all: Vec<_> = groups
             .iter()
@@ -639,7 +646,7 @@ impl MyApp {
         let bounds = mml_core::geometry::bounds_of(&all);
         let target = self.placement(bounds.width(), bounds.height());
         let offset = target - bounds.center();
-        let stem = Self::file_stem(path);
+        let stem = name.to_owned();
         let fallback = self.layer_for(false);
         let mut ids = Vec::new();
         let several = groups.len() > 1;
@@ -697,7 +704,6 @@ impl MyApp {
         self.end_edit();
         self.mode = Mode::Design;
         self.canvas.request_fit();
-        self.link(path);
     }
 
     fn import_image(&mut self, image: mml_core::RasterImage, width: f64, height: f64, path: &Path) {
@@ -1299,6 +1305,9 @@ impl MyApp {
                     if ui.button(tr("menu.delete")).clicked() {
                         self.delete_selection();
                     }
+                    if ui.button(tr("svgcode.title")).clicked() {
+                        self.svg_code = Some(Default::default());
+                    }
                     if ui.button(tr("menu.array")).clicked() {
                         self.array_dialog = Some(ArrayDialog {
                             columns: 3,
@@ -1595,12 +1604,7 @@ impl MyApp {
                         self.set_placement(Placement::Head(Anchor::Picked(point)));
                     }
                     CanvasAction::TextAt(position) => {
-                        self.text_dialog = Some(TextDialog {
-                            position,
-                            text: String::new(),
-                            style: mml_io::TextStyle::default(),
-                            families: mml_io::font_families(),
-                        });
+                        self.text_dialog = Some(TextDialog::new(position));
                     }
                 }
             });
