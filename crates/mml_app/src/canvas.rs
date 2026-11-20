@@ -64,6 +64,9 @@ pub struct Canvas {
     stroke: Vec<Point>,
     /// Rectified camera picture of the bed and its opacity.
     pub camera: Option<(TextureHandle, f32)>,
+    /// Head seen by the camera check, in bed millimetres, and whether
+    /// it matches the reported position.
+    pub vision_marker: Option<(Point, bool)>,
 }
 
 impl Default for Canvas {
@@ -86,6 +89,7 @@ impl Default for Canvas {
             picking: false,
             stroke: Vec::new(),
             camera: None,
+            vision_marker: None,
         }
     }
 }
@@ -249,6 +253,16 @@ impl Canvas {
                 uv,
                 Color32::from_white_alpha((opacity * 255.0) as u8),
             );
+        }
+        if let Some((point, consistent)) = self.vision_marker {
+            let color = if consistent {
+                crate::theme::SUCCESS
+            } else {
+                crate::theme::DANGER
+            };
+            let center = view.to_screen(point);
+            painter.circle_stroke(center, 9.0, egui::Stroke::new(2.5, color));
+            painter.circle_filled(center, 2.5, color);
         }
 
         if input.show_preview

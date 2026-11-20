@@ -3,8 +3,11 @@
 
 use crate::app::{Level, MyApp};
 use crate::i18n::{tr, trf};
-use eframe::egui::{self, Color32, ColorImage, Pos2, RichText, Sense, Stroke, TextureOptions};
+use eframe::egui::{
+    self, Color32, ColorImage, DragValue, Pos2, RichText, Sense, Stroke, TextureOptions,
+};
 use mml_core::geometry::Point;
+use mml_io::vision::{Marker, MotionCheck, Verdict};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
 
@@ -17,6 +20,52 @@ pub struct CameraState {
     pub live: bool,
     last_fetch: Option<Instant>,
     fetching: Option<Receiver<Result<Vec<u8>, String>>>,
+    pub vision: VisionState,
+}
+
+/// Movement check: where the camera sees the head compared with where
+/// the controller says it is.
+pub struct VisionState {
+    pub enabled: bool,
+    pub laser_dot: bool,
+    pub color: [u8; 3],
+    pub pause: bool,
+    check: MotionCheck,
+    epoch: Instant,
+    pub last: Option<Verdict>,
+    pub seen: bool,
+}
+
+impl Default for VisionState {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            laser_dot: true,
+            color: [230, 40, 160],
+            pause: true,
+            check: MotionCheck::new(3.0),
+            epoch: Instant::now(),
+            last: None,
+            seen: false,
+        }
+    }
+}
+
+impl VisionState {
+    fn seconds(&self, at: Instant) -> f64 {
+        at.duration_since(self.epoch).as_secs_f64()
+    }
+
+    fn marker(&self) -> Marker {
+        if self.laser_dot {
+            Marker::LaserDot
+        } else {
+            Marker::Color {
+                rgb: self.color,
+                tolerance: 45.0,
+            }
+        }
+    }
 }
 
 impl Default for CameraState {
@@ -30,6 +79,7 @@ impl Default for CameraState {
             live: false,
             last_fetch: None,
             fetching: None,
+            vision: VisionState::default(),
         }
     }
 }
@@ -77,13 +127,55 @@ fn refresh_overlay(app: &mut MyApp, ctx: &egui::Context) {
     }
 }
 
-/// Live mode: fetches a new snapshot every two seconds in background.
+/// Locates the head in the snapshot requested at `requested` and
+/// pauses the job when it keeps disagreeing with the controller.
+fn check_motion(app: &mut MyApp, requested: Instant) {
+    let vision = &mut app.camera.vision;
+    let (Some(photo), Some(corners)) = (&app.camera.photo, app.settings.camera_corners) else {
+        return;
+    };
+    let corners = corners.map(|[x, y]| Point::new(x, y));
+    let bed = (app.machine.width, app.machine.height);
+    let Some(seen) = mml_io::vision::locate(photo, corners, bed, vision.marker()) else {
+        vision.seen = false;
+        app.canvas.vision_marker = None;
+        return;
+    };
+    vision.seen = true;
+    let (from, to) = (vision.seconds(requested), vision.seconds(Instant::now()));
+    let verdict = vision.check.observed(from, to, seen);
+    vision.last = Some(verdict);
+    app.canvas.vision_marker = Some((seen, !matches!(verdict, Verdict::Mismatch { .. })));
+    if let Verdict::Mismatch { error } = verdict {
+        // Learn again after the operator dealt with it.
+        vision.check.reset();
+        let pause = vision.pause && app.device.job_running();
+        app.notify(
+            trf("vision.mismatch", &[&format!("{error:.1}")]),
+            Level::Error,
+        );
+        if pause {
+            app.device.send(mml_device::Command::Pause);
+        }
+    }
+}
+
+/// Live mode: fetches a new snapshot every two seconds in background,
+/// twice a second while checking the movements.
 pub fn poll(app: &mut MyApp, ctx: &egui::Context) {
+    let vision_active = app.camera.vision.enabled && app.camera.live;
+    if vision_active && let Some(status) = &app.device.status {
+        let now = app.camera.vision.seconds(Instant::now());
+        let [x, y, _] = status.work_position;
+        app.camera.vision.check.commanded(now, Point::new(x, y));
+    }
     if let Some(receiver) = &app.camera.fetching
         && let Ok(result) = receiver.try_recv()
     {
         app.camera.fetching = None;
+        let requested = app.camera.last_fetch.unwrap_or_else(Instant::now);
         match result.and_then(|data| set_photo(app, ctx, &data)) {
+            Ok(()) if vision_active => check_motion(app, requested),
             Ok(()) => {}
             Err(error) => {
                 app.camera.live = false;
@@ -91,10 +183,14 @@ pub fn poll(app: &mut MyApp, ctx: &egui::Context) {
             }
         }
     }
-    let due = app
-        .camera
-        .last_fetch
-        .is_none_or(|time| time.elapsed() > Duration::from_secs(2));
+    let due = app.camera.last_fetch.is_none_or(|time| {
+        time.elapsed()
+            > if vision_active {
+                Duration::from_millis(500)
+            } else {
+                Duration::from_secs(2)
+            }
+    });
     if app.camera.live
         && due
         && app.camera.fetching.is_none()
@@ -148,6 +244,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
             {
                 *opacity = app.camera.opacity;
             }
+            vision_settings(app, ui);
             let Some(texture) = &app.camera.photo_texture else {
                 return;
             };
@@ -250,4 +347,73 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         refresh_overlay(app, ctx);
     }
     app.camera.open = open;
+}
+
+fn vision_settings(app: &mut MyApp, ui: &mut egui::Ui) {
+    ui.separator();
+    let calibrated = app.settings.camera_corners.is_some();
+    let vision = &mut app.camera.vision;
+    ui.add_enabled_ui(calibrated, |ui| {
+        if ui
+            .checkbox(
+                &mut vision.enabled,
+                RichText::new(tr("vision.enable")).strong(),
+            )
+            .on_hover_text(tr("vision.enable_hint"))
+            .changed()
+        {
+            vision.check.reset();
+            vision.last = None;
+            app.canvas.vision_marker = None;
+            if vision.enabled {
+                app.camera.live = true;
+            }
+        }
+    });
+    if !vision.enabled {
+        return;
+    }
+    ui.horizontal(|ui| {
+        ui.label(tr("vision.marker"));
+        ui.selectable_value(&mut vision.laser_dot, true, tr("vision.laser_dot"))
+            .on_hover_text(tr("vision.laser_dot_hint"));
+        ui.selectable_value(&mut vision.laser_dot, false, tr("vision.sticker"))
+            .on_hover_text(tr("vision.sticker_hint"));
+        if !vision.laser_dot {
+            ui.color_edit_button_srgb(&mut vision.color);
+        }
+    });
+    ui.horizontal(|ui| {
+        ui.label(tr("vision.tolerance"));
+        ui.add(
+            DragValue::new(&mut vision.check.tolerance)
+                .range(1.0..=20.0)
+                .speed(0.1)
+                .suffix(" mm"),
+        );
+        ui.checkbox(&mut vision.pause, tr("vision.pause"));
+    });
+    let (text, color) = match vision.last {
+        _ if app.settings.camera_url.is_empty() => {
+            (tr("vision.needs_live").to_owned(), crate::theme::WARNING)
+        }
+        None => (
+            tr("vision.waiting").to_owned(),
+            ui.visuals().weak_text_color(),
+        ),
+        Some(_) if !vision.seen => (tr("vision.not_seen").to_owned(), crate::theme::WARNING),
+        Some(Verdict::Learning) => (
+            tr("vision.learning").to_owned(),
+            ui.visuals().weak_text_color(),
+        ),
+        Some(Verdict::Consistent { error }) => (
+            trf("vision.consistent", &[&format!("{error:.1}")]),
+            crate::theme::SUCCESS,
+        ),
+        Some(Verdict::Mismatch { error }) => (
+            trf("vision.mismatch", &[&format!("{error:.1}")]),
+            crate::theme::DANGER,
+        ),
+    };
+    ui.label(RichText::new(text).color(color));
 }
