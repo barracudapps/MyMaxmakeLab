@@ -39,6 +39,29 @@ pub(crate) fn font_database() -> Arc<usvg::fontdb::Database> {
     for data in BUNDLED {
         database.load_font_data(data.to_vec());
     }
+    // Generic families point to fonts a minimal Linux does not have
+    // (Arial, Courier New...): fall back to bundled ones so text never
+    // disappears. Systems that have them keep their usual look.
+    let present: Vec<bool> = ["Arial", "Courier New", "Comic Sans MS", "Impact"]
+        .iter()
+        .map(|family| {
+            database
+                .faces()
+                .any(|face| face.families.iter().any(|(name, _)| name == family))
+        })
+        .collect();
+    if !present[0] {
+        database.set_sans_serif_family("Montserrat");
+    }
+    if !present[1] {
+        database.set_monospace_family("Special Elite");
+    }
+    if !present[2] {
+        database.set_cursive_family("Dancing Script");
+    }
+    if !present[3] {
+        database.set_fantasy_family("Lobster");
+    }
     let database = Arc::new(database);
     if let Ok(mut guard) = DATABASE.write() {
         *guard = Some(database.clone());
