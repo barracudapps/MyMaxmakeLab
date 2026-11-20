@@ -1,4 +1,5 @@
 use crate::document::Document;
+use crate::history::History;
 use crate::machine::MachineProfile;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -22,6 +23,9 @@ pub struct Project {
     pub format: u32,
     pub document: Document,
     pub machine: MachineProfile,
+    /// Recent named actions, so undo still works after reopening.
+    #[serde(default)]
+    pub history: Option<History>,
 }
 
 impl Project {
@@ -30,6 +34,7 @@ impl Project {
             format: FORMAT_VERSION,
             document,
             machine,
+            history: None,
         }
     }
 
@@ -73,7 +78,10 @@ mod tests {
                 height: 1.0,
             },
         ));
-        let project = Project::new(document, MachineProfile::generic_laser());
+        let mut history = History::default();
+        history.record(Document::default(), "Import");
+        let mut project = Project::new(document, MachineProfile::generic_laser());
+        project.history = Some(history);
         let directory = std::env::temp_dir().join(format!("mml-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&directory).unwrap();
         let path = directory.join("test.mml");

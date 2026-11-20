@@ -69,6 +69,17 @@ pub fn tr(key: &'static str) -> &'static str {
         .unwrap_or(key)
 }
 
+/// Translation of a key known only at run time (history labels saved in
+/// a project); unknown keys are shown as they are.
+pub fn tr_key(key: &str) -> String {
+    let tables = tables();
+    let index = CURRENT.load(Ordering::Relaxed) as usize;
+    tables[index]
+        .get(key)
+        .or_else(|| tables[0].get(key))
+        .map_or_else(|| key.to_owned(), |text| (*text).to_owned())
+}
+
 /// `tr` with `{0}`, `{1}`... placeholders.
 pub fn trf(key: &'static str, arguments: &[&dyn std::fmt::Display]) -> String {
     let mut text = tr(key).to_owned();

@@ -121,6 +121,27 @@ pub struct LiveLink {
     pub shapes: Vec<ShapeId>,
 }
 
+/// A project open in a background tab, with its own undo history.
+pub struct ProjectTab {
+    document: Document,
+    machine: MachineProfile,
+    history: History,
+    anchor: Document,
+    revision: u64,
+    saved_revision: u64,
+    project_path: Option<PathBuf>,
+    selection: Vec<ShapeId>,
+    current_layer: LayerId,
+    live_links: Vec<LiveLink>,
+}
+
+impl ProjectTab {
+    fn modified(&self) -> bool {
+        self.revision != self.saved_revision
+            && !(self.document.shapes.is_empty() && self.project_path.is_none())
+    }
+}
+
 pub struct MyApp {
     pub settings: Settings,
     pub library: Library,
@@ -163,6 +184,11 @@ pub struct MyApp {
     pub svg_code: Option<crate::text_tools::SvgCodeDialog>,
     /// Optimised version of the opened G-code, keyed by its length.
     pub optimize_preview: Option<(usize, (String, mml_gcode::OptimizeReport))>,
+    /// Open projects; the active one lives in the fields above and its
+    /// slot is `None`.
+    pub tabs: Vec<Option<ProjectTab>>,
+    pub active_tab: usize,
+    pub closing_tab: Option<usize>,
 }
 
 impl MyApp {
@@ -246,6 +272,9 @@ impl MyApp {
             deform: None,
             svg_code: None,
             optimize_preview: None,
+            tabs: vec![None],
+            active_tab: 0,
+            closing_tab: None,
         };
         if let Some(fonts) = crate::settings::fonts_dir().filter(|directory| directory.is_dir()) {
             mml_io::add_font_directory(&fonts);
@@ -300,10 +329,11 @@ impl MyApp {
         self.selection.clear();
     }
 
-    /// Records an undo step before a discrete change.
-    pub fn begin_edit(&mut self) {
+    /// Records an undo step before a discrete change; `label` is the
+    /// translation key of the action shown in the history.
+    pub fn begin_edit(&mut self, label: &'static str) {
         self.flush_burst();
-        self.history.record(self.document.clone());
+        self.history.record(self.document.clone(), label);
     }
 
     pub fn end_edit(&mut self) {
@@ -318,7 +348,7 @@ impl MyApp {
             .last_edit
             .is_none_or(|time| time.elapsed() > Duration::from_millis(800));
         if new_burst {
-            self.history.record(self.anchor.clone());
+            self.history.record(self.anchor.clone(), "history.settings");
         }
         self.last_edit = Some(Instant::now());
         self.revision += 1;
@@ -341,14 +371,39 @@ impl MyApp {
 
     pub fn undo(&mut self) {
         self.flush_burst();
-        if self.history.undo(&mut self.document) {
+        if let Some(label) = self.history.undo(&mut self.document) {
             self.after_history();
+            self.notify(trf("history.undone", &[&i18n::tr_key(&label)]), Level::Info);
         }
     }
 
     pub fn redo(&mut self) {
         self.flush_burst();
-        if self.history.redo(&mut self.document) {
+        if let Some(label) = self.history.redo(&mut self.document) {
+            self.after_history();
+            self.notify(trf("history.redone", &[&i18n::tr_key(&label)]), Level::Info);
+        }
+    }
+
+    /// Goes back `steps` actions at once (history list).
+    pub fn undo_steps(&mut self, steps: usize) {
+        self.flush_burst();
+        let mut done = false;
+        for _ in 0..steps {
+            done |= self.history.undo(&mut self.document).is_some();
+        }
+        if done {
+            self.after_history();
+        }
+    }
+
+    pub fn redo_steps(&mut self, steps: usize) {
+        self.flush_burst();
+        let mut done = false;
+        for _ in 0..steps {
+            done |= self.history.redo(&mut self.document).is_some();
+        }
+        if done {
             self.after_history();
         }
     }
@@ -372,7 +427,7 @@ impl MyApp {
         if self.selection.is_empty() {
             return;
         }
-        self.begin_edit();
+        self.begin_edit("history.delete");
         let selection = std::mem::take(&mut self.selection);
         self.document
             .shapes
@@ -384,7 +439,7 @@ impl MyApp {
         if self.selection.is_empty() {
             return;
         }
-        self.begin_edit();
+        self.begin_edit("history.duplicate");
         let copies: Vec<Shape> = self
             .document
             .shapes
@@ -406,7 +461,7 @@ impl MyApp {
         if self.selection.is_empty() {
             return;
         }
-        self.begin_edit();
+        self.begin_edit("history.transform");
         for shape in self
             .document
             .shapes
@@ -419,7 +474,7 @@ impl MyApp {
     }
 
     pub fn add_shape(&mut self, shape: Shape) {
-        self.begin_edit();
+        self.begin_edit("history.add");
         self.selection = vec![shape.id];
         self.document.shapes.push(shape);
         self.end_edit();
@@ -517,7 +572,18 @@ impl MyApp {
             "mml" => Project::load(path)
                 .map_err(|error| error.to_string())
                 .map(|project| {
+                    if let Some(index) = self.tab_with_path(path) {
+                        self.switch_tab(index);
+                        return;
+                    }
+                    if self.is_modified()
+                        || !self.document.shapes.is_empty()
+                        || self.project_path.is_some()
+                    {
+                        self.new_tab();
+                    }
                     self.new_project();
+                    self.history = project.history.unwrap_or_default();
                     self.document = project.document;
                     self.machine = project.machine;
                     self.anchor = self.document.clone();
@@ -641,7 +707,7 @@ impl MyApp {
     }
 
     pub fn import_groups(&mut self, groups: Vec<mml_io::ImportedGroup>, name: &str) {
-        self.begin_edit();
+        self.begin_edit("history.import");
         let all: Vec<_> = groups
             .iter()
             .flat_map(|group| group.paths.iter().cloned())
@@ -710,7 +776,7 @@ impl MyApp {
     }
 
     fn import_image(&mut self, image: mml_core::RasterImage, width: f64, height: f64, path: &Path) {
-        self.begin_edit();
+        self.begin_edit("history.import");
         // Large photos default to 100 mm wide, a sensible engraving size.
         let scale = if width > 100.0 { 100.0 / width } else { 1.0 };
         let (width, height) = (width * scale, height * scale);
@@ -780,7 +846,7 @@ impl MyApp {
                 .map(|shape| shape.layer);
             let mode = self.mode;
             let selection = std::mem::take(&mut self.selection);
-            self.begin_edit();
+            self.begin_edit("history.live_update");
             self.document
                 .shapes
                 .retain(|shape| !link.shapes.contains(&shape.id));
@@ -847,7 +913,10 @@ impl MyApp {
                 None => return false,
             },
         };
-        let project = Project::new(self.document.clone(), self.machine.clone());
+        let mut project = Project::new(self.document.clone(), self.machine.clone());
+        // A short history keeps Cmd+Z working after reopening without
+        // making the file heavy.
+        project.history = Some(self.history.trimmed(15));
         match project.save(&path) {
             Ok(()) => {
                 self.project_path = Some(path.clone());
@@ -1095,7 +1164,7 @@ impl MyApp {
             self.import_dialog();
         }
         if pressed(command(Key::N)) {
-            self.new_project();
+            self.new_tab();
         }
         if pressed(command(Key::E)) {
             self.export_gcode();
@@ -1237,6 +1306,178 @@ impl MyApp {
         }
     }
 
+    fn take_current(&mut self) -> ProjectTab {
+        self.flush_burst();
+        let fresh = Document::default();
+        let current_layer = fresh.layers[0].id;
+        ProjectTab {
+            document: std::mem::replace(&mut self.document, fresh),
+            machine: self.machine.clone(),
+            history: std::mem::take(&mut self.history),
+            anchor: std::mem::take(&mut self.anchor),
+            revision: self.revision,
+            saved_revision: self.saved_revision,
+            project_path: self.project_path.take(),
+            selection: std::mem::take(&mut self.selection),
+            current_layer: std::mem::replace(&mut self.current_layer, current_layer),
+            live_links: std::mem::take(&mut self.live_links),
+        }
+    }
+
+    fn restore(&mut self, tab: ProjectTab) {
+        self.document = tab.document;
+        self.machine = tab.machine;
+        self.history = tab.history;
+        self.anchor = tab.anchor;
+        self.revision = tab.revision;
+        self.saved_revision = tab.saved_revision;
+        self.project_path = tab.project_path;
+        self.selection = tab.selection;
+        self.current_layer = tab.current_layer;
+        self.live_links = tab.live_links;
+        self.job.built = None;
+        self.job.building = None;
+        self.job.built_revision = (0, 0);
+        self.canvas.request_fit();
+    }
+
+    pub fn switch_tab(&mut self, index: usize) {
+        if index == self.active_tab || index >= self.tabs.len() {
+            return;
+        }
+        let current = self.take_current();
+        self.tabs[self.active_tab] = Some(current);
+        if let Some(tab) = self.tabs[index].take() {
+            self.restore(tab);
+        }
+        self.active_tab = index;
+    }
+
+    pub fn new_tab(&mut self) {
+        let current = self.take_current();
+        self.tabs[self.active_tab] = Some(current);
+        self.tabs.push(None);
+        self.active_tab = self.tabs.len() - 1;
+        let revision = self.revision;
+        self.new_project();
+        self.revision = revision + 1;
+        self.saved_revision = self.revision;
+    }
+
+    /// Closes a tab without asking; the interface asks first when the
+    /// tab has unsaved changes.
+    pub fn close_tab(&mut self, index: usize) {
+        if self.tabs.len() == 1 {
+            self.new_project();
+            return;
+        }
+        if index == self.active_tab {
+            let next = if index + 1 < self.tabs.len() {
+                index + 1
+            } else {
+                index - 1
+            };
+            self.switch_tab(next);
+        }
+        self.tabs.remove(index);
+        if self.active_tab > index {
+            self.active_tab -= 1;
+        }
+    }
+
+    fn tab_with_path(&self, path: &Path) -> Option<usize> {
+        self.tabs.iter().position(|tab| {
+            tab.as_ref()
+                .is_some_and(|tab| tab.project_path.as_deref() == Some(path))
+        })
+    }
+
+    /// Name and unsaved state of a tab.
+    pub fn tab_label(&self, index: usize) -> (String, bool) {
+        let untitled = || tr("file.untitled").to_owned();
+        match &self.tabs[index] {
+            None => (
+                self.project_path
+                    .as_deref()
+                    .map(Self::file_stem)
+                    .unwrap_or_else(untitled),
+                self.is_modified(),
+            ),
+            Some(tab) => (
+                tab.project_path
+                    .as_deref()
+                    .map(Self::file_stem)
+                    .unwrap_or_else(untitled),
+                tab.modified(),
+            ),
+        }
+    }
+
+    pub fn tab_modified(&self, index: usize) -> bool {
+        self.tab_label(index).1
+    }
+
+    pub fn any_modified(&self) -> bool {
+        (0..self.tabs.len()).any(|index| self.tab_modified(index))
+    }
+
+    pub fn history_labels(&self) -> (Vec<String>, Vec<String>) {
+        (
+            self.history
+                .undo_labels()
+                .take(15)
+                .map(i18n::tr_key)
+                .collect(),
+            self.history
+                .redo_labels()
+                .take(15)
+                .map(i18n::tr_key)
+                .collect(),
+        )
+    }
+
+    fn tab_bar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top("tabs").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let mut switch = None;
+                let mut close = None;
+                for index in 0..self.tabs.len() {
+                    let (name, modified) = self.tab_label(index);
+                    let text = if modified {
+                        format!("{name} •")
+                    } else {
+                        name
+                    };
+                    let active = index == self.active_tab;
+                    if ui.selectable_label(active, text).clicked() {
+                        switch = Some(index);
+                    }
+                    if ui
+                        .small_button("×")
+                        .on_hover_text(tr("tabs.close"))
+                        .clicked()
+                    {
+                        close = Some(index);
+                    }
+                    ui.separator();
+                }
+                if ui.small_button("+").on_hover_text(tr("tabs.new")).clicked() {
+                    self.new_tab();
+                }
+                if let Some(index) = switch {
+                    self.switch_tab(index);
+                }
+                if let Some(index) = close {
+                    if self.tab_modified(index) {
+                        self.closing_tab = Some(index);
+                    } else {
+                        self.close_tab(index);
+                    }
+                }
+            });
+        });
+    }
+
     fn title(&self) -> String {
         let name = self
             .project_path
@@ -1255,7 +1496,7 @@ impl MyApp {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(tr("menu.file"), |ui| {
                     if ui.button(tr("menu.new")).clicked() {
-                        self.new_project();
+                        self.new_tab();
                     }
                     if ui.button(tr("menu.open")).clicked() {
                         self.open_dialog();
@@ -1312,6 +1553,34 @@ impl MyApp {
                     if ui.button(tr("menu.delete")).clicked() {
                         self.delete_selection();
                     }
+                    ui.menu_button(tr("history.title"), |ui| {
+                        let (undo, redo) = self.history_labels();
+                        if undo.is_empty() && redo.is_empty() {
+                            ui.label(RichText::new(tr("history.empty")).weak());
+                        }
+                        for (index, label) in redo.iter().enumerate().rev() {
+                            if ui
+                                .button(RichText::new(label).weak())
+                                .on_hover_text(tr("history.redo_to"))
+                                .clicked()
+                            {
+                                self.redo_steps(index + 1);
+                            }
+                        }
+                        if !redo.is_empty() {
+                            ui.label(RichText::new(tr("history.now")).strong());
+                        }
+                        for (index, label) in undo.iter().enumerate() {
+                            if ui
+                                .button(label)
+                                .on_hover_text(tr("history.undo_to"))
+                                .clicked()
+                            {
+                                self.undo_steps(index + 1);
+                            }
+                        }
+                    });
+                    ui.separator();
                     if ui.button(tr("svgcode.title")).clicked() {
                         self.svg_code = Some(Default::default());
                     }
@@ -1658,7 +1927,7 @@ impl eframe::App for MyApp {
         self.maintain_job(&ctx);
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.title()));
         if ctx.input(|input| input.viewport().close_requested())
-            && self.is_modified()
+            && self.any_modified()
             && !self.confirm_close
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -1667,6 +1936,7 @@ impl eframe::App for MyApp {
 
         let mode_before = self.mode;
         self.top_bar(ui);
+        self.tab_bar(ui);
         if self.mode != mode_before {
             self.canvas.request_fit();
         }

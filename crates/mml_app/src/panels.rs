@@ -226,7 +226,7 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
             .show_ui(ui, |ui| {
                 for (id, name) in &layer_names {
                     if ui.selectable_label(current == Some(*id), name).clicked() {
-                        app.begin_edit();
+                        app.begin_edit("history.layer");
                         for shape in app
                             .document
                             .shapes
@@ -335,7 +335,7 @@ fn align_selection(app: &mut MyApp, kind: u8, bed: (f64, f64)) {
     } else {
         all
     };
-    app.begin_edit();
+    app.begin_edit("history.align");
     for shape in app
         .document
         .shapes
@@ -371,7 +371,7 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
             ui.menu_button("+", |ui| {
                 for operation in all_operations() {
                     if ui.button(operation_label(&operation)).clicked() {
-                        app.begin_edit();
+                        app.begin_edit("history.add_layer");
                         let color = app.document.next_layer_color();
                         let layer = Layer::new(operation_label(&operation), color, operation);
                         app.current_layer = layer.id;
@@ -472,7 +472,7 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
         });
     }
     if let Some((index, kind)) = action {
-        app.begin_edit();
+        app.begin_edit("history.layers");
         match kind {
             0 => {
                 let id = app.document.layers[index].id;
@@ -1160,7 +1160,33 @@ fn refresh_simulation(app: &mut MyApp) {
     }
 }
 
+fn close_tab_confirmation(app: &mut MyApp, ctx: &egui::Context) {
+    let Some(index) = app.closing_tab else { return };
+    let (name, _) = app.tab_label(index.min(app.tabs.len() - 1));
+    egui::Modal::new(egui::Id::unique("close-tab")).show(ctx, |ui| {
+        ui.label(RichText::new(trf("tabs.unsaved", &[&name])).strong());
+        ui.horizontal(|ui| {
+            if ui.button(tr("menu.save")).clicked() {
+                app.switch_tab(index);
+                if app.save(false) {
+                    let active = app.active_tab;
+                    app.close_tab(active);
+                }
+                app.closing_tab = None;
+            }
+            if ui.button(tr("close.discard")).clicked() {
+                app.close_tab(index);
+                app.closing_tab = None;
+            }
+            if ui.button(tr("dialog.cancel")).clicked() {
+                app.closing_tab = None;
+            }
+        });
+    });
+}
+
 pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
+    close_tab_confirmation(app, ctx);
     crate::workflow::checklist_modal(app, ctx);
     crate::workflow::tutorial(app, ctx);
     crate::relief_dialog::show(app, ctx);
@@ -1221,7 +1247,7 @@ fn array_dialog(app: &mut MyApp, ctx: &egui::Context) {
         if bounds.is_empty() {
             return;
         }
-        app.begin_edit();
+        app.begin_edit("history.array");
         let originals: Vec<Shape> = app
             .document
             .shapes

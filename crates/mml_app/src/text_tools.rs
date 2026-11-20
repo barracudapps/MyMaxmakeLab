@@ -341,7 +341,7 @@ pub fn deform_dialog(app: &mut MyApp, ctx: &egui::Context) {
         });
     if apply && let Some(warp) = settings.warp() {
         let warped = warp_paths(&local, warp);
-        app.begin_edit();
+        app.begin_edit("history.deform");
         if let Some(target) = app.document.shape_mut(id) {
             target.kind = ShapeKind::Paths { paths: warped };
         }
