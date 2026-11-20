@@ -1,5 +1,8 @@
+//! Areas enclosed by paths and their offsets, shared by CNC pockets
+//! and laser contour fills.
+
+use crate::geometry::{Path, Point};
 use geo::{BooleanOps, Buffer, Coord, LineString, MultiPolygon, Polygon};
-use mml_core::geometry::{Path, Point};
 
 /// Area enclosed by the closed paths of one shape, even-odd rule.
 pub fn region_of(paths: &[Path]) -> MultiPolygon<f64> {

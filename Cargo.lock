@@ -1621,6 +1621,7 @@ name = "mml_core"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "geo",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -1697,6 +1698,7 @@ dependencies = [
 name = "mml_relief"
 version = "0.1.0"
 dependencies = [
+ "mml_core",
  "mml_gcode",
  "thiserror 2.0.21",
 ]

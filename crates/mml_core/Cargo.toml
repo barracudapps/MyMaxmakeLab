@@ -13,3 +13,4 @@ serde_json.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 base64 = "0.22"
+geo = "0.33"

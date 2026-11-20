@@ -1,8 +1,8 @@
-use crate::region::{offset, region_of, to_path};
 use geo::{MultiPolygon, Polygon};
 use mml_core::geometry::{Path, Point};
 use mml_core::layer::{CncPocketParams, CncProfileParams, ProfileSide};
 use mml_core::ordering::order_paths;
+use mml_core::region::{offset, region_of, to_path};
 use mml_gcode::GcodeWriter;
 
 #[derive(Debug, Clone, Copy)]
