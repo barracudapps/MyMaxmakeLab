@@ -2,6 +2,7 @@
 //! values going down.
 
 mod emit;
+pub mod fit;
 
 pub use emit::{CncSettings, emit_pocket, emit_profile, pass_depths};
 pub use mml_core::region::{offset, region_of};
