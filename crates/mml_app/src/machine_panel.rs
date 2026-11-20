@@ -29,6 +29,10 @@ pub enum JobKind {
     ProbeOrigin,
     ProbeGrid,
     ProbePlane,
+    /// Touch of the installed tool on the tool setter.
+    ToolSetter,
+    /// Touch of the calibration gauge on the tool setter.
+    SetterReference,
 }
 
 pub struct RunningJob {
@@ -69,6 +73,8 @@ pub struct DeviceState {
     pub finished: Option<(JobKind, JobOutcome)>,
     /// Duration of the last finished job.
     pub last_elapsed: Duration,
+    /// A pause or tool change happened: the measured length is stale.
+    pub tool_maybe_changed: bool,
     pub z_probed: bool,
     /// Continuous jog in progress: direction and whether the long jog
     /// was sent (held longer than a click).
@@ -110,6 +116,7 @@ impl DeviceState {
             probe_reports: Vec::new(),
             finished: None,
             last_elapsed: Duration::ZERO,
+            tool_maybe_changed: false,
             z_probed: false,
             hold: None,
             discovery: None,
@@ -298,6 +305,8 @@ impl DeviceState {
                 }
                 Event::ProgramPaused { index } => {
                     self.reached_pause = Some(index);
+                    // A pause is where tools and heads are changed.
+                    self.tool_maybe_changed = true;
                     if let Some(job) = &mut self.job {
                         job.paused = true;
                     }
@@ -390,6 +399,9 @@ pub fn run_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     card(ui, |ui| job_card(app, ui));
     card(ui, |ui| jog(app, ui));
     card(ui, |ui| crate::workflow::probe_section(app, ui));
+    if app.machine.kind == mml_core::machine::MachineKind::Cnc {
+        card(ui, |ui| crate::collision::card(app, ui));
+    }
     card(ui, |ui| crate::workflow::basics_section(app, ui));
     if app.settings.advanced {
         card(ui, |ui| console(app, ui));

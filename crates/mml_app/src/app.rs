@@ -178,6 +178,7 @@ pub struct MyApp {
     keep_awake: Option<crate::os::KeepAwake>,
     /// Notification to show and window attention to request.
     pub attention: Option<(String, String)>,
+    pub collision: crate::collision::CollisionState,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -281,6 +282,7 @@ impl MyApp {
             tool_suggestion: None,
             keep_awake: None,
             attention: None,
+            collision: Default::default(),
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,
@@ -2110,6 +2112,11 @@ impl eframe::App for MyApp {
         crate::pairing_dialog::poll(self);
         crate::camera_panel::poll(self, &ctx);
         crate::fleet::poll(self);
+        crate::collision::refresh(self);
+        if std::mem::take(&mut self.device.tool_maybe_changed) {
+            // The tool may have been swapped: measure it again.
+            self.collision.stick_out = None;
+        }
         // A sleeping computer would stop the machine half way.
         let streaming = self.device.job_running() || crate::fleet::running(self);
         if streaming && self.keep_awake.is_none() {

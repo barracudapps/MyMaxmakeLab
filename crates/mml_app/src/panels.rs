@@ -567,6 +567,29 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
         app.document.layers[index].pause_before = pause_before;
         app.touch();
     }
+    let mut obstacle = app.document.layers[index].obstacle;
+    ui.horizontal(|ui| {
+        let mut fixture = obstacle.is_some();
+        if ui
+            .checkbox(&mut fixture, tr("layer.obstacle"))
+            .on_hover_text(tr("layer.obstacle_hint"))
+            .changed()
+        {
+            obstacle = fixture.then_some(10.0);
+        }
+        if let Some(top) = &mut obstacle {
+            ui.add(
+                DragValue::new(top)
+                    .range(0.0..=300.0)
+                    .suffix(" mm")
+                    .speed(0.1),
+            );
+        }
+    });
+    if obstacle != app.document.layers[index].obstacle {
+        app.document.layers[index].obstacle = obstacle;
+        app.touch();
+    }
     if app.machine.tool_changer && !operation.is_laser() {
         let mut tool = app.document.layers[index].tool;
         let label = |tool: Option<u32>| match tool {

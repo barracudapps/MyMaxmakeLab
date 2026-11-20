@@ -97,6 +97,9 @@ pub fn start_gates(app: &MyApp) -> Vec<String> {
     if job_uses_cnc(app) && app.settings.require_probe_cnc && !app.device.z_probed {
         gates.push(tr("gate.probe_first").to_owned());
     }
+    if job_uses_cnc(app) && app.machine.kind == MachineKind::Cnc {
+        gates.extend(crate::collision::gates(app));
+    }
     if job_uses_laser(app)
         && app.settings.require_frame_laser
         && app.job.frame_approved != Some(app.job_key())
@@ -166,6 +169,10 @@ pub fn process_finished(app: &mut MyApp) {
         return;
     };
     let completed = outcome == JobOutcome::Completed;
+    if matches!(kind, JobKind::ToolSetter | JobKind::SetterReference) {
+        crate::collision::setter_finished(app, kind, completed);
+        return;
+    }
     if kind == JobKind::Main
         && let Some(built) = &app.job.built
     {

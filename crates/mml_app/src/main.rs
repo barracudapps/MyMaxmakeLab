@@ -4,6 +4,7 @@ mod app;
 mod assist;
 mod camera_panel;
 mod canvas;
+mod collision;
 mod firmware;
 mod fleet;
 mod i18n;

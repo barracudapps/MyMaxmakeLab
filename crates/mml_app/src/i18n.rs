@@ -173,6 +173,7 @@ mod tests {
             include_str!("makers_dialog.rs"),
             include_str!("fleet.rs"),
             include_str!("stats_dialog.rs"),
+            include_str!("collision.rs"),
             include_str!("../../mml_core/src/ornament.rs"),
             include_str!("../../mml_materials/src/tools.rs"),
             include_str!("../../mml_core/src/layer.rs"),
@@ -242,6 +243,8 @@ mod tests {
                     "stats",
                     "suggest",
                     "os",
+                    "collision",
+                    "gate",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')
