@@ -38,6 +38,77 @@ pub struct MachineProfile {
     /// Automatic tool changer: CNC layers load their tool with `M6 T…`
     /// instead of pausing for the operator.
     pub tool_changer: bool,
+    /// 5-axis table: A tilts the cradle, C turns the table on it.
+    pub trunnion: Option<Trunnion>,
+}
+
+/// Table-table 5-axis kinematics (cradle tilting around X by A, table
+/// turning around its own axis by C). Work zero is set on the pivot,
+/// where the A and C axes cross; part coordinates have their origin
+/// at the centre of the table surface.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Trunnion {
+    /// Table surface above the A axis, mm (negative when below).
+    pub table_height: f64,
+    pub table_radius: f64,
+    /// Travel of the tilt axis, degrees.
+    pub a_min: f64,
+    pub a_max: f64,
+}
+
+impl Default for Trunnion {
+    fn default() -> Self {
+        Self {
+            table_height: 0.0,
+            table_radius: 50.0,
+            a_min: -100.0,
+            a_max: 100.0,
+        }
+    }
+}
+
+impl Trunnion {
+    /// Part point to work coordinates for the angles A and C, degrees.
+    /// Positive angles follow the right-hand rule around +X and +Z.
+    pub fn to_machine(&self, point: [f64; 3], a: f64, c: f64) -> [f64; 3] {
+        let (sin_c, cos_c) = c.to_radians().sin_cos();
+        let (sin_a, cos_a) = a.to_radians().sin_cos();
+        let [x, y, z] = point;
+        let z = z + self.table_height;
+        let (x, y) = (x * cos_c - y * sin_c, x * sin_c + y * cos_c);
+        [x, y * cos_a - z * sin_a, y * sin_a + z * cos_a]
+    }
+
+    pub fn to_part(&self, point: [f64; 3], a: f64, c: f64) -> [f64; 3] {
+        let (sin_c, cos_c) = c.to_radians().sin_cos();
+        let (sin_a, cos_a) = a.to_radians().sin_cos();
+        let [x, y, z] = point;
+        let (y, z) = (y * cos_a + z * sin_a, -y * sin_a + z * cos_a);
+        let (x, y) = (x * cos_c + y * sin_c, -x * sin_c + y * cos_c);
+        [x, y, z - self.table_height]
+    }
+
+    /// Angles that turn the part direction `normal` towards the tool
+    /// (+Z), within the A travel; `None` when the machine cannot.
+    pub fn orient(&self, normal: [f64; 3]) -> Option<(f64, f64)> {
+        let [x, y, z] = normal;
+        let length = (x * x + y * y + z * z).sqrt();
+        if length < 1e-9 {
+            return None;
+        }
+        let rho = x.hypot(y) / length;
+        let a = rho.atan2(z / length).to_degrees();
+        let c = if rho < 1e-9 {
+            0.0
+        } else {
+            x.atan2(y).to_degrees()
+        };
+        let wrap = |angle: f64| 180.0 - (180.0 - angle).rem_euclid(360.0);
+        [(a, wrap(c)), (-a, wrap(c + 180.0))]
+            .into_iter()
+            .find(|(a, _)| (self.a_min - 1e-9..=self.a_max + 1e-9).contains(a))
+    }
 }
 
 impl Default for MachineProfile {
@@ -62,6 +133,7 @@ impl MachineProfile {
             safe_z: 5.0,
             relative_to_current: false,
             tool_changer: false,
+            trunnion: None,
         }
     }
 
@@ -111,5 +183,54 @@ impl MachineProfile {
             Self::generic_hybrid(),
             Self::makera_carvera(),
         ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trunnion_turns_each_face_to_the_tool_and_back() {
+        let trunnion = Trunnion {
+            table_height: 12.0,
+            ..Trunnion::default()
+        };
+        for normal in [
+            [0.0, -1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.3, 0.5, 0.8],
+            [0.0, 0.0, 1.0],
+        ] {
+            let (a, c) = trunnion.orient(normal).unwrap();
+            let base = trunnion.to_machine([0.0; 3], a, c);
+            let tip = trunnion.to_machine(normal, a, c);
+            let length =
+                (normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]).sqrt();
+            let up = [0, 1, 2].map(|axis| (tip[axis] - base[axis]) / length);
+            assert!(
+                up[0].abs() < 1e-9 && up[1].abs() < 1e-9 && (up[2] - 1.0).abs() < 1e-9,
+                "{normal:?} -> {up:?}"
+            );
+            let point = [3.0, -7.0, 5.0];
+            let back = trunnion.to_part(trunnion.to_machine(point, a, c), a, c);
+            assert!((0..3).all(|axis| (back[axis] - point[axis]).abs() < 1e-9));
+        }
+        // Front face: A90 C180 or A-90 C0; a cradle tilting one way only
+        // must use the other.
+        assert_eq!(trunnion.orient([0.0, -1.0, 0.0]), Some((90.0, 180.0)));
+        let one_way = Trunnion {
+            a_min: -100.0,
+            a_max: 10.0,
+            ..trunnion
+        };
+        let (a, c) = one_way.orient([0.0, -1.0, 0.0]).unwrap();
+        assert!((a + 90.0).abs() < 1e-9 && c.abs() < 1e-9);
+        let limited = Trunnion {
+            a_min: -30.0,
+            a_max: 30.0,
+            ..trunnion
+        };
+        assert_eq!(limited.orient([1.0, 0.0, 0.0]), None);
     }
 }
