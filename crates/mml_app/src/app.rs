@@ -179,6 +179,7 @@ pub struct MyApp {
     /// Notification to show and window attention to request.
     pub attention: Option<(String, String)>,
     pub collision: crate::collision::CollisionState,
+    pub palette: crate::palette::Palette,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -283,6 +284,7 @@ impl MyApp {
             keep_awake: None,
             attention: None,
             collision: Default::default(),
+            palette: Default::default(),
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,
@@ -368,6 +370,7 @@ impl MyApp {
                     Some("camera") => self.camera.open = true,
                     Some("pairing") => self.pairing.open = true,
                     Some("firmware") => self.firmware.open = true,
+                    Some("palette") => self.palette.open = true,
                     _ => {}
                 },
                 "--orbit" => {
@@ -1062,6 +1065,11 @@ impl MyApp {
         self.usage.push(record);
     }
 
+    /// Checks GitHub for a new release now.
+    pub fn request_update_check(&mut self) {
+        self.check_updates_now = true;
+    }
+
     pub fn motion_settings(&self) -> MotionSettings {
         let mut settings = MotionSettings::default();
         if let Some(rate) = self.device.setting_f64(110) {
@@ -1247,6 +1255,10 @@ impl MyApp {
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
+        crate::palette::show(self, ctx);
+        if self.palette.open {
+            return;
+        }
         let command = |key| KeyboardShortcut::new(Modifiers::COMMAND, key);
         let command_shift = |key| KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, key);
         let typing = ctx.memory(|memory| memory.focused().is_some());

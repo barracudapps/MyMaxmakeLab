@@ -15,6 +15,7 @@ mod ornament_dialog;
 mod os;
 mod pairing;
 mod pairing_dialog;
+mod palette;
 mod panels;
 mod preview;
 mod relief_dialog;
