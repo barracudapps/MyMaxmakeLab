@@ -873,3 +873,7 @@ fleet.stop = Arrêter
 fleet.add_machine = Ajouter une machine
 fleet.done = {0} terminé : déchargez, chargez la pièce suivante et cochez prête
 fleet.unfinished = {0} n’a pas abouti : il est revenu dans la file
+
+mcp.copy = Assistants IA (MCP) : copier le chemin du serveur
+mcp.copy_hint = Permet à Claude, Codex, Gemini ou tout client MCP de dessiner boîtes, labyrinthes, motifs et de créer du G-code avec MyMaxmakeLab ; il ne déplace jamais une machine. Mise en place : docs/MCP.md
+mcp.copied = Copié : {0}. Ajoutez-le comme serveur MCP stdio dans votre assistant (voir docs/MCP.md).

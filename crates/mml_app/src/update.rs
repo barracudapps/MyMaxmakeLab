@@ -189,6 +189,27 @@ fn install(release: &Release, location: &Path) -> Result<(), String> {
         return Err(format!("cannot install the update: {error}"));
     }
     let _ = remove(&old);
+    // Outside a bundle the MCP server sits next to the executable.
+    if location.is_file()
+        && let Some(folder) = location.parent()
+    {
+        for name in ["mymaxmakelab-mcp", "mymaxmakelab-mcp.exe"] {
+            let fresh = unpacked.join(name);
+            let installed = folder.join(name);
+            if fresh.exists() {
+                let aside = installed.with_extension("old");
+                let _ = std::fs::rename(&installed, &aside);
+                if std::fs::rename(&fresh, &installed)
+                    .or_else(|_| copy(&fresh, &installed))
+                    .is_ok()
+                {
+                    let _ = remove(&aside);
+                } else {
+                    let _ = std::fs::rename(&aside, &installed);
+                }
+            }
+        }
+    }
     let _ = std::fs::remove_dir_all(&work);
     Ok(())
 }

@@ -1716,6 +1716,24 @@ impl MyApp {
                     if ui.button(tr("menu.about")).clicked() {
                         self.about_open = true;
                     }
+                    if ui
+                        .button(tr("mcp.copy"))
+                        .on_hover_text(tr("mcp.copy_hint"))
+                        .clicked()
+                    {
+                        let name = if cfg!(windows) {
+                            "mymaxmakelab-mcp.exe"
+                        } else {
+                            "mymaxmakelab-mcp"
+                        };
+                        let path = std::env::current_exe()
+                            .ok()
+                            .and_then(|exe| exe.parent().map(|folder| folder.join(name)))
+                            .map(|path| path.display().to_string())
+                            .unwrap_or_default();
+                        ui.ctx().copy_text(path.clone());
+                        self.notify(trf("mcp.copied", &[&path]), Level::Info);
+                    }
                     ui.separator();
                     let checking = self.updater.checking();
                     if ui

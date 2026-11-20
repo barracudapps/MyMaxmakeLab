@@ -8,7 +8,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 
 ![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
-![Tests](https://img.shields.io/badge/tests-98%20passing-34a870)
+![Tests](https://img.shields.io/badge/tests-133%20passing-34a870)
 ![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL-informational)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -88,16 +88,24 @@ flowchart LR
 - **Live link**: an imported file reloads in place when your drawing program
   saves it (Inkscape, Krita, Affinity, Procreate via a synced folder).
 - **Insert SVG code** typed or pasted (or the `<svg>` of an HTML snippet).
+- **Generators**: finger-jointed **box** sized for an object, **maze** (walls
+  or corridors to mill), **jigsaw puzzle**, random **ornaments** by style
+  (Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian,
+  Islamic).
+- **Sprue**: parts packed in a frame with **bridges** placed automatically
+  on calm stretches of each outline (model kits, 3D puzzle boards).
 </details>
 
 <details>
 <summary><b>🔥 Laser</b></summary>
 
-- Line (cut / engrave) with passes, Z step and **dashed / dotted** styles.
-- Scanline **fill** with angle, crosshatch, overscan, bidirectional; shapes
-  united, holes kept.
+- Line (cut / engrave) with passes, Z step, **dashed / dotted** styles and
+  holding **bridges**.
+- **Fill** by lines at any angle (diagonal in one click), **circles** or
+  **contours**; crosshatch, overscan, bidirectional; holes kept.
 - **Image engraving**: greyscale, threshold, Bayer, Floyd–Steinberg,
-  Atkinson, Jarvis, Stucki, **halftone (vintage)** and **line engraving**.
+  Atkinson, Jarvis, Stucki, **halftone (vintage)** and **line engraving**,
+  swept by lines, **diagonals** or **circles**.
 - M4 dynamic power, air assist, holes cut before outlines, minimal travel.
 - **Simplified 4-axis**: chuck on an A axis or rotary in place of Y with a
   single calibration value.
@@ -118,6 +126,12 @@ flowchart LR
   feed), with a holding stem so the part never comes loose.
 - **Automatic tool changer** (Makera Carvera): each CNC layer picks its
   slot, the machine changes and measures the tool by itself.
+- **Mold mode**: the imprint of a model sunk into the stock, with an even
+  offset and automatic removal of small islands.
+- **Orientation guide**: the best side up of a model for a 3-axis machine.
+- **Stacked slices** of a model for plywood sculptures and 3D puzzles.
+- **5-axis (3+2)** on a table-table machine: each side turned to the tool,
+  the table avoided.
 - **Tool library**: quick or advanced tool creation, **Fusion 360 import**,
   tool picker filling feeds, speeds and stepover.
 </details>
@@ -144,6 +158,21 @@ flowchart LR
 - **G-code repair**: comments, repeated words, zero moves, colinear segments,
   missing feed, relative / inch detection — with a diagnosis before applying.
 - Tutorial on first launch, tooltips everywhere, English and French.
+- **AI assistants**: an MCP server lets Claude, Codex, Gemini or any MCP
+  client generate designs and G-code (never runs a machine), see
+  [docs/MCP.md](docs/MCP.md).
+</details>
+
+<details>
+<summary><b>🔌 Machines</b></summary>
+
+- **Detection** on USB (GRBL, grblHAL, FluidNC, Smoothieware, Carvera,
+  Marlin, speed found) and on the network (telnet, Carvera, mDNS).
+- **Production with several machines**: a shared queue of jobs, each machine
+  with its own safety monitor, one emergency stop for all.
+- Makera Carvera: Wi-Fi discovery, tool changer, halt reasons.
+- The bed shows the front, the back, the home corner and the axes.
+- **Automatic updates** from GitHub releases, checked against their SHA-256.
 </details>
 
 ## Safety first
@@ -203,7 +232,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 98 tests
+cargo test --workspace      # 133 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -264,6 +293,12 @@ body): `git log` is the technical changelog. See
 - [x] 4-axis reliefs wrapped on the A axis
 - [x] Indexed 4-axis machining (3+1): a whole part from 2 to 8 faces on round stock
 - [x] Simultaneous 4-axis finish (helix, G93 inverse time), 3D preview around the A axis
+- [x] Positional 5-axis (3+2) on a table-table machine
+- [x] Mold mode, orientation guide, stacked slices
+- [x] Generators: box, maze, jigsaw, ornaments by style; sprue with automatic bridges
+- [x] Machine detection (USB, network), production with several machines
+- [x] MCP server for AI assistants
+- [x] macOS / Linux / Windows releases with automatic updates
 - [ ] Simultaneous 5-axis with tool orientation: needs the kinematics of a 5-axis machine
 
 ## 🇫🇷 En bref
@@ -277,7 +312,10 @@ réglages, bibliothèque d'outils compatible Fusion 360, relief 3D depuis un STL
 gravure en V, styles de gravure laser, polices intégrées, texte en arc, 4e axe
 (relief enroulé, pièce complète ébauchée sur plusieurs faces puis finie en continu), contrôle des
 mouvements par caméra, Makera Carvera (découverte Wi-Fi, changeur d'outils),
-réparation de G-code. Interface en français et en anglais, thèmes clair et
+réparation de G-code, moule, faces 5 axes, générateurs (boîte, labyrinthe,
+puzzle, motifs par style), grappes à ponts automatiques, détection des
+machines, production sur plusieurs machines, serveur MCP pour les
+assistants IA et mises à jour automatiques. Interface en français et en anglais, thèmes clair et
 sombre.
 
 ---

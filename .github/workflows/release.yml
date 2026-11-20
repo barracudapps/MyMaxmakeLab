@@ -52,24 +52,24 @@ jobs:
       - name: Build macOS
         if: runner.os == 'macOS'
         run: |
-          cargo build --release -p mml_app --target aarch64-apple-darwin
-          cargo build --release -p mml_app --target x86_64-apple-darwin
+          cargo build --release -p mml_app -p mml_mcp --target aarch64-apple-darwin
+          cargo build --release -p mml_app -p mml_mcp --target x86_64-apple-darwin
           mkdir dist
           scripts/bundle-macos.sh "$VERSION" dist \
-            target/aarch64-apple-darwin/release/mymaxmakelab \
-            target/x86_64-apple-darwin/release/mymaxmakelab
+            target/aarch64-apple-darwin/release \
+            target/x86_64-apple-darwin/release
           (cd dist && ditto -c -k --keepParent MyMaxmakeLab.app ../${{ matrix.asset }})
       - name: Build Linux
         if: runner.os == 'Linux'
         run: |
-          cargo build --release -p mml_app
-          tar -czf ${{ matrix.asset }} -C target/release mymaxmakelab
+          cargo build --release -p mml_app -p mml_mcp
+          tar -czf ${{ matrix.asset }} -C target/release mymaxmakelab mymaxmakelab-mcp
       - name: Build Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cargo build --release -p mml_app
-          Compress-Archive -Path target/release/mymaxmakelab.exe -DestinationPath ${{ matrix.asset }}
+          cargo build --release -p mml_app -p mml_mcp
+          Compress-Archive -Path target/release/mymaxmakelab.exe,target/release/mymaxmakelab-mcp.exe -DestinationPath ${{ matrix.asset }}
       - name: Checksum
         shell: bash
         run: |
