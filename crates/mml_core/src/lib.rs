@@ -15,6 +15,7 @@ pub mod ordering;
 pub mod ornament;
 pub mod project;
 pub mod region;
+pub mod stats;
 pub mod warp;
 
 pub use document::{Document, RasterImage, Shape, ShapeId, ShapeKind};

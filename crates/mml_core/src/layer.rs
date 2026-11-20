@@ -79,6 +79,22 @@ pub enum Operation {
 }
 
 impl Operation {
+    /// Name of the tool doing this operation in job records.
+    pub fn tool_label(&self) -> String {
+        match self {
+            Operation::CncProfile(params) => {
+                crate::stats::tool_label("End mill", params.tool_diameter, None)
+            }
+            Operation::CncPocket(params) => {
+                crate::stats::tool_label("End mill", params.tool_diameter, None)
+            }
+            Operation::CncVCarve(params) => {
+                crate::stats::tool_label("V-bit", params.tool_diameter, Some(params.angle))
+            }
+            _ => "Laser".into(),
+        }
+    }
+
     pub fn is_laser(&self) -> bool {
         matches!(
             self,

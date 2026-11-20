@@ -9,7 +9,7 @@ mod optimize;
 mod parser;
 mod writer;
 
-pub use analysis::{JobStats, MotionSettings, analyze};
+pub use analysis::{JobStats, MotionSettings, analyze, tool_breakdown};
 pub use gentle::{GentleOptions, GentleReport, gentle};
 pub use optimize::{OptimizeOptions, OptimizeReport, optimize};
 pub use parser::{Motion, MoveKind, Program, parse, unwrap_rotary};

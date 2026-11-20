@@ -268,6 +268,8 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             _ => {}
         }
         writer.comment(&format!("Layer {name}"));
+        // Lets job records add the time of each tool.
+        writer.comment(&format!("Tool {}", layer.operation.tool_label()));
         let has_images = shapes.iter().any(|shape| shape.is_image());
         let vectors: Vec<Vec<Path>> = shapes
             .iter()

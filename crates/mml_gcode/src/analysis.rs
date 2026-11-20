@@ -106,6 +106,61 @@ pub fn analyze(program: &Program, settings: MotionSettings) -> JobStats {
     stats
 }
 
+/// Time and cut length of each tool of a program, in order of first
+/// use. Tools are named by `; Tool <name>` comments (written by this
+/// application for each layer), else by their `T` number; a program
+/// without either has a single "Program" entry.
+pub fn tool_breakdown(
+    source: &str,
+    program: &Program,
+    settings: MotionSettings,
+) -> Vec<(String, f64, f64)> {
+    let mut label_of_line = Vec::with_capacity(program.line_count);
+    let mut current = String::from("Program");
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(name) = trimmed.strip_prefix("; Tool ") {
+            current = name.trim().to_owned();
+        } else if let Some(index) = trimmed.to_uppercase().find('T')
+            && !trimmed.starts_with(';')
+            && !trimmed.starts_with('(')
+            && trimmed.to_uppercase().contains("M6")
+        {
+            let number: String = trimmed[index + 1..]
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect();
+            if !number.is_empty() {
+                current = format!("T{number}");
+            }
+        }
+        label_of_line.push(current.clone());
+    }
+    let mut out: Vec<(String, Program)> = Vec::new();
+    for motion in &program.motions {
+        let label = label_of_line
+            .get(motion.line)
+            .cloned()
+            .unwrap_or_else(|| current.clone());
+        match out.iter_mut().find(|(known, _)| *known == label) {
+            Some((_, part)) => part.motions.push(*motion),
+            None => out.push((
+                label,
+                Program {
+                    motions: vec![*motion],
+                    ..Program::default()
+                },
+            )),
+        }
+    }
+    out.into_iter()
+        .map(|(label, part)| {
+            let stats = analyze(&part, settings);
+            (label, stats.duration.as_secs_f64(), stats.cut_length)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,5 +195,21 @@ mod tests {
         let wrapped = parse("; Rotary stock diameter 40 mm\nM3 S1\nG1 A90 F600");
         let stats = analyze(&wrapped, settings);
         assert!((stats.cut_length - 10.0 * std::f64::consts::PI).abs() < 0.05);
+    }
+
+    #[test]
+    fn time_is_split_by_tool() {
+        let settings = MotionSettings {
+            rapid_rate: 6000.0,
+            acceleration: 100.0,
+        };
+        let source = "; Tool Laser\nM4 S500\nG1 X10 F600\n; Tool End mill Ø3.175\nM3 S9000\nG1 X30 F600\nM6 T2\nG1 X40\n";
+        let program = parse(source);
+        let parts = tool_breakdown(source, &program, settings);
+        let labels: Vec<&str> = parts.iter().map(|(label, ..)| label.as_str()).collect();
+        assert_eq!(labels, ["Laser", "End mill Ø3.175", "T2"]);
+        assert!((parts[1].2 - 20.0).abs() < 1e-9);
+        let total: f64 = parts.iter().map(|(_, seconds, _)| seconds).sum();
+        assert!(total > 0.0);
     }
 }
