@@ -733,3 +733,11 @@ relief.side_right = droite
 relief.tilt = Inclinaison des faces
 relief.tilt_hint = 90° usine de vraies faces latérales ; moins les incline partiellement, pour une course de A courte ou un porte-outil long
 relief.positional_setup = Origine pièce au pivot (croisement de A et C), brut centré sur le plateau. Le plateau est évité ; la broche, le porte-outil et le bridage ne le sont pas : vérifiez la première face à vitesse réduite.
+
+op.pattern = Motif
+op.pattern_hint = Lignes à n’importe quel angle (45° pour la diagonale), cercles autour du centre, ou contours qui suivent la forme vers l’intérieur
+op.image_pattern_hint = Trajet du laser sur l’image : lignes, diagonale (masque les bandes, autre texture sur le fil du bois) ou cercles autour du centre
+op.pattern_lines = lignes
+op.pattern_diagonal = diagonale
+op.pattern_circles = cercles
+op.pattern_contours = contours

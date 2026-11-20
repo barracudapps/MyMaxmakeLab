@@ -701,3 +701,11 @@ relief.side_right = right
 relief.tilt = Side tilt
 relief.tilt_hint = 90° machines true sides; less tilts the sides only partly, for machines with a short A travel or a long holder
 relief.positional_setup = Work zero on the pivot (A and C crossing), stock centred on the table. The table is avoided; the spindle, holder and clamps are not: check the first side at reduced speed.
+
+op.pattern = Pattern
+op.pattern_hint = Lines at any angle (45° for diagonal), circles around the centre, or contours following the outline inwards
+op.image_pattern_hint = Path of the laser over the picture: lines, diagonal (hides banding, another texture on wood grain) or circles around the centre
+op.pattern_lines = lines
+op.pattern_diagonal = diagonal
+op.pattern_circles = circles
+op.pattern_contours = contours

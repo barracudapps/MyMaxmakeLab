@@ -4,8 +4,8 @@ use eframe::egui::{self, Color32, DragValue, RichText};
 use mml_core::document::{Shape, ShapeKind};
 use mml_core::geometry::{Point, Transform};
 use mml_core::layer::{
-    CncPocketParams, CncProfileParams, DitherMode, FillParams, ImageParams, Layer, LineParams,
-    Operation, ProfileSide,
+    CncPocketParams, CncProfileParams, DitherMode, FillParams, FillPattern, ImageParams,
+    ImagePattern, Layer, LineParams, Operation, ProfileSide,
 };
 use mml_core::machine::{MachineKind, Origin};
 use mml_job::JobWarning;
@@ -641,12 +641,35 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 ui.label(tr("op.power"));
                 changed |= percent(ui, &mut params.power);
                 ui.end_row();
+                ui.label(tr("op.pattern"))
+                    .on_hover_text(tr("op.pattern_hint"));
+                ui.horizontal(|ui| {
+                    for pattern in FillPattern::ALL {
+                        changed |= ui
+                            .selectable_value(&mut params.pattern, pattern, tr(pattern.key()))
+                            .changed();
+                    }
+                });
+                ui.end_row();
                 ui.label(tr("op.interval"));
                 changed |= number(ui, &mut params.interval, 0.01..=5.0, " mm", 0.005);
                 ui.end_row();
-                ui.label(tr("op.angle"));
-                changed |= number(ui, &mut params.angle, -180.0..=180.0, " °", 1.0);
-                ui.end_row();
+                if params.pattern == FillPattern::Lines {
+                    ui.label(tr("op.angle"));
+                    ui.horizontal(|ui| {
+                        changed |= number(ui, &mut params.angle, -180.0..=180.0, " °", 1.0);
+                        for preset in [0.0, 45.0, 90.0, 135.0] {
+                            if ui
+                                .selectable_label(params.angle == preset, format!("{preset:.0}°"))
+                                .clicked()
+                            {
+                                params.angle = preset;
+                                changed = true;
+                            }
+                        }
+                    });
+                    ui.end_row();
+                }
                 ui.label(tr("op.passes"));
                 changed |= passes(ui, &mut params.passes);
                 ui.end_row();
@@ -657,9 +680,11 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 ui.label(tr("op.bidirectional"));
                 changed |= ui.checkbox(&mut params.bidirectional, "").changed();
                 ui.end_row();
-                ui.label(tr("op.crosshatch"));
-                changed |= ui.checkbox(&mut params.crosshatch, "").changed();
-                ui.end_row();
+                if params.pattern == FillPattern::Lines {
+                    ui.label(tr("op.crosshatch"));
+                    changed |= ui.checkbox(&mut params.crosshatch, "").changed();
+                    ui.end_row();
+                }
                 ui.label(tr("op.air"));
                 changed |= ui.checkbox(&mut params.air_assist, "").changed();
                 ui.end_row();
@@ -694,6 +719,16 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                         .changed();
                     ui.end_row();
                 }
+                ui.label(tr("op.pattern"))
+                    .on_hover_text(tr("op.image_pattern_hint"));
+                ui.horizontal(|ui| {
+                    for pattern in ImagePattern::ALL {
+                        changed |= ui
+                            .selectable_value(&mut params.pattern, pattern, tr(pattern.key()))
+                            .changed();
+                    }
+                });
+                ui.end_row();
                 ui.label(tr("op.dpi")).on_hover_text(tr("op.dpi_hint"));
                 changed |= number(ui, &mut params.dpi, 25.0..=1270.0, " dpi", 1.0);
                 ui.end_row();
