@@ -2,6 +2,7 @@
 //! user interface talks to it through channels and never blocks.
 
 mod controller;
+pub mod detect;
 pub mod discovery;
 mod messages;
 pub mod safety;
