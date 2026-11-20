@@ -234,6 +234,7 @@ mod tests {
                     "ornament",
                     "update",
                     "makers",
+                    "bed",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')

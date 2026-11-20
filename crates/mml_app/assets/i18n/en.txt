@@ -807,3 +807,7 @@ relief.no_slices = The model gives no slice at this size
 relief.slice_labels = Slice numbers
 relief.slice_name = Slice {0}/{1}
 relief.slices_done = {0} slices laid out, numbered from the bottom
+
+bed.front = FRONT of the machine (where you stand)
+bed.back = BACK
+bed.home = Home

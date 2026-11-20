@@ -839,3 +839,7 @@ relief.no_slices = Le modèle ne donne aucune tranche à cette taille
 relief.slice_labels = Numéros des tranches
 relief.slice_name = Tranche {0}/{1}
 relief.slices_done = {0} tranches disposées, numérotées depuis le bas
+
+bed.front = AVANT de la machine (côté opérateur)
+bed.back = ARRIÈRE
+bed.home = Origine machine

@@ -127,6 +127,10 @@ pub struct CanvasInput<'a> {
     pub show_preview: bool,
     pub dim_design: bool,
     pub travel: &'a [(Point, Point)],
+    /// Corner where the machine homes, marked on the bed.
+    pub home: mml_core::machine::Origin,
+    /// Translated "front", "back" and "home" labels.
+    pub labels: [&'a str; 3],
 }
 
 const HANDLE: f32 = 7.0;
@@ -241,6 +245,7 @@ impl Canvas {
 
         let painter = painter.with_clip_rect(rect);
         self.paint_bed(&painter, &view, input.bed, input.grid, &palette);
+        self.paint_orientation(&painter, &view, &input, &palette);
         if let Some((texture, opacity)) = &self.camera {
             let screen = ScreenRect::from_two_pos(
                 view.to_screen(Point::new(0.0, input.bed.1)),
@@ -408,6 +413,83 @@ impl Canvas {
             y += major;
         }
         painter.circle_filled(view.to_screen(Point::default()), 3.5, palette.origin);
+    }
+
+    /// Front and back of the machine, its home corner and the axes, so
+    /// the bed on screen is easy to match with the real one.
+    fn paint_orientation(
+        &self,
+        painter: &egui::Painter,
+        view: &View,
+        input: &CanvasInput,
+        palette: &Palette,
+    ) {
+        let (width, height) = input.bed;
+        let [front, back, home] = input.labels;
+        let font = FontId::proportional(13.0);
+        let strong = palette.ruler.gamma_multiply(1.4);
+        painter.text(
+            view.to_screen(Point::new(width / 2.0, 0.0)) + Vec2::new(0.0, 20.0),
+            Align2::CENTER_TOP,
+            front,
+            font.clone(),
+            strong,
+        );
+        painter.text(
+            view.to_screen(Point::new(width / 2.0, height)) - Vec2::new(0.0, 8.0),
+            Align2::CENTER_BOTTOM,
+            back,
+            font,
+            strong,
+        );
+        // Axes from the design origin.
+        let origin = view.to_screen(Point::default());
+        let arrow = |direction: Vec2, color: Color32, name: &str| {
+            let tip = origin + direction * 34.0;
+            painter.line_segment([origin, tip], Stroke::new(2.0, color));
+            let side = Vec2::new(-direction.y, direction.x) * 4.0;
+            painter.add(egui::Shape::convex_polygon(
+                vec![tip + direction * 6.0, tip + side, tip - side],
+                color,
+                Stroke::NONE,
+            ));
+            painter.text(
+                tip + direction * 14.0,
+                Align2::CENTER_CENTER,
+                name,
+                FontId::proportional(12.0),
+                color,
+            );
+        };
+        arrow(Vec2::new(1.0, 0.0), Color32::from_rgb(220, 70, 70), "X");
+        arrow(Vec2::new(0.0, -1.0), Color32::from_rgb(60, 170, 90), "Y");
+        // Home corner: a ring and its label outside the bed.
+        use mml_core::machine::Origin;
+        let (corner, outward) = match input.home {
+            Origin::FrontLeft => (Point::new(0.0, 0.0), Vec2::new(-1.0, 1.0)),
+            Origin::FrontRight => (Point::new(width, 0.0), Vec2::new(1.0, 1.0)),
+            Origin::RearLeft => (Point::new(0.0, height), Vec2::new(-1.0, -1.0)),
+            Origin::RearRight => (Point::new(width, height), Vec2::new(1.0, -1.0)),
+        };
+        let at = view.to_screen(corner);
+        painter.circle_stroke(at, 9.0, Stroke::new(2.0, crate::theme::ACCENT));
+        painter.circle_filled(at, 3.0, crate::theme::ACCENT);
+        // Label inside the bed, on the diagonal between the axes, so it
+        // is never clipped by the canvas edge.
+        let inward = -outward;
+        let align = match (inward.x > 0.0, inward.y > 0.0) {
+            (true, true) => Align2::LEFT_TOP,
+            (true, false) => Align2::LEFT_BOTTOM,
+            (false, true) => Align2::RIGHT_TOP,
+            (false, false) => Align2::RIGHT_BOTTOM,
+        };
+        painter.text(
+            at + inward * 14.0,
+            align,
+            home,
+            FontId::proportional(11.0),
+            crate::theme::ACCENT,
+        );
     }
 
     fn texture_for(&mut self, ctx: &egui::Context, shape: &Shape) -> Option<TextureHandle> {

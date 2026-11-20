@@ -1942,6 +1942,8 @@ impl MyApp {
                     show_preview,
                     dim_design: show_preview && self.canvas.has_preview(),
                     travel: &travel,
+                    home: self.machine.origin,
+                    labels: [tr("bed.front"), tr("bed.back"), tr("bed.home")],
                 };
                 match self.canvas.show(ui, input) {
                     CanvasAction::None => {}
