@@ -309,6 +309,11 @@ mod tests {
         assert_eq!(parse_version("v1.2.3"), Some([1, 2, 3]));
         assert_eq!(parse_version("v1.2.3-beta"), None);
         assert_eq!(parse_version("v1.2"), None);
+        // Platforms without a release archive (Linux on ARM) never update.
+        if asset_name().is_none() {
+            assert_eq!(pick_release(&release_json("v9.0.0", false), "0.1.0"), None);
+            return;
+        }
         let newer = pick_release(&release_json("v0.2.0", false), "0.1.0").unwrap();
         assert_eq!(newer.tag, "v0.2.0");
         assert!(newer.checksum_url.is_some());
@@ -323,6 +328,9 @@ mod tests {
 
     #[test]
     fn downloads_outside_the_project_releases_are_refused() {
+        if asset_name().is_none() {
+            return;
+        }
         let json =
             release_json("v9.0.0", false).replace("https://github.com/", "https://evil.example/");
         assert_eq!(pick_release(&json, "0.1.0"), None);
