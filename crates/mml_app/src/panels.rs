@@ -70,6 +70,14 @@ pub fn design_panel(app: &mut MyApp, ui: &mut egui::Ui) {
 
 pub fn prepare_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     job_summary(app, ui);
+    if app
+        .job
+        .built
+        .as_ref()
+        .is_some_and(|built| built.external.is_some())
+    {
+        return;
+    }
     ui.separator();
     layers(app, ui);
     ui.separator();
@@ -163,9 +171,9 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| {
         let bed = (app.machine.width, app.machine.height);
         let align = [
-            ("|←", "align.left", 0),
+            ("⬅", "align.left", 0),
             ("↔", "align.hcenter", 1),
-            ("→|", "align.right", 2),
+            ("➡", "align.right", 2),
             ("⬆", "align.top", 3),
             ("↕", "align.vcenter", 4),
             ("⬇", "align.bottom", 5),
@@ -426,15 +434,15 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
                         {
                             action = Some((index, 0));
                         }
-                        if index + 1 < count && ui.small_button("▼").clicked() {
+                        if index + 1 < count && ui.small_button("⬇").clicked() {
                             action = Some((index, 1));
                         }
-                        if index > 0 && ui.small_button("▲").clicked() {
+                        if index > 0 && ui.small_button("⬆").clicked() {
                             action = Some((index, -1));
                         }
                         if !app.selection.is_empty()
                             && ui
-                                .small_button("←")
+                                .small_button("⬅")
                                 .on_hover_text(tr("layers.assign"))
                                 .clicked()
                         {

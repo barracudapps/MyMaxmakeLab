@@ -512,6 +512,7 @@ impl MyApp {
                     });
                     self.job.preview_line = Some(None);
                     self.mode = Mode::Prepare;
+                    self.canvas.request_fit();
                 }),
             "svg" | "dxf" => std::fs::read(path)
                 .map_err(|error| error.to_string())
@@ -943,7 +944,7 @@ impl MyApp {
             program,
             stats,
             warnings: Vec::new(),
-            external: Some(names.join(" → ")),
+            external: Some(names.join(" + ")),
             pauses,
             anchor: None,
         });

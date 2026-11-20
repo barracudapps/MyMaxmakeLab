@@ -740,6 +740,9 @@ pub fn tutorial(app: &mut MyApp, ctx: &egui::Context) {
     let Some(step) = app.tutorial_step else {
         return;
     };
+    if !app.library_offer.is_empty() {
+        return;
+    }
     let (title, text) = TUTORIAL[step.min(TUTORIAL.len() - 1)];
     egui::Window::new(tr("tutorial.window"))
         .collapsible(false)

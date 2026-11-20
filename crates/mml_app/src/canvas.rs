@@ -171,11 +171,16 @@ impl Canvas {
         let rect = response.rect;
         if self.fit_requested {
             let bed = Rect::from_points(Point::default(), Point::new(input.bed.0, input.bed.1));
-            let area = if input.document.shapes.is_empty() {
+            let mut area = if input.document.shapes.is_empty() {
                 bed
             } else {
                 bed.union(input.document.bounds())
             };
+            if input.show_preview
+                && let Some((_, bounds)) = &self.preview_texture
+            {
+                area = area.union(*bounds);
+            }
             self.fit(rect, area);
             self.fit_requested = false;
         }
@@ -255,7 +260,7 @@ impl Canvas {
             painter.text(
                 center + Vec2::new(12.0, -12.0),
                 Align2::LEFT_BOTTOM,
-                "⊙",
+                "◎",
                 FontId::proportional(13.0),
                 palette.selection,
             );

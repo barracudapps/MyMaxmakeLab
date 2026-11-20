@@ -131,3 +131,31 @@ pub fn icon_button(ui: &mut egui::Ui, icon: Icon, selected: bool, tooltip: &str)
     paint(ui.painter(), icon, rect.shrink(6.0), color);
     response.on_hover_text(tooltip)
 }
+
+/// Jog button with a painted arrow pointing at `angle` degrees
+/// (0 = right, 90 = up); senses press and hold.
+pub fn arrow_button(ui: &mut egui::Ui, angle: f32, size: Vec2) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click_and_drag());
+    let widget = ui.style().interact(&response);
+    ui.painter().rect_filled(rect, 6.0, widget.weak_bg_fill);
+    let color = widget.fg_stroke.color;
+    let center = rect.center();
+    let radius = rect.width().min(rect.height()) * 0.3;
+    let (sin, cos) = angle.to_radians().sin_cos();
+    let direction = Vec2::new(cos, -sin);
+    let normal = Vec2::new(-direction.y, direction.x);
+    let tip = center + direction * radius;
+    let base = center - direction * radius * 0.2;
+    ui.painter().add(Shape::convex_polygon(
+        vec![
+            tip,
+            base + normal * radius * 0.7,
+            base - normal * radius * 0.7,
+        ],
+        color,
+        Stroke::NONE,
+    ));
+    ui.painter()
+        .line_segment([center - direction * radius, base], Stroke::new(2.5, color));
+    response
+}

@@ -326,7 +326,7 @@ impl DeviceState {
             )
         } else if self.controller.is_some() {
             let state = self.state();
-            (format!("● {}", state_label(state)), state_color(state))
+            (format!("⏺ {}", state_label(state)), state_color(state))
         } else {
             (format!("○ {}", tr("device.offline")), Color32::GRAY)
         };
@@ -585,19 +585,24 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                 .spacing([4.0, 4.0])
                 .show(ui, |ui| {
                     let buttons = [
-                        [("↖", -1.0, 1.0), ("↑", 0.0, 1.0), ("↗", 1.0, 1.0)],
-                        [("←", -1.0, 0.0), ("🏠", 0.0, 0.0), ("→", 1.0, 0.0)],
-                        [("↙", -1.0, -1.0), ("↓", 0.0, -1.0), ("↘", 1.0, -1.0)],
+                        [(-1.0, 1.0), (0.0, 1.0), (1.0, 1.0)],
+                        [(-1.0, 0.0), (0.0, 0.0), (1.0, 0.0)],
+                        [(-1.0, -1.0), (0.0, -1.0), (1.0, -1.0)],
                     ];
                     for row in buttons {
-                        for (icon, dx, dy) in row {
-                            let button = egui::Button::new(RichText::new(icon).size(18.0))
-                                .min_size(size)
-                                .sense(egui::Sense::click_and_drag());
-                            let response = ui.add(button);
-                            if icon == "🏠" {
-                                go_zero |= response.on_hover_text(tr("device.goto_zero")).clicked();
-                            } else if response.is_pointer_button_down_on() {
+                        for (dx, dy) in row {
+                            if dx == 0.0 && dy == 0.0 {
+                                let home =
+                                    egui::Button::new(RichText::new("0").size(16.0).strong())
+                                        .min_size(size);
+                                go_zero |=
+                                    ui.add(home).on_hover_text(tr("device.goto_zero")).clicked();
+                                continue;
+                            }
+                            let angle = (dy as f32).atan2(dx as f32).to_degrees();
+                            if crate::icons::arrow_button(ui, angle, size)
+                                .is_pointer_button_down_on()
+                            {
                                 pressed = Some([dx, dy, 0.0]);
                             }
                         }
@@ -605,7 +610,7 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                     }
                 });
             ui.vertical(|ui| {
-                for (label, dz) in [("Z+", 1.0), ("Z−", -1.0)] {
+                for (label, dz) in [("Z+", 1.0), ("Z-", -1.0)] {
                     let button = egui::Button::new(RichText::new(label).size(16.0))
                         .min_size(size)
                         .sense(egui::Sense::click_and_drag());
