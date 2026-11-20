@@ -18,6 +18,8 @@ pub enum Tool {
     Ellipse,
     Polygon,
     Text,
+    /// Freehand drawing with the mouse, a stylus or a graphics tablet.
+    Pen,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -28,6 +30,7 @@ enum Drag {
     Rotate { center: Point, start_angle: f64 },
     Marquee { start: Point },
     Create { start: Point },
+    Freehand,
 }
 
 /// What the canvas asks the application to do this frame.
@@ -58,6 +61,7 @@ pub struct Canvas {
     pub machine_position: Option<Point>,
     pub anchor_marker: Option<Point>,
     pub picking: bool,
+    stroke: Vec<Point>,
 }
 
 impl Default for Canvas {
@@ -78,6 +82,7 @@ impl Default for Canvas {
             machine_position: None,
             anchor_marker: None,
             picking: false,
+            stroke: Vec::new(),
         }
     }
 }
@@ -122,6 +127,10 @@ const HANDLE: f32 = 7.0;
 impl Canvas {
     pub fn request_fit(&mut self) {
         self.fit_requested = true;
+    }
+
+    pub fn cancel_fit(&mut self) {
+        self.fit_requested = false;
     }
 
     pub fn zoom_by(&mut self, factor: f32) {
@@ -482,6 +491,14 @@ impl Canvas {
                 );
             }
         }
+        if self.stroke.len() > 1 {
+            let points: Vec<Pos2> = self
+                .stroke
+                .iter()
+                .map(|point| view.to_screen(*point))
+                .collect();
+            painter.add(EShape::line(points, Stroke::new(1.5, palette.selection)));
+        }
         if let Some(area) = self.create_preview.or(self.marquee) {
             let screen = self.screen_rect_of(view, area);
             painter.rect_stroke(
@@ -560,6 +577,7 @@ impl Canvas {
                 ui.ctx().set_cursor_icon(CursorIcon::Move);
             }
         } else if self.tool != Tool::Select && response.hovered() {
+            // Pen and creation tools use a crosshair.
             ui.ctx().set_cursor_icon(CursorIcon::Crosshair);
         }
 
@@ -596,6 +614,10 @@ impl Canvas {
                     }
                 }
                 Tool::Text => Drag::None,
+                Tool::Pen => {
+                    self.stroke = vec![world];
+                    Drag::Freehand
+                }
                 _ => Drag::Create {
                     start: self.snap(world, input),
                 },
@@ -649,6 +671,16 @@ impl Canvas {
                     self.pending = Transform::rotate_degrees(angle).around(center);
                 }
                 Drag::Marquee { start } => self.marquee = Some(Rect::from_points(start, world)),
+                Drag::Freehand => {
+                    let spacing = 1.5 / self.zoom as f64;
+                    if self
+                        .stroke
+                        .last()
+                        .is_none_or(|last| last.distance(world) >= spacing)
+                    {
+                        self.stroke.push(world);
+                    }
+                }
                 Drag::Create { start } => {
                     let end = self.snap(world, input);
                     let end = if shift {
@@ -703,6 +735,12 @@ impl Canvas {
                         );
                         ids.dedup();
                         return CanvasAction::Select(ids);
+                    }
+                }
+                Drag::Freehand => {
+                    let stroke = std::mem::take(&mut self.stroke);
+                    if let Some(shape) = freehand_shape(&stroke, self.zoom, input.current_layer) {
+                        return CanvasAction::Create(shape);
                     }
                 }
                 Drag::Create { .. } => {
@@ -782,6 +820,39 @@ impl Canvas {
             _ => Drag::Marquee { start: world },
         }
     }
+}
+
+/// Smooths and simplifies a stroke; a stroke ending near its start
+/// becomes a closed outline that can be filled.
+fn freehand_shape(stroke: &[Point], zoom: f32, layer: mml_core::LayerId) -> Option<Shape> {
+    if stroke.len() < 2 {
+        return None;
+    }
+    let smoothed = mml_core::geometry::smooth_polyline(stroke, 5);
+    let tolerance = (0.6 / zoom as f64).max(0.02);
+    let mut points = mml_core::geometry::simplify_polyline(&smoothed, tolerance);
+    let closing = (4.0 / zoom as f64).max(1.0);
+    let closed = points.len() > 3 && points[0].distance(*points.last().unwrap()) <= closing;
+    if closed {
+        points.pop();
+    }
+    let path = mml_core::geometry::Path::new(points, closed);
+    let bounds = path.bounds();
+    if bounds.width().max(bounds.height()) < 0.3 {
+        return None;
+    }
+    let center = bounds.center();
+    let local = mml_core::geometry::Path::new(
+        path.points.iter().map(|point| *point - center).collect(),
+        closed,
+    );
+    let mut shape = Shape::new(
+        tr("shape.freehand"),
+        layer,
+        ShapeKind::Paths { paths: vec![local] },
+    );
+    shape.transform = Transform::translate(center.x, center.y);
+    Some(shape)
 }
 
 fn safe_ratio(value: f64, base: f64) -> f64 {

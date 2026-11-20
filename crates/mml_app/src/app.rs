@@ -110,6 +110,15 @@ pub struct PresetDialog {
     pub title: String,
 }
 
+/// Imported file followed for changes, so a drawing made in another
+/// program (Inkscape, Krita, Procreate exporting to a synced folder,
+/// a graphics tablet application) updates on the canvas when saved.
+pub struct LiveLink {
+    pub path: PathBuf,
+    pub modified: Option<std::time::SystemTime>,
+    pub shapes: Vec<ShapeId>,
+}
+
 pub struct MyApp {
     pub settings: Settings,
     pub library: Library,
@@ -138,6 +147,8 @@ pub struct MyApp {
     pub library_offer: Vec<PathBuf>,
     applied_theme: Option<ThemeChoice>,
     lock_ratio: bool,
+    pub live_links: Vec<LiveLink>,
+    last_link_check: Instant,
 }
 
 impl MyApp {
@@ -201,6 +212,8 @@ impl MyApp {
             library_offer,
             applied_theme: None,
             lock_ratio: true,
+            live_links: Vec::new(),
+            last_link_check: Instant::now(),
         };
         if let Some(path) = std::env::args().nth(1).map(PathBuf::from) {
             app.open_path(&path);
@@ -572,6 +585,7 @@ impl MyApp {
         self.end_edit();
         self.mode = Mode::Design;
         self.canvas.request_fit();
+        self.link(path);
     }
 
     fn import_image(&mut self, image: mml_core::RasterImage, width: f64, height: f64, path: &Path) {
@@ -596,6 +610,108 @@ impl MyApp {
         self.end_edit();
         self.mode = Mode::Design;
         self.canvas.request_fit();
+        self.link(path);
+    }
+
+    fn link(&mut self, path: &Path) {
+        let modified = std::fs::metadata(path)
+            .and_then(|metadata| metadata.modified())
+            .ok();
+        self.live_links.retain(|link| link.path != path);
+        self.live_links.push(LiveLink {
+            path: path.to_path_buf(),
+            modified,
+            shapes: self.selection.clone(),
+        });
+    }
+
+    /// Re-imports linked files saved since the last check, keeping the
+    /// place, the width and the layer of the previous version.
+    fn refresh_live_links(&mut self) {
+        if self.last_link_check.elapsed() < Duration::from_secs(1) || self.live_links.is_empty() {
+            return;
+        }
+        self.last_link_check = Instant::now();
+        self.live_links.retain(|link| {
+            link.shapes
+                .iter()
+                .any(|id| self.document.shape(*id).is_some())
+        });
+        let changed: Vec<usize> = self
+            .live_links
+            .iter()
+            .enumerate()
+            .filter(|(_, link)| {
+                let modified = std::fs::metadata(&link.path)
+                    .and_then(|metadata| metadata.modified())
+                    .ok();
+                modified.is_some() && modified != link.modified
+            })
+            .map(|(index, _)| index)
+            .collect();
+        for index in changed.into_iter().rev() {
+            let link = self.live_links.remove(index);
+            let old_bounds = self.document.bounds_of(&link.shapes);
+            let old_layer = link
+                .shapes
+                .iter()
+                .find_map(|id| self.document.shape(*id))
+                .map(|shape| shape.layer);
+            let mode = self.mode;
+            let selection = std::mem::take(&mut self.selection);
+            self.begin_edit();
+            self.document
+                .shapes
+                .retain(|shape| !link.shapes.contains(&shape.id));
+            self.end_edit();
+            self.open_path(&link.path);
+            self.canvas.cancel_fit();
+            self.mode = mode;
+            let new_ids = self.selection.clone();
+            let new_bounds = self.document.bounds_of(&new_ids);
+            if !old_bounds.is_empty() && !new_bounds.is_empty() {
+                let scale = old_bounds.width() / new_bounds.width().max(1e-9);
+                let center = old_bounds.center();
+                let transform = Transform::scale(scale, scale)
+                    .around(new_bounds.center())
+                    .then(Transform::translate(
+                        center.x - new_bounds.center().x,
+                        center.y - new_bounds.center().y,
+                    ));
+                for shape in self
+                    .document
+                    .shapes
+                    .iter_mut()
+                    .filter(|shape| new_ids.contains(&shape.id))
+                {
+                    shape.transform = shape.transform.then(transform);
+                    if let Some(layer) = old_layer {
+                        shape.layer = layer;
+                    }
+                }
+                self.anchor = self.document.clone();
+            }
+            self.selection = selection
+                .into_iter()
+                .filter(|id| self.document.shape(*id).is_some())
+                .collect();
+            let name = link
+                .path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            self.notify(trf("link.updated", &[&name]), Level::Info);
+        }
+    }
+
+    pub fn unlink(&mut self, id: ShapeId) {
+        self.live_links.retain(|link| !link.shapes.contains(&id));
+    }
+
+    pub fn link_of(&self, id: ShapeId) -> Option<&LiveLink> {
+        self.live_links
+            .iter()
+            .find(|link| link.shapes.contains(&id))
     }
 
     pub fn save(&mut self, save_as: bool) -> bool {
@@ -869,7 +985,7 @@ impl MyApp {
                 ]
                 .map(|key| input.key_pressed(key)),
                 input.modifiers.shift,
-                [Key::V, Key::R, Key::E, Key::P, Key::T, Key::F]
+                [Key::V, Key::R, Key::E, Key::P, Key::T, Key::F, Key::D]
                     .map(|key| input.key_pressed(key) && input.modifiers.is_none()),
             )
         });
@@ -900,6 +1016,9 @@ impl MyApp {
                 if tools[index] {
                     self.canvas.tool = tool;
                 }
+            }
+            if tools[6] {
+                self.canvas.tool = Tool::Pen;
             }
         }
         if tools[5] {
@@ -1211,6 +1330,7 @@ impl MyApp {
                         (Tool::Ellipse, Icon::Ellipse, "tool.ellipse"),
                         (Tool::Polygon, Icon::Polygon, "tool.polygon"),
                         (Tool::Text, Icon::Text, "tool.text"),
+                        (Tool::Pen, Icon::Pen, "tool.pen"),
                     ];
                     for (tool, icon, key) in tools {
                         if icon_button(ui, icon, self.canvas.tool == tool, tr(key)).clicked() {
@@ -1343,6 +1463,7 @@ impl eframe::App for MyApp {
         self.update_burst();
         self.device.poll(&ctx, &mut self.notices);
         self.process_machine_events();
+        self.refresh_live_links();
         self.handle_dropped_files(&ctx);
         self.shortcuts(&ctx);
         self.maintain_job(&ctx);

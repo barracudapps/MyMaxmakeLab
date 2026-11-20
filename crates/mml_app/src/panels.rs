@@ -235,6 +235,23 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
     });
 
     if let Some(shape) = single {
+        if let Some(link) = app.link_of(shape.id) {
+            let name = link
+                .path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(trf("link.active", &[&name]))
+                        .color(Color32::from_rgb(60, 140, 210)),
+                )
+                .on_hover_text(tr("link.hint"));
+                if ui.small_button(tr("link.unlink")).clicked() {
+                    app.unlink(shape.id);
+                }
+            });
+        }
         primitive_editor(app, ui, &shape);
     }
 }

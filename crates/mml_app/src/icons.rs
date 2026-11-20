@@ -15,6 +15,7 @@ pub enum Icon {
     ZoomIn,
     ZoomOut,
     Grid,
+    Pen,
 }
 
 fn paint(painter: &egui::Painter, icon: Icon, rect: Rect, color: Color32) {
@@ -84,6 +85,18 @@ fn paint(painter: &egui::Painter, icon: Icon, rect: Rect, color: Color32) {
             if icon == Icon::ZoomIn {
                 painter.line_segment([p(-0.15, -0.45), p(-0.15, 0.15)], stroke);
             }
+        }
+        Icon::Pen => {
+            painter.add(Shape::line(
+                vec![
+                    p(-0.9, 0.6),
+                    p(-0.5, 0.1),
+                    p(-0.1, 0.5),
+                    p(0.3, -0.2),
+                    p(0.9, -0.8),
+                ],
+                stroke,
+            ));
         }
         Icon::Grid => {
             for t in [-0.45, 0.45] {
