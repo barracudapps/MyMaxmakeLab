@@ -6,6 +6,9 @@
 
 use mml_gcode::GcodeWriter;
 
+mod indexed;
+pub use indexed::{IndexedError, IndexedParams, indexed_gcode};
+
 pub type Triangle = [[f32; 3]; 3];
 
 #[derive(Debug, thiserror::Error)]
@@ -272,9 +275,38 @@ pub fn height_field(triangles: &[Triangle], params: &ReliefParams, step: f64) ->
     let step = step.max(0.02);
     let columns = (params.width / step).ceil() as usize + 1;
     let rows = (((high[1] - low[1]) as f64 * scale) / step).ceil() as usize + 1;
+    let mut heights = rasterize(
+        triangles.iter().map(|triangle| triangle.map(to_work)),
+        params.origin,
+        step,
+        columns,
+        rows,
+    );
+    if params.background_floor {
+        for slot in heights.iter_mut().filter(|slot| slot.is_none()) {
+            *slot = Some(-params.depth);
+        }
+    }
+    HeightField {
+        origin: params.origin,
+        step,
+        columns,
+        rows,
+        heights,
+    }
+}
+
+/// Z-buffer seen from above on a grid: the highest point of the
+/// triangles over each node, `None` where there is none.
+fn rasterize(
+    triangles: impl Iterator<Item = [[f64; 3]; 3]>,
+    origin: [f64; 2],
+    step: f64,
+    columns: usize,
+    rows: usize,
+) -> Vec<Option<f64>> {
     let mut heights: Vec<Option<f64>> = vec![None; columns * rows];
-    for triangle in triangles {
-        let [a, b, c] = triangle.map(to_work);
+    for [a, b, c] in triangles {
         let min_x = a[0].min(b[0]).min(c[0]);
         let max_x = a[0].max(b[0]).max(c[0]);
         let min_y = a[1].min(b[1]).min(c[1]);
@@ -283,14 +315,14 @@ pub fn height_field(triangles: &[Triangle], params: &ReliefParams, step: f64) ->
         if area.abs() < 1e-12 {
             continue;
         }
-        let first_column = ((min_x - params.origin[0]) / step).ceil().max(0.0) as usize;
-        let last_column = (((max_x - params.origin[0]) / step).floor() as usize).min(columns - 1);
-        let first_row = ((min_y - params.origin[1]) / step).ceil().max(0.0) as usize;
-        let last_row = (((max_y - params.origin[1]) / step).floor() as usize).min(rows - 1);
+        let first_column = ((min_x - origin[0]) / step).ceil().max(0.0) as usize;
+        let last_column = (((max_x - origin[0]) / step).floor() as usize).min(columns - 1);
+        let first_row = ((min_y - origin[1]) / step).ceil().max(0.0) as usize;
+        let last_row = (((max_y - origin[1]) / step).floor() as usize).min(rows - 1);
         for row in first_row..=last_row {
-            let y = params.origin[1] + row as f64 * step;
+            let y = origin[1] + row as f64 * step;
             for column in first_column..=last_column {
-                let x = params.origin[0] + column as f64 * step;
+                let x = origin[0] + column as f64 * step;
                 // Barycentric coordinates of the node in the triangle.
                 let w0 = ((b[0] - x) * (c[1] - y) - (c[0] - x) * (b[1] - y)) / area;
                 let w1 = ((c[0] - x) * (a[1] - y) - (a[0] - x) * (c[1] - y)) / area;
@@ -306,18 +338,7 @@ pub fn height_field(triangles: &[Triangle], params: &ReliefParams, step: f64) ->
             }
         }
     }
-    if params.background_floor {
-        for slot in heights.iter_mut().filter(|slot| slot.is_none()) {
-            *slot = Some(-params.depth);
-        }
-    }
-    HeightField {
-        origin: params.origin,
-        step,
-        columns,
-        rows,
-        heights,
-    }
+    heights
 }
 
 /// Lowest tool tip height at a node so that no part of the tool cuts
