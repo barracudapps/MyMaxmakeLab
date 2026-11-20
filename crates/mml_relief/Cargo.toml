@@ -1,0 +1,12 @@
+[package]
+name = "mml_relief"
+description = "3D model (STL, OBJ) to relief carving G-code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mml_gcode.workspace = true
+thiserror.workspace = true
