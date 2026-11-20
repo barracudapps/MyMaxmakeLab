@@ -567,6 +567,29 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
         app.document.layers[index].pause_before = pause_before;
         app.touch();
     }
+    if app.machine.tool_changer && !operation.is_laser() {
+        let mut tool = app.document.layers[index].tool;
+        let label = |tool: Option<u32>| match tool {
+            Some(slot) => trf("op.tool_slot_n", &[&slot]),
+            None => tr("op.tool_slot_keep").to_owned(),
+        };
+        ui.horizontal(|ui| {
+            ui.label(tr("op.tool_slot"))
+                .on_hover_text(tr("op.tool_slot_hint"));
+            egui::ComboBox::from_id_salt("tool-slot")
+                .selected_text(label(tool))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut tool, None, label(None));
+                    for slot in 1..=6 {
+                        ui.selectable_value(&mut tool, Some(slot), label(Some(slot)));
+                    }
+                });
+        });
+        if tool != app.document.layers[index].tool {
+            app.document.layers[index].tool = tool;
+            app.touch();
+        }
+    }
     egui::Grid::new("op-grid")
         .num_columns(2)
         .spacing([10.0, 6.0])
@@ -1423,6 +1446,10 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
                     ui.label(tr("machine.relative"))
                         .on_hover_text(tr("machine.relative_hint"));
                     ui.checkbox(&mut profile.relative_to_current, "");
+                    ui.end_row();
+                    ui.label(tr("machine.tool_changer"))
+                        .on_hover_text(tr("machine.tool_changer_hint"));
+                    ui.checkbox(&mut profile.tool_changer, "");
                     ui.end_row();
                 });
             ui.label(tr("machine.start_gcode"));

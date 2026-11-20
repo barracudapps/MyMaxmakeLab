@@ -99,6 +99,10 @@ pub fn grbl_alarm(code: u32) -> String {
     translated_code("grbl.alarm.", code, mml_device::alarm_message(code))
 }
 
+pub fn carvera_halt(code: u32) -> String {
+    translated_code("grbl.halt.", code, mml_device::halt_message(code))
+}
+
 fn translated_code(prefix: &str, code: u32, fallback: &str) -> String {
     let key = format!("{prefix}{code}");
     let tables = tables();

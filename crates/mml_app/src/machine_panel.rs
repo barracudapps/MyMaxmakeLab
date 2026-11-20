@@ -1,10 +1,11 @@
 use crate::app::{Anchor, Placement};
 use crate::app::{Level, MyApp};
-use crate::i18n::{grbl_alarm, grbl_error, tr, trf};
+use crate::i18n::{carvera_halt, grbl_alarm, grbl_error, tr, trf};
 use crate::panels::{section, warning_text};
 use crate::settings::Settings;
 use eframe::egui::{self, Color32, DragValue, RichText};
 use mml_core::machine::MachineProfile;
+use mml_device::discovery::Discovered;
 use mml_device::{
     Anomaly, Command, Connection, Controller, Event, JobGuard, JobOutcome, MachineState,
     MachineStatus, realtime,
@@ -70,6 +71,9 @@ pub struct DeviceState {
     /// Continuous jog in progress: direction and whether the long jog
     /// was sent (held longer than a click).
     pub hold: Option<([f64; 3], Instant, bool)>,
+    /// Network search for Carvera machines in progress.
+    discovery: Option<std::sync::mpsc::Receiver<Result<Vec<Discovered>, String>>>,
+    pub discovered: Option<Result<Vec<Discovered>, String>>,
 }
 
 impl DeviceState {
@@ -103,6 +107,8 @@ impl DeviceState {
             finished: None,
             z_probed: false,
             hold: None,
+            discovery: None,
+            discovered: None,
         }
     }
 
@@ -426,6 +432,7 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
             ui.label(tr("device.port"));
             ui.add(DragValue::new(&mut device.tcp_port).range(1..=65535));
         });
+        discovery(device, ui);
     } else {
         ui.horizontal(|ui| {
             let selected = device
@@ -466,6 +473,69 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
     }
 }
 
+/// Listens for the beacons Carvera machines broadcast and fills the
+/// address of the one picked.
+fn discovery(device: &mut DeviceState, ui: &mut egui::Ui) {
+    if let Some(receiver) = &device.discovery {
+        match receiver.try_recv() {
+            Ok(result) => {
+                device.discovered = Some(result);
+                device.discovery = None;
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(RichText::new(tr("device.discovering")).weak());
+                });
+                ui.ctx().request_repaint_after(Duration::from_millis(200));
+                return;
+            }
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => device.discovery = None,
+        }
+    }
+    if ui
+        .button(tr("device.discover"))
+        .on_hover_text(tr("device.discover_hint"))
+        .clicked()
+    {
+        device.discovered = None;
+        device.discovery = Some(mml_device::discovery::discover(Duration::from_secs(4)));
+    }
+    let mut picked = None;
+    match &device.discovered {
+        Some(Ok(machines)) if machines.is_empty() => {
+            ui.label(RichText::new(tr("device.discover_none")).weak());
+        }
+        Some(Ok(machines)) => {
+            for machine in machines {
+                let text = if machine.busy {
+                    trf("device.discover_busy", &[&machine.name, &machine.host])
+                } else {
+                    format!("{}  {}", machine.name, machine.host)
+                };
+                if ui
+                    .add_enabled(!machine.busy, egui::Button::new(text))
+                    .clicked()
+                {
+                    picked = Some(machine.clone());
+                }
+            }
+        }
+        Some(Err(error)) => {
+            ui.label(
+                RichText::new(trf("device.discover_failed", &[error])).color(crate::theme::WARNING),
+            );
+        }
+        None => {}
+    }
+    if let Some(machine) = picked {
+        device.host = machine.host;
+        device.tcp_port = machine.port;
+        device.protocol = mml_device::Protocol::SendAndWait;
+        device.discovered = None;
+    }
+}
+
 fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
     let device = &mut app.device;
     let state = device.state();
@@ -482,7 +552,9 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
                     .size(20.0),
             );
             if state == MachineState::Alarm {
-                if let Some(code) = device.alarm {
+                if let Some(code) = device.status.as_ref().and_then(|status| status.halt) {
+                    ui.label(carvera_halt(code));
+                } else if let Some(code) = device.alarm {
                     ui.label(grbl_alarm(code));
                 } else {
                     ui.label(tr("state.alarm_hint"));
@@ -541,6 +613,9 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
                     ))
                     .weak(),
                 );
+                if let Some(tool) = status.tool {
+                    ui.label(RichText::new(trf("device.tool_loaded", &[&tool])).weak());
+                }
                 if !status.pins.is_empty() {
                     ui.label(
                         RichText::new(trf("device.pins", &[&status.pins]))

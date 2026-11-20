@@ -1615,6 +1615,11 @@ impl MyApp {
                     ui.separator();
                     for preset in MachineProfile::presets() {
                         if ui.button(preset.name.clone()).clicked() {
+                            if preset.name == MachineProfile::makera_carvera().name {
+                                // Smoothieware acknowledges each line; Wi-Fi on 2222.
+                                self.device.protocol = mml_device::Protocol::SendAndWait;
+                                self.device.tcp_port = 2222;
+                            }
                             self.machine = preset;
                             self.revision += 1;
                         }
