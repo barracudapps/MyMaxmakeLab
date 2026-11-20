@@ -67,6 +67,8 @@ pub struct Canvas {
     /// Head seen by the camera check, in bed millimetres, and whether
     /// it matches the reported position.
     pub vision_marker: Option<(Point, bool)>,
+    /// Stock seen by the camera, drawn as a dashed outline.
+    pub stock_outline: Option<mml_core::geometry::Rect>,
 }
 
 impl Default for Canvas {
@@ -90,6 +92,7 @@ impl Default for Canvas {
             stroke: Vec::new(),
             camera: None,
             vision_marker: None,
+            stock_outline: None,
         }
     }
 }
@@ -258,6 +261,26 @@ impl Canvas {
                 uv,
                 Color32::from_white_alpha((opacity * 255.0) as u8),
             );
+        }
+        if let Some(stock) = self.stock_outline {
+            let corners = [
+                Point::new(stock.min.x, stock.min.y),
+                Point::new(stock.max.x, stock.min.y),
+                Point::new(stock.max.x, stock.max.y),
+                Point::new(stock.min.x, stock.max.y),
+            ];
+            for index in 0..4 {
+                let (a, b) = (
+                    view.to_screen(corners[index]),
+                    view.to_screen(corners[(index + 1) % 4]),
+                );
+                painter.extend(egui::Shape::dashed_line(
+                    &[a, b],
+                    egui::Stroke::new(1.5, crate::theme::WARNING),
+                    6.0,
+                    4.0,
+                ));
+            }
         }
         if let Some((point, consistent)) = self.vision_marker {
             let color = if consistent {

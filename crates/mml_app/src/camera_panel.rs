@@ -21,6 +21,8 @@ pub struct CameraState {
     last_fetch: Option<Instant>,
     fetching: Option<Receiver<Result<Vec<u8>, String>>>,
     pub vision: VisionState,
+    /// Stock found on the last picture, bed millimetres.
+    pub stock: Option<mml_core::geometry::Rect>,
 }
 
 /// Movement check: where the camera sees the head compared with where
@@ -80,6 +82,7 @@ impl Default for CameraState {
             last_fetch: None,
             fetching: None,
             vision: VisionState::default(),
+            stock: None,
         }
     }
 }
@@ -117,6 +120,8 @@ fn refresh_overlay(app: &mut MyApp, ctx: &egui::Context) {
     let bed = (app.machine.width, app.machine.height);
     let resolution = (1600.0 / bed.0.max(bed.1)).clamp(0.5, 4.0);
     if let Some(rectified) = mml_io::camera::rectify(photo, corners, bed, resolution) {
+        app.camera.stock = mml_io::vision::detect_stock(&rectified, resolution);
+        app.canvas.stock_outline = app.camera.stock;
         let size = [rectified.width() as usize, rectified.height() as usize];
         let texture = ctx.load_texture(
             "camera-overlay",
@@ -244,6 +249,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
             {
                 *opacity = app.camera.opacity;
             }
+            stock_section(app, ui);
             vision_settings(app, ui);
             let Some(texture) = &app.camera.photo_texture else {
                 return;
@@ -416,4 +422,59 @@ fn vision_settings(app: &mut MyApp, ui: &mut egui::Ui) {
         ),
     };
     ui.label(RichText::new(text).color(color));
+}
+
+/// The stock seen on the bed and centring the design on it.
+fn stock_section(app: &mut MyApp, ui: &mut egui::Ui) {
+    let Some(stock) = app.camera.stock else {
+        if app.settings.camera_corners.is_some() && app.camera.photo.is_some() {
+            ui.label(RichText::new(tr("camera.no_stock")).weak());
+        }
+        return;
+    };
+    ui.horizontal(|ui| {
+        ui.label(trf(
+            "camera.stock",
+            &[
+                &format!("{:.0}", stock.width()),
+                &format!("{:.0}", stock.height()),
+                &format!("{:.0}", stock.min.x),
+                &format!("{:.0}", stock.min.y),
+            ],
+        ));
+        if ui
+            .button(tr("camera.center_on_stock"))
+            .on_hover_text(tr("camera.center_on_stock_hint"))
+            .clicked()
+        {
+            let ids: Vec<_> = if app.selection.is_empty() {
+                app.document.shapes.iter().map(|shape| shape.id).collect()
+            } else {
+                app.selection.clone()
+            };
+            let design = app.document.bounds_of(&ids);
+            if !design.is_empty() {
+                let (from, to) = (design.center(), stock.center());
+                app.begin_edit("history.transform");
+                for shape in app
+                    .document
+                    .shapes
+                    .iter_mut()
+                    .filter(|shape| ids.contains(&shape.id))
+                {
+                    shape.transform =
+                        shape
+                            .transform
+                            .then(mml_core::geometry::Transform::translate(
+                                to.x - from.x,
+                                to.y - from.y,
+                            ));
+                }
+                app.end_edit();
+                if design.width() > stock.width() || design.height() > stock.height() {
+                    app.notify(tr("camera.design_larger"), Level::Warning);
+                }
+            }
+        }
+    });
 }
