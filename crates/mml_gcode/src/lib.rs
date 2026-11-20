@@ -10,5 +10,5 @@ mod writer;
 
 pub use analysis::{JobStats, MotionSettings, analyze};
 pub use optimize::{OptimizeOptions, OptimizeReport, optimize};
-pub use parser::{Motion, MoveKind, Program, parse};
+pub use parser::{Motion, MoveKind, Program, parse, unwrap_rotary};
 pub use writer::GcodeWriter;

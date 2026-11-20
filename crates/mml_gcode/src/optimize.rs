@@ -59,6 +59,8 @@ struct Optimizer {
     report: OptimizeReport,
     out: String,
     absolute: bool,
+    /// G93: every move carries its own F, nothing may be merged.
+    inverse_time: bool,
     motion: Option<u8>,
     emitted_motion: Option<u8>,
     feed: Option<f64>,
@@ -195,6 +197,8 @@ impl Optimizer {
                     self.report.relative_mode = true;
                 }
                 ('G', 200) => self.report.inches = true,
+                ('G', 930) => self.inverse_time = true,
+                ('G', 940) => self.inverse_time = false,
                 ('M', _) => has_tool_command = true,
                 _ => {}
             }
@@ -206,7 +210,11 @@ impl Optimizer {
             .iter()
             .any(|(letter, _)| matches!(letter, 'X' | 'Y' | 'Z'));
         let motion = self.motion.unwrap_or(0);
-        let simple = self.absolute && !self.report.inches && has_axis && matches!(motion, 0 | 1);
+        let simple = self.absolute
+            && !self.inverse_time
+            && !self.report.inches
+            && has_axis
+            && matches!(motion, 0 | 1);
 
         if simple {
             let mut target = self.position;
@@ -360,6 +368,7 @@ pub fn optimize(source: &str, options: OptimizeOptions) -> (String, OptimizeRepo
         },
         out: String::with_capacity(source.len()),
         absolute: true,
+        inverse_time: false,
         motion: None,
         emitted_motion: None,
         feed: None,
@@ -413,6 +422,21 @@ mod tests {
         );
         assert_eq!(before.cut_bounds(), after.cut_bounds());
         assert_eq!(after.motions.last().unwrap().to, [0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn inverse_time_moves_keep_their_feed_and_rotation() {
+        let source = "M3 S9000\nG93\nG1 X1 A10 F120\nG1 X2 A20 F120\nG1 X3 F120\nG94\nG1 X4 F600\n";
+        let (out, _) = optimize(source, OptimizeOptions::default());
+        let lines: Vec<&str> = out.lines().collect();
+        assert!(lines.contains(&"G1X2A20F120"), "{out}");
+        assert!(
+            lines
+                .iter()
+                .any(|line| *line == "G1X3F120" || *line == "X3F120"),
+            "{out}"
+        );
+        assert_eq!(out.matches("F120").count(), 3);
     }
 
     #[test]

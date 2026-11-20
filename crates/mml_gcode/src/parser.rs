@@ -18,12 +18,41 @@ pub struct Motion {
     pub power: f64,
     /// 0-based source line, used to highlight progress while streaming.
     pub line: usize,
+    /// Rotary (A) angle at the start and end of the move, degrees.
+    pub a: [f64; 2],
+    /// Duration programmed in inverse time mode (G93), minutes.
+    pub minutes: Option<f64>,
 }
 
 impl Motion {
     pub fn length(&self) -> f64 {
         let [dx, dy, dz] = [0, 1, 2].map(|axis| self.to[axis] - self.from[axis]);
         (dx * dx + dy * dy + dz * dz).sqrt()
+    }
+
+    /// Length travelled on the stock: for a rotary program of known
+    /// radius, the rotation counts as the arc it sweeps.
+    pub fn path_length(&self, rotary_radius: Option<f64>) -> f64 {
+        let Some(radius) = rotary_radius.filter(|_| self.a[0] != self.a[1]) else {
+            return self.length();
+        };
+        let pieces = ((self.a[1] - self.a[0]).abs() / 2.0).ceil().max(1.0) as usize;
+        let at = |t: f64| {
+            let point =
+                [0, 1, 2].map(|axis| self.from[axis] + (self.to[axis] - self.from[axis]) * t);
+            unwrap_rotary(point, self.a[0] + (self.a[1] - self.a[0]) * t, radius)
+        };
+        let mut previous = at(0.0);
+        let mut total = 0.0;
+        for piece in 1..=pieces {
+            let next = at(piece as f64 / pieces as f64);
+            total += (0..3)
+                .map(|axis| (next[axis] - previous[axis]).powi(2))
+                .sum::<f64>()
+                .sqrt();
+            previous = next;
+        }
+        total
     }
 
     pub fn is_cutting(&self) -> bool {
@@ -42,6 +71,18 @@ pub struct Program {
     pub uses_rotary: bool,
     /// Lowest and highest Z reached, `(0, 0)` for 2D programs.
     pub z_range: (f64, f64),
+    /// Diameter of the stock turned by the A axis, announced by the
+    /// programs of this application (`; Rotary stock diameter 40 mm`).
+    pub rotary_diameter: Option<f64>,
+}
+
+/// Point of a rotary program in the frame of the stock: the machine
+/// position (Y0 on the axis, Z0 on the stock top of `radius`) turned
+/// back by the A angle.
+pub fn unwrap_rotary(point: [f64; 3], a_degrees: f64, radius: f64) -> [f64; 3] {
+    let (sin, cos) = a_degrees.to_radians().sin_cos();
+    let (y, z) = (point[1], point[2] + radius);
+    [point[0], y * cos + z * sin, -y * sin + z * cos]
 }
 
 impl Program {
@@ -66,6 +107,8 @@ impl Program {
 
 struct State {
     position: [f64; 3],
+    a: f64,
+    inverse_time: bool,
     absolute: bool,
     scale: f64,
     motion: u8,
@@ -82,6 +125,8 @@ pub fn parse(source: &str) -> Program {
     let mut program = Program::default();
     let mut state = State {
         position: [0.0; 3],
+        a: 0.0,
+        inverse_time: false,
         absolute: true,
         scale: 1.0,
         motion: 0,
@@ -91,6 +136,12 @@ pub fn parse(source: &str) -> Program {
     };
     for (line_index, raw_line) in source.lines().enumerate() {
         program.line_count += 1;
+        if let Some(rest) = raw_line.trim().strip_prefix("; Rotary stock diameter ") {
+            program.rotary_diameter = rest
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse().ok());
+        }
         let words = match tokenize(raw_line) {
             Ok(words) => words,
             Err(message) => {
@@ -102,6 +153,7 @@ pub fn parse(source: &str) -> Program {
             continue;
         }
         let mut target: [Option<f64>; 3] = [None; 3];
+        let mut target_a = None;
         let mut offsets = [None::<f64>; 2];
         let mut radius = None;
         let mut skip_motion = false;
@@ -112,6 +164,8 @@ pub fn parse(source: &str) -> Program {
                         state.motion = (*value).round() as u8;
                     }
                     900 => state.absolute = true,
+                    930 => state.inverse_time = true,
+                    940 => state.inverse_time = false,
                     910 => state.absolute = false,
                     200 => state.scale = 25.4,
                     210 => state.scale = 1.0,
@@ -131,7 +185,11 @@ pub fn parse(source: &str) -> Program {
                 'R' => radius = Some(*value),
                 'F' => state.feed = *value * state.scale,
                 'S' => state.s_value = *value,
-                'A' | 'B' | 'C' => program.uses_rotary = true,
+                'A' => {
+                    program.uses_rotary = true;
+                    target_a = Some(*value);
+                }
+                'B' | 'C' => program.uses_rotary = true,
                 'N' | 'P' | 'T' | 'K' | 'L' => {}
                 other => push_warning(
                     &mut program,
@@ -140,9 +198,18 @@ pub fn parse(source: &str) -> Program {
                 ),
             }
         }
-        if skip_motion || target.iter().all(Option::is_none) {
+        if skip_motion || (target.iter().all(Option::is_none) && target_a.is_none()) {
             continue;
         }
+        let end_a = match target_a {
+            Some(value) if state.absolute => value,
+            Some(value) => state.a + value,
+            None => state.a,
+        };
+        let a = [state.a, end_a];
+        let minutes = (state.inverse_time && state.motion != 0 && state.feed > 0.0)
+            // G93: F is the inverse of the move duration in minutes.
+            .then(|| state.scale / state.feed);
         let mut end = state.position;
         for axis in 0..3 {
             if let Some(value) = target[axis] {
@@ -173,6 +240,8 @@ pub fn parse(source: &str) -> Program {
                     },
                     power: if kind == MoveKind::Rapid { 0.0 } else { power },
                     line: line_index,
+                    a,
+                    minutes,
                 });
             }
             2 | 3 => {
@@ -194,6 +263,7 @@ pub fn parse(source: &str) -> Program {
                 let points = flatten_arc(start, stop, center, clockwise);
                 let count = points.len() as f64;
                 let mut from = state.position;
+                let share = minutes.map(|minutes| minutes / count);
                 for (index, point) in points.into_iter().enumerate() {
                     let z = state.position[2]
                         + (end[2] - state.position[2]) * (index as f64 + 1.0) / count;
@@ -205,6 +275,8 @@ pub fn parse(source: &str) -> Program {
                         feed: state.feed,
                         power,
                         line: line_index,
+                        a: [end_a; 2],
+                        minutes: share,
                     });
                     from = to;
                 }
@@ -212,6 +284,7 @@ pub fn parse(source: &str) -> Program {
             _ => {}
         }
         state.position = end;
+        state.a = end_a;
     }
     program.z_range = program
         .motions

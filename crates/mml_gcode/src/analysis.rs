@@ -56,8 +56,20 @@ pub fn analyze(program: &Program, settings: MotionSettings) -> JobStats {
         }
     };
 
+    let rotary_radius = program.rotary_diameter.map(|diameter| diameter / 2.0);
     for motion in &program.motions {
-        let length = motion.length();
+        let length = motion.path_length(rotary_radius);
+        if let Some(minutes) = motion.minutes {
+            // Inverse time: the duration is programmed, rotation included.
+            seconds += close_run(run_length, run_speed) + minutes * 60.0;
+            run_length = 0.0;
+            run_speed = 0.0;
+            previous = None;
+            if motion.power > 0.0 {
+                stats.cut_length += length;
+            }
+            continue;
+        }
         if length <= 0.0 {
             continue;
         }
@@ -110,5 +122,23 @@ mod tests {
         assert!((split.duration.as_secs_f64() - whole.duration.as_secs_f64()).abs() < 1e-9);
         assert!((whole.cut_length - 40.0).abs() < 1e-9);
         assert!((whole.duration.as_secs_f64() - 4.1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn inverse_time_moves_last_what_they_program() {
+        let settings = MotionSettings {
+            rapid_rate: 6000.0,
+            acceleration: 100.0,
+        };
+        // 2 moves of half a minute each, one of them a pure rotation.
+        let program = parse("M3 S1000\nG93 G1 X10 A90 F2\nA180 F2\nG94");
+        assert!(program.uses_rotary);
+        assert_eq!(program.motions[1].a, [90.0, 180.0]);
+        let stats = analyze(&program, settings);
+        assert!((stats.duration.as_secs_f64() - 60.0).abs() < 1e-9);
+        // A quarter turn on a 40 mm stock sweeps a 31.4 mm arc.
+        let wrapped = parse("; Rotary stock diameter 40 mm\nM3 S1\nG1 A90 F600");
+        let stats = analyze(&wrapped, settings);
+        assert!((stats.cut_length - 10.0 * std::f64::consts::PI).abs() < 0.05);
     }
 }
