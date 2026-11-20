@@ -1660,6 +1660,7 @@ dependencies = [
  "mml_core",
  "mml_gcode",
  "mml_laser",
+ "mml_relief",
 ]
 
 [[package]]
