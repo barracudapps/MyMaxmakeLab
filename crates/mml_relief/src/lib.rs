@@ -9,9 +9,11 @@ use mml_gcode::GcodeWriter;
 mod indexed;
 mod mold;
 mod positional;
+mod slices;
 pub use indexed::{IndexedError, IndexedParams, indexed_gcode};
 pub use mold::{MoldParams, mold_field, mold_gcode};
 pub use positional::{PositionalError, PositionalParams, Side, positional_gcode};
+pub use slices::slice_mesh;
 
 pub type Triangle = [[f32; 3]; 3];
 
