@@ -101,6 +101,9 @@ multi-axis programs.
 <td width="50%"><img src="docs/images/makers.png" alt="Box, maze and jigsaw generators"><br>A <b>box</b> sized for an object, <b>mazes</b> (walls or corridors to mill, solution in red) and <b>jigsaw puzzles</b>, in one click.</td>
 <td width="50%"><img src="docs/images/ornaments.png" alt="Ornaments by style"><br><b>Ornaments by style</b>: Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian, Islamic; a new variation at each click.</td>
 </tr>
+<tr>
+<td colspan="2"><img src="docs/images/fonts.png" alt="Bundled fonts"><br><b>46 fonts built in</b>, the same on every computer: 39 open fonts and 7 single-line fonts (orange) for pens, V-bits and fast laser marking.</td>
+</tr>
 </table>
 
 ## Features
@@ -112,8 +115,8 @@ multi-axis programs.
   splines, units), **PNG / JPG / BMP**, **STL / OBJ**; drag and drop; one
   layer per colour of a drawing.
 - Draw rectangles, ellipses, polygons, **freehand strokes** (mouse, stylus,
-  graphics tablet), **text** with 20 bundled open fonts (scripts, stencils,
-  slab, display) plus your own fonts.
+  graphics tablet), **text** with 39 bundled open fonts (serif, scripts, medieval,
+  stencils, slab, display, monospace), 7 single-line fonts and your own.
 - **WordArt-like shapes**: text on an arc above or below a circle, waves,
   bulges, with live preview; the same deformations on any vector.
 - Move, scale, rotate with large handles, snap, align, duplicate, arrays,
