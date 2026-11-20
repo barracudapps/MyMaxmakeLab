@@ -118,6 +118,9 @@ pub fn text_to_paths(text: &str, style: &TextStyle) -> Vec<Path> {
     if text.trim().is_empty() {
         return Vec::new();
     }
+    if crate::hershey::is_hershey(&style.family) {
+        return crate::hershey::hershey_text(text, &style.family, style.size, style.line_spacing);
+    }
     let lines: String = text
         .lines()
         .enumerate()

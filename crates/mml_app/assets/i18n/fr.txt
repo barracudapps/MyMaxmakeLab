@@ -601,3 +601,5 @@ pairing.received = Traits reçus : {0}
 pairing.privacy = Seuls les appareils de ce réseau qui connaissent le code de l’adresse peuvent dessiner ; arrêtez l’appairage pour fermer la page.
 pairing.stop = Arrêter l’appairage
 pairing.failed = L’appairage n’a pas pu démarrer : {0}
+text.single_line = Polices à trait unique (stylo, fraise en V, laser rapide)
+text.single_line_hint = Lettres faites d’un seul trait au lieu d’un contour : gravées en une passe, idéales pour fraise en V, stylo et marquage laser rapide

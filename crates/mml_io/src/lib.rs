@@ -2,12 +2,14 @@
 //! (Y up), with the drawing's bottom-left corner at the origin.
 
 mod dxf_import;
+mod hershey;
 mod raster;
 mod svg_import;
 mod text;
 mod trace;
 
 pub use dxf_import::import_dxf;
+pub use hershey::{hershey_families, hershey_text, is_hershey};
 pub use raster::import_raster;
 pub use svg_import::import_svg;
 pub use text::{TextStyle, add_font_directory, bundled_families, font_families, text_to_paths};

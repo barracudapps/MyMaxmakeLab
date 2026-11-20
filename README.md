@@ -229,7 +229,7 @@ body): `git log` is the technical changelog. See
 - [ ] Camera overlay and movement consistency check (webcam, phone, Insta360, GoPro)
 - [ ] Native protocols for non-GRBL machines (Makera Carvera, Smoothieware)
 - [ ] Firmware update per vendor protocol
-- [ ] Single-line (Hershey) fonts for pen and V-bit
+- [x] Single-line (Hershey) fonts for pen and V-bit
 - [ ] 4-axis reliefs and 5-axis machining with a kinematics model
 
 ## 🇫🇷 En bref

@@ -110,6 +110,7 @@ pub struct TextDialog {
     pub style: mml_io::TextStyle,
     pub families: Vec<String>,
     pub bundled: Vec<String>,
+    pub single_line: Vec<String>,
     pub warp: WarpSettings,
 }
 
@@ -124,6 +125,7 @@ impl TextDialog {
             },
             families: mml_io::font_families(),
             bundled: mml_io::bundled_families(),
+            single_line: mml_io::hershey_families(),
             warp: WarpSettings::default(),
         }
     }
@@ -242,6 +244,12 @@ pub fn text_dialog(app: &mut MyApp, ctx: &egui::Context) {
                     .height(360.0)
                     .width(200.0)
                     .show_ui(ui, |ui| {
+                        ui.label(RichText::new(tr("text.single_line")).weak().small())
+                            .on_hover_text(tr("text.single_line_hint"));
+                        for family in &dialog.single_line {
+                            ui.selectable_value(&mut dialog.style.family, family.clone(), family);
+                        }
+                        ui.separator();
                         ui.label(RichText::new(tr("text.bundled")).weak().small());
                         for family in &dialog.bundled {
                             ui.selectable_value(&mut dialog.style.family, family.clone(), family);

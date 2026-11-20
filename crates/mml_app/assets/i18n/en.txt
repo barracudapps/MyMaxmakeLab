@@ -601,3 +601,5 @@ pairing.received = Strokes received: {0}
 pairing.privacy = Only devices on this network that know the code in the address can draw; stop pairing to close the page.
 pairing.stop = Stop pairing
 pairing.failed = Pairing could not start: {0}
+text.single_line = Single-line fonts (pen, V-bit, fast laser)
+text.single_line_hint = Letters made of one stroke instead of an outline: engraved in a single pass, ideal for V-bits, pens and quick laser marking
