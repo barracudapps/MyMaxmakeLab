@@ -14,6 +14,7 @@ mod panels;
 mod preview;
 mod relief_dialog;
 mod settings;
+mod sprue_dialog;
 mod text_tools;
 mod theme;
 mod tools_dialog;

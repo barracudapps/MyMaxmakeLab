@@ -162,6 +162,7 @@ pub struct MyApp {
     pub notices: Vec<(String, Level, Instant)>,
     pub text_dialog: Option<TextDialog>,
     pub array_dialog: Option<ArrayDialog>,
+    pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub preset_dialog: Option<PresetDialog>,
     pub machine_dialog: Option<MachineProfile>,
     pub settings_open: bool,
@@ -252,6 +253,7 @@ impl MyApp {
             notices: Vec::new(),
             text_dialog: None,
             array_dialog: None,
+            sprue: None,
             preset_dialog: None,
             machine_dialog: None,
             settings_open: false,
@@ -1592,6 +1594,13 @@ impl MyApp {
                     ui.separator();
                     if ui.button(tr("svgcode.title")).clicked() {
                         self.svg_code = Some(Default::default());
+                    }
+                    if ui
+                        .button(tr("sprue.title"))
+                        .on_hover_text(tr("sprue.menu_hint"))
+                        .clicked()
+                    {
+                        self.sprue = Some(Default::default());
                     }
                     if ui.button(tr("menu.array")).clicked() {
                         self.array_dialog = Some(ArrayDialog {

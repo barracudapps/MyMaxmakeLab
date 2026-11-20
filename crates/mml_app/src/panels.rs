@@ -630,6 +630,29 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                     .on_hover_text(tr("op.z_step_hint"));
                 changed |= number(ui, &mut params.z_step, 0.0..=10.0, " mm", 0.05);
                 ui.end_row();
+                ui.label(tr("op.bridges"))
+                    .on_hover_text(tr("op.bridges_hint"));
+                ui.horizontal(|ui| {
+                    let mut bridges = params.bridge_width > 0.0;
+                    if ui.checkbox(&mut bridges, "").changed() {
+                        params.bridge_width = if bridges { 0.6 } else { 0.0 };
+                        changed = true;
+                    }
+                    if bridges {
+                        changed |= number(ui, &mut params.bridge_width, 0.1..=10.0, " mm", 0.05);
+                        let mut automatic = params.bridge_count == 0;
+                        if ui.checkbox(&mut automatic, tr("sprue.automatic")).changed() {
+                            params.bridge_count = if automatic { 0 } else { 2 };
+                            changed = true;
+                        }
+                        if !automatic {
+                            changed |= ui
+                                .add(DragValue::new(&mut params.bridge_count).range(1..=12))
+                                .changed();
+                        }
+                    }
+                });
+                ui.end_row();
                 ui.label(tr("op.air"));
                 changed |= ui.checkbox(&mut params.air_assist, "").changed();
                 ui.end_row();
@@ -1257,6 +1280,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::text_tools::deform_dialog(app, ctx);
     crate::text_tools::svg_code_dialog(app, ctx);
     array_dialog(app, ctx);
+    crate::sprue_dialog::show(app, ctx);
     preset_dialog(app, ctx);
     machine_dialog(app, ctx);
     preferences(app, ctx);

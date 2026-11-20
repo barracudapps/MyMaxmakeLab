@@ -168,6 +168,7 @@ mod tests {
             include_str!("pairing_dialog.rs"),
             include_str!("camera_panel.rs"),
             include_str!("firmware.rs"),
+            include_str!("sprue_dialog.rs"),
             include_str!("../../mml_materials/src/tools.rs"),
             include_str!("../../mml_core/src/layer.rs"),
         ];
@@ -209,6 +210,24 @@ mod tests {
                     "dialog",
                     "close",
                     "about",
+                    "relief",
+                    "camera",
+                    "vision",
+                    "firmware",
+                    "pairing",
+                    "history",
+                    "sprue",
+                    "tools",
+                    "assist",
+                    "link",
+                    "svgcode",
+                    "warp",
+                    "probe",
+                    "basics",
+                    "tutorial",
+                    "checklist",
+                    "frame",
+                    "optimize",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')
@@ -218,6 +237,7 @@ mod tests {
                 if known_prefix
                     && looks_like_key
                     && !candidate.ends_with(".json")
+                    && !candidate.ends_with(".bin")
                     && !english.contains_key(candidate)
                 {
                     missing.push(candidate.to_owned());
