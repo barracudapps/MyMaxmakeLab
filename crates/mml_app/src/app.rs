@@ -336,6 +336,10 @@ impl MyApp {
                     }
                 }
                 "--3d" => self.view3d.enabled = true,
+                "--orbit" => {
+                    self.view3d.enabled = true;
+                    self.view3d.orbit = true;
+                }
                 "--play" => {
                     self.job.simulate = Some(0.0);
                     self.job.simulating = true;
@@ -1903,6 +1907,10 @@ impl MyApp {
                                 .built
                                 .as_ref()
                                 .is_some_and(|built| built.program.uses_rotary);
+                            if toggle {
+                                ui.toggle_value(&mut self.view3d.orbit, tr("view.orbit"))
+                                    .on_hover_text(tr("view.orbit_hint"));
+                            }
                             if rotary && toggle {
                                 ui.label(RichText::new(tr("view.rotary")).weak());
                             } else if toggle {

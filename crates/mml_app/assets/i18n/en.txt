@@ -845,3 +845,6 @@ fleet.unfinished = {0} did not finish: it went back to the queue
 mcp.copy = AI assistants (MCP): copy the server path
 mcp.copy_hint = Lets Claude, Codex, Gemini or any MCP client draw boxes, mazes, ornaments and make G-code with MyMaxmakeLab; it never moves a machine. Setup: docs/MCP.md
 mcp.copied = Copied: {0}. Add it as a stdio MCP server in your assistant (see docs/MCP.md).
+
+view.orbit = Turn
+view.orbit_hint = Turntable: the view turns slowly around the part; drag to stop

@@ -13,6 +13,8 @@ pub struct View3d {
     pub pan: Vec2,
     /// Z is exaggerated so shallow reliefs and maps stay readable.
     pub z_scale: f32,
+    /// Turntable: the view turns slowly around the part.
+    pub orbit: bool,
     /// 1 for rotary programs, drawn at true scale around the axis.
     effective_z_scale: f32,
 }
@@ -26,6 +28,7 @@ impl Default for View3d {
             zoom: 0.0,
             pan: Vec2::ZERO,
             z_scale: 3.0,
+            orbit: false,
             effective_z_scale: 3.0,
         }
     }
@@ -66,6 +69,16 @@ impl View3d {
                 Color32::from_rgb(232, 235, 240)
             },
         );
+        if self.orbit {
+            if response.dragged() {
+                // Grabbing the view stops the turntable.
+                self.orbit = false;
+            } else {
+                let dt = ui.input(|input| input.stable_dt).min(0.1);
+                self.yaw -= dt * 0.5;
+                ui.ctx().request_repaint();
+            }
+        }
         if response.dragged_by(egui::PointerButton::Primary)
             && !ui.input(|input| input.modifiers.shift)
         {
