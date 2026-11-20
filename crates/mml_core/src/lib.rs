@@ -9,6 +9,7 @@ pub mod geometry;
 pub mod history;
 pub mod layer;
 pub mod machine;
+pub mod ordering;
 pub mod project;
 
 pub use document::{Document, RasterImage, Shape, ShapeId, ShapeKind};
