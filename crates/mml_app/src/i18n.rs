@@ -11,21 +11,38 @@ pub enum Language {
     #[default]
     English,
     French,
+    German,
+    Italian,
+    Spanish,
 }
 
 impl Language {
-    pub const ALL: [Language; 2] = [Language::English, Language::French];
+    /// Same order as the tables below.
+    pub const ALL: [Language; 5] = [
+        Language::English,
+        Language::French,
+        Language::German,
+        Language::Italian,
+        Language::Spanish,
+    ];
 
     pub fn native_name(self) -> &'static str {
         match self {
             Self::English => "English",
             Self::French => "Français",
+            Self::German => "Deutsch",
+            Self::Italian => "Italiano",
+            Self::Spanish => "Español",
         }
     }
 
     pub fn system() -> Self {
-        match sys_locale::get_locale() {
-            Some(locale) if locale.to_lowercase().starts_with("fr") => Self::French,
+        let locale = sys_locale::get_locale().unwrap_or_default().to_lowercase();
+        match locale.get(..2).unwrap_or("") {
+            "fr" => Self::French,
+            "de" => Self::German,
+            "it" => Self::Italian,
+            "es" => Self::Spanish,
             _ => Self::English,
         }
     }
@@ -45,12 +62,15 @@ fn parse(source: &'static str) -> Table {
         .collect()
 }
 
-fn tables() -> &'static [Table; 2] {
-    static TABLES: OnceLock<[Table; 2]> = OnceLock::new();
+fn tables() -> &'static [Table; 5] {
+    static TABLES: OnceLock<[Table; 5]> = OnceLock::new();
     TABLES.get_or_init(|| {
         [
             parse(include_str!("../assets/i18n/en.txt")),
             parse(include_str!("../assets/i18n/fr.txt")),
+            parse(include_str!("../assets/i18n/de.txt")),
+            parse(include_str!("../assets/i18n/it.txt")),
+            parse(include_str!("../assets/i18n/es.txt")),
         ]
     })
 }
@@ -119,21 +139,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_french_key_exists_in_english() {
-        let [english, french] = tables();
-        let missing: Vec<_> = french
-            .keys()
-            .filter(|key| !english.contains_key(*key) && !key.starts_with("grbl."))
-            .collect();
-        assert!(missing.is_empty(), "keys missing in en.txt: {missing:?}");
-        let untranslated: Vec<_> = english
-            .keys()
-            .filter(|key| !french.contains_key(*key))
-            .collect();
-        assert!(
-            untranslated.is_empty(),
-            "keys missing in fr.txt: {untranslated:?}"
-        );
+    fn every_language_has_every_key_and_placeholder() {
+        let [english, others @ ..] = tables();
+        for (table, name) in others.iter().zip(["fr", "de", "it", "es"]) {
+            let extra: Vec<_> = table
+                .keys()
+                .filter(|key| !english.contains_key(*key) && !key.starts_with("grbl."))
+                .collect();
+            assert!(
+                extra.is_empty(),
+                "{name}: keys missing in en.txt: {extra:?}"
+            );
+            let untranslated: Vec<_> = english
+                .keys()
+                .filter(|key| !table.contains_key(*key))
+                .collect();
+            assert!(
+                untranslated.is_empty(),
+                "keys missing in {name}.txt: {untranslated:?}"
+            );
+            for (key, text) in english.iter() {
+                for index in 0..4 {
+                    let placeholder = format!("{{{index}}}");
+                    if text.contains(&placeholder) {
+                        assert!(
+                            table[key].contains(&placeholder),
+                            "{name}: {key} lost {placeholder}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
