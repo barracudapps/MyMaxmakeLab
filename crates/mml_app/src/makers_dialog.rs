@@ -306,8 +306,8 @@ fn create_test_grid(app: &mut MyApp, params: &test_grid::TestGridParams) {
             true,
         );
     }
-    for column in 0..params.columns.max(1) {
-        let speed = cells[column].speed;
+    for (column, cell) in cells.iter().take(params.columns.max(1)).enumerate() {
+        let speed = cell.speed;
         let top = params.rows.max(1) as f64 * pitch;
         add_label(
             app,
