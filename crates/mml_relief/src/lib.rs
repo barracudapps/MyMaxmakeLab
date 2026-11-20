@@ -8,10 +8,12 @@ use mml_gcode::GcodeWriter;
 
 mod indexed;
 mod mold;
+mod orientation;
 mod positional;
 mod slices;
 pub use indexed::{IndexedError, IndexedParams, indexed_gcode};
 pub use mold::{MoldParams, mold_field, mold_gcode};
+pub use orientation::{Pose, apply as apply_pose, rank_poses};
 pub use positional::{PositionalError, PositionalParams, Side, positional_gcode};
 pub use slices::slice_mesh;
 
