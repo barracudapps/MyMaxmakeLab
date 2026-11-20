@@ -8,5 +8,6 @@ authors.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+mml_core.workspace = true
 mml_gcode.workspace = true
 thiserror.workspace = true

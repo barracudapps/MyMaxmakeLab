@@ -7,7 +7,9 @@
 use mml_gcode::GcodeWriter;
 
 mod indexed;
+mod positional;
 pub use indexed::{IndexedError, IndexedParams, indexed_gcode};
+pub use positional::{PositionalError, PositionalParams, Side, positional_gcode};
 
 pub type Triangle = [[f32; 3]; 3];
 
@@ -415,17 +417,38 @@ pub fn field_step(params: &ReliefParams) -> f64 {
 /// Machines a height field (roughing then finishing as configured) into
 /// an existing program; the spindle is started and stopped here.
 pub fn emit_field(writer: &mut GcodeWriter, field: &HeightField, params: &ReliefParams) {
+    emit_field_at(writer, field, params, 0.0);
+}
+
+/// `emit_field` for a stock whose top is at `top` instead of Z0: the
+/// field stays relative to the top, the program is shifted.
+pub fn emit_field_at(
+    writer: &mut GcodeWriter,
+    field: &HeightField,
+    params: &ReliefParams,
+    top: f64,
+) {
     let radius = params.tool_diameter / 2.0;
+    // Rapids clear the highest obstacle of the field, not only the stock.
+    let highest = field
+        .heights
+        .iter()
+        .flatten()
+        .copied()
+        .fold(0.0f64, f64::max);
+    let retract = top + highest + params.safe_z;
     let line_spacing = (params.tool_diameter * params.stepover.clamp(0.02, 0.9)).max(0.02);
     let step = field.step;
     let cutter = DropCutter::new(params.tool, radius, step);
     let tips: Vec<Option<f64>> = (0..field.rows)
         .flat_map(|row| (0..field.columns).map(move |column| (column, row)))
-        .map(|(column, row)| cutter.tip(field, column, row))
+        // Above the stock top something stands in the way (a table
+        // edge in a tilted setup): the tool must not go there at all.
+        .map(|(column, row)| cutter.tip(field, column, row).filter(|tip| *tip <= 1e-6))
         .collect();
     let row_stride = ((line_spacing / step).round() as usize).max(1);
     writer.spindle_on(params.spindle);
-    writer.rapid_z(params.safe_z);
+    writer.rapid_z(retract);
 
     let raster = |writer: &mut GcodeWriter, floor: f64, offset: f64, stride: usize| {
         let mut forward = true;
@@ -439,7 +462,7 @@ pub fn emit_field(writer: &mut GcodeWriter, field: &HeightField, params: &Relief
             for column in columns {
                 let Some(tip) = tips[row * field.columns + column] else {
                     if cutting {
-                        writer.rapid_z(params.safe_z);
+                        writer.rapid_z(retract);
                         cutting = false;
                     }
                     continue;
@@ -449,15 +472,15 @@ pub fn emit_field(writer: &mut GcodeWriter, field: &HeightField, params: &Relief
                 let y = field.origin[1] + row as f64 * field.step;
                 if !cutting {
                     writer.rapid(x, y);
-                    writer.linear_z(z, params.plunge);
+                    writer.linear_z(top + z, params.plunge);
                     cutting = true;
                 } else {
-                    writer.linear_xyz(x, y, z, params.feed);
+                    writer.linear_xyz(x, y, top + z, params.feed);
                 }
             }
             forward = !forward;
         }
-        writer.rapid_z(params.safe_z);
+        writer.rapid_z(retract);
     };
 
     if params.roughing {
