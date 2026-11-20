@@ -1,22 +1,36 @@
 <div align="center">
 
-# MyMaxmakeLab
+<img src="docs/brand/banner.png" alt="MyMaxmakeLab: laser and CNC, simple and safe" width="100%">
 
-**A friendly, fast and safe laser & CNC workbench for GRBL machines**
-
+**A friendly, fast and safe laser & CNC workbench for GRBL machines.**<br>
 Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a finished piece.
 
-![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
+[![Download](https://img.shields.io/github/v/release/barracudapps/MyMaxmakeLab?label=download&color=fa8c52)](https://github.com/barracudapps/MyMaxmakeLab/releases/latest)
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
 ![Tests](https://img.shields.io/badge/tests-133%20passing-34a870)
-![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL-informational)
+![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL%20%7C%20FluidNC%20%7C%20Carvera-informational)
+![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
+[![MCP](https://img.shields.io/badge/AI-MCP%20server-ec4899)](docs/MCP.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-<img src="docs/images/design.png" alt="Design step" width="900">
+[Why](#why) · [Tour](#a-quick-tour) · [In 3D](#see-it-in-3d) · [Make](#what-you-can-make) ·
+[Features](#features) · [Safety](#safety-first) · [Install](#install) ·
+[Architecture](#architecture) · [Roadmap](#roadmap) · [Français](#-en-bref)
 
-[Why](#why) · [Tour](#a-quick-tour) · [Features](#features) · [Safety](#safety-first) ·
-[Install](#install) · [Shortcuts](#keyboard-and-command-line) · [Architecture](#architecture) ·
-[Roadmap](#roadmap) · [Français](#-en-bref)
+<br>
+
+<img src="docs/brand/hero.png" alt="Prepare step with a 4-axis part and ornaments" width="100%">
+
+<table>
+<tr>
+<td width="50%"><img src="docs/brand/safety.png" alt="Safe by design"></td>
+<td width="50%"><img src="docs/brand/make.png" alt="Make anything"></td>
+</tr>
+<tr>
+<td><img src="docs/brand/axes.png" alt="3D, 4 and 5 axes"></td>
+<td><img src="docs/brand/ai.png" alt="AI-ready"></td>
+</tr>
+</table>
 
 </div>
 
@@ -65,8 +79,27 @@ flowchart LR
 <td><b>Repair and lighten</b> any G-code file, same path, fewer lines.<br><img src="docs/images/optimize.png" alt="G-code optimiser"></td>
 <td><b>Light theme</b>: warm, rounded, readable.<br><img src="docs/images/design-light.png" alt="Light theme"></td>
 </tr>
+</table>
+
+## See it in 3D
+
+The 3D view turns around the part (**Turn** button), at true scale for
+multi-axis programs.
+
+<table>
 <tr>
-<td colspan="2"><b>4-axis</b>: a figurine finished in one continuous helix, the stock turning while cutting, shown around the A axis.<br><img src="docs/images/rotary-3d.png" alt="Continuous 4-axis finish"></td>
+<td width="33%" align="center"><img src="docs/images/orbit-rotary.gif" alt="Continuous 4-axis finish"><br><b>4-axis</b>: a figurine finished in one helix, the stock turning while cutting</td>
+<td width="33%" align="center"><img src="docs/images/orbit-mold.gif" alt="Mold imprint"><br><b>Mold</b>: the imprint of a model with an even 1 mm offset</td>
+<td width="33%" align="center"><img src="docs/images/orbit-5axis.gif" alt="Positional 5-axis"><br><b>5-axis (3+2)</b>: each side of a dome turned to the tool</td>
+</tr>
+</table>
+
+## What you can make
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/makers.png" alt="Box, maze and jigsaw generators"><br>A <b>box</b> sized for an object, <b>mazes</b> (walls or corridors to mill, solution in red) and <b>jigsaw puzzles</b>, in one click.</td>
+<td width="50%"><img src="docs/images/ornaments.png" alt="Ornaments by style"><br><b>Ornaments by style</b>: Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian, Islamic; a new variation at each click.</td>
 </tr>
 </table>
 
