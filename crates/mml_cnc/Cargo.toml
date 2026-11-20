@@ -1,0 +1,13 @@
+[package]
+name = "mml_cnc"
+description = "CNC toolpaths: profiles, pockets, multi-pass depth and tabs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mml_core.workspace = true
+mml_gcode.workspace = true
+geo = "0.33"
