@@ -695,6 +695,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mml_materials"
+version = "0.1.0"
+dependencies = [
+ "mml_core",
+ "roxmltree 0.21.2",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
