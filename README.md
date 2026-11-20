@@ -7,7 +7,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 
 [![Download](https://img.shields.io/github/v/release/barracudapps/MyMaxmakeLab?label=download&color=fa8c52)](https://github.com/barracudapps/MyMaxmakeLab/releases/latest)
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
-![Tests](https://img.shields.io/badge/tests-133%20passing-34a870)
+![Tests](https://img.shields.io/badge/tests-141%20passing-34a870)
 ![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL%20%7C%20FluidNC%20%7C%20Carvera-informational)
 ![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
 [![MCP](https://img.shields.io/badge/AI-MCP%20server-ec4899)](docs/MCP.md)
@@ -102,6 +102,9 @@ multi-axis programs.
 <td width="50%"><img src="docs/images/ornaments.png" alt="Ornaments by style"><br><b>Ornaments by style</b>: Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian, Islamic; a new variation at each click.</td>
 </tr>
 <tr>
+<td colspan="2"><img src="docs/images/stats.png" alt="Statistics and costs"><br><b>Statistics and costs</b>: jobs, working time, hours per machine and per tool with wear warnings, and the real cost of each job (machine wear, cutters, electricity, consumables, labour).</td>
+</tr>
+<tr>
 <td colspan="2"><img src="docs/images/fonts.png" alt="Bundled fonts"><br><b>46 fonts built in</b>, the same on every computer: 39 open fonts and 7 single-line fonts (orange) for pens, V-bits and fast laser marking.</td>
 </tr>
 </table>
@@ -193,6 +196,12 @@ multi-axis programs.
   import (offered on first launch).
 - **G-code repair**: comments, repeated words, zero moves, colinear segments,
   missing feed, relative / inch detection — with a diagnosis before applying.
+- **Shorter travel**: paths ordered by nearest neighbour, then untangled
+  (2-opt, Or-opt) while holes stay before outlines.
+- **Spare the cutter and the machine**: plunges turned into ramps, feed
+  lowered in sharp corners, with gentle and balanced profiles.
+- **Statistics and costs**: time per tool, wear, dashboard, cost per job;
+  production shares the wear fairly between machines.
 - Tutorial on first launch, tooltips everywhere, English and French.
 - **AI assistants**: an MCP server lets Claude, Codex, Gemini or any MCP
   client generate designs and G-code (never runs a machine), see
@@ -268,7 +277,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 133 tests
+cargo test --workspace      # 141 tests
 cargo clippy --workspace    # no warnings
 ```
 
