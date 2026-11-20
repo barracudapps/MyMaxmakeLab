@@ -36,6 +36,12 @@ pub struct Program {
     pub motions: Vec<Motion>,
     pub line_count: usize,
     pub warnings: Vec<String>,
+    /// The program commands a rotary axis (A, B or C words). Used by the
+    /// safety monitor: a rotary axis moving during a job that never
+    /// commands it is an anomaly.
+    pub uses_rotary: bool,
+    /// Lowest and highest Z reached, `(0, 0)` for 2D programs.
+    pub z_range: (f64, f64),
 }
 
 impl Program {
@@ -125,6 +131,7 @@ pub fn parse(source: &str) -> Program {
                 'R' => radius = Some(*value),
                 'F' => state.feed = *value * state.scale,
                 'S' => state.s_value = *value,
+                'A' | 'B' | 'C' => program.uses_rotary = true,
                 'N' | 'P' | 'T' | 'K' | 'L' => {}
                 other => push_warning(
                     &mut program,
@@ -206,6 +213,12 @@ pub fn parse(source: &str) -> Program {
         }
         state.position = end;
     }
+    program.z_range = program
+        .motions
+        .iter()
+        .fold((0.0f64, 0.0f64), |(low, high), motion| {
+            (low.min(motion.to[2]), high.max(motion.to[2]))
+        });
     program
 }
 
@@ -337,5 +350,13 @@ mod tests {
         let program = parse("; header\n[STREAM_START]\n(comment) G0 X1\n$H");
         assert_eq!(program.motions.len(), 1);
         assert!(program.warnings.is_empty());
+    }
+
+    #[test]
+    fn rotary_words_and_z_range_are_reported() {
+        let program = parse("G0 Z5\nG1 Z-1.5 F100\nG1 X1 A90");
+        assert!(program.uses_rotary);
+        assert_eq!(program.z_range, (-1.5, 5.0));
+        assert!(!parse("G1 X1 F100").uses_rotary);
     }
 }
