@@ -163,6 +163,7 @@ pub struct MyApp {
     pub text_dialog: Option<TextDialog>,
     pub array_dialog: Option<ArrayDialog>,
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
+    pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
     pub preset_dialog: Option<PresetDialog>,
     pub machine_dialog: Option<MachineProfile>,
     pub settings_open: bool,
@@ -254,6 +255,7 @@ impl MyApp {
             text_dialog: None,
             array_dialog: None,
             sprue: None,
+            ornament: None,
             preset_dialog: None,
             machine_dialog: None,
             settings_open: false,
@@ -1594,6 +1596,13 @@ impl MyApp {
                     ui.separator();
                     if ui.button(tr("svgcode.title")).clicked() {
                         self.svg_code = Some(Default::default());
+                    }
+                    if ui
+                        .button(tr("ornament.title"))
+                        .on_hover_text(tr("ornament.menu_hint"))
+                        .clicked()
+                    {
+                        self.ornament = Some(Default::default());
                     }
                     if ui
                         .button(tr("sprue.title"))

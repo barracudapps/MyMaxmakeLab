@@ -169,6 +169,8 @@ mod tests {
             include_str!("camera_panel.rs"),
             include_str!("firmware.rs"),
             include_str!("sprue_dialog.rs"),
+            include_str!("ornament_dialog.rs"),
+            include_str!("../../mml_core/src/ornament.rs"),
             include_str!("../../mml_materials/src/tools.rs"),
             include_str!("../../mml_core/src/layer.rs"),
         ];
@@ -228,6 +230,7 @@ mod tests {
                     "checklist",
                     "frame",
                     "optimize",
+                    "ornament",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')

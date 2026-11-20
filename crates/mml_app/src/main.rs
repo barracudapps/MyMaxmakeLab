@@ -8,6 +8,7 @@ mod firmware;
 mod i18n;
 mod icons;
 mod machine_panel;
+mod ornament_dialog;
 mod pairing;
 mod pairing_dialog;
 mod panels;
