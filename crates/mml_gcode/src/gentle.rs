@@ -178,9 +178,7 @@ pub fn gentle(source: &str, options: &GentleOptions) -> (String, GentleReport) {
             to: target,
             feed,
         }));
-        if has_axis && !arc {
-            position = target;
-        } else if arc {
+        if has_axis || arc {
             position = target;
         }
     }
@@ -285,8 +283,6 @@ pub fn gentle(source: &str, options: &GentleOptions) -> (String, GentleReport) {
             if corner {
                 emit(&mut out, &mut active_feed, item.to, slow);
                 report.corners += 1;
-            } else if end_share >= 1.0 - 1e-9 && start_share > 0.0 {
-                // Already ended at full feed above.
             }
             slow_start = corner;
             continue;
