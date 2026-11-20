@@ -898,29 +898,29 @@ impl Palette {
     fn new(dark: bool) -> Self {
         if dark {
             Self {
-                background: Color32::from_rgb(24, 26, 30),
-                bed: Color32::from_rgb(36, 39, 45),
-                bed_border: Color32::from_rgb(90, 96, 108),
-                grid_minor: Color32::from_rgb(44, 48, 55),
-                grid_major: Color32::from_rgb(60, 65, 75),
-                ruler: Color32::from_rgb(140, 146, 158),
-                origin: Color32::from_rgb(230, 80, 70),
-                selection: Color32::from_rgb(80, 160, 255),
-                travel: Color32::from_rgba_unmultiplied(255, 120, 60, 120),
-                head: Color32::from_rgb(255, 90, 60),
+                background: Color32::from_rgb(26, 27, 32),
+                bed: Color32::from_rgb(35, 36, 43),
+                bed_border: Color32::from_rgb(78, 80, 96),
+                grid_minor: Color32::from_rgb(41, 42, 50),
+                grid_major: Color32::from_rgb(52, 54, 64),
+                ruler: Color32::from_rgb(140, 138, 152),
+                origin: crate::theme::DANGER,
+                selection: crate::theme::ACCENT,
+                travel: Color32::from_rgba_unmultiplied(255, 140, 90, 110),
+                head: Color32::from_rgb(255, 110, 80),
             }
         } else {
             Self {
-                background: Color32::from_rgb(226, 229, 234),
-                bed: Color32::from_rgb(252, 252, 250),
-                bed_border: Color32::from_rgb(150, 155, 165),
-                grid_minor: Color32::from_rgb(236, 238, 241),
-                grid_major: Color32::from_rgb(214, 218, 224),
-                ruler: Color32::from_rgb(100, 106, 118),
-                origin: Color32::from_rgb(210, 50, 40),
-                selection: Color32::from_rgb(20, 110, 230),
-                travel: Color32::from_rgba_unmultiplied(230, 90, 30, 110),
-                head: Color32::from_rgb(220, 50, 30),
+                background: Color32::from_rgb(236, 233, 227),
+                bed: Color32::from_rgb(255, 255, 253),
+                bed_border: Color32::from_rgb(200, 195, 186),
+                grid_minor: Color32::from_rgb(242, 239, 234),
+                grid_major: Color32::from_rgb(224, 219, 211),
+                ruler: Color32::from_rgb(120, 115, 108),
+                origin: crate::theme::DANGER,
+                selection: crate::theme::ACCENT,
+                travel: Color32::from_rgba_unmultiplied(230, 110, 60, 110),
+                head: Color32::from_rgb(220, 70, 40),
             }
         }
     }

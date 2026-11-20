@@ -372,9 +372,7 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
             });
             if app.device.z_probed {
-                ui.label(
-                    RichText::new(tr("probe.origin_ok")).color(Color32::from_rgb(40, 160, 80)),
-                );
+                ui.label(RichText::new(tr("probe.origin_ok")).color(crate::theme::SUCCESS));
             }
             ui.add_space(4.0);
             ui.label(RichText::new(tr("probe.map_title")).strong());
@@ -412,10 +410,7 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
                         ],
                     ));
                     if residual > 0.2 {
-                        ui.label(
-                            RichText::new(tr("probe.not_flat"))
-                                .color(Color32::from_rgb(210, 140, 20)),
-                        );
+                        ui.label(RichText::new(tr("probe.not_flat")).color(crate::theme::WARNING));
                     }
                 }
             }

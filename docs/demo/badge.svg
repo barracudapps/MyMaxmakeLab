@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120mm" height="80mm" viewBox="0 0 120 80">
+  <rect x="2" y="2" width="116" height="76" rx="8" fill="none" stroke="#d62728" stroke-width="0.3"/>
+  <circle cx="24" cy="40" r="14" fill="none" stroke="#d62728" stroke-width="0.3"/>
+  <circle cx="24" cy="40" r="4" fill="none" stroke="#d62728" stroke-width="0.3"/>
+  <path d="M24 28 L27 36 L36 37 L29 42 L31 51 L24 46 L17 51 L19 42 L12 37 L21 36 Z" fill="#1f77b4" stroke="none"/>
+  <text x="46" y="38" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f77b4">MyMaxmake</text>
+  <text x="46" y="54" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f77b4">Lab</text>
+  <path d="M46 62 C 60 56, 80 68, 108 60" fill="none" stroke="#2ca02c" stroke-width="0.3"/>
+</svg>

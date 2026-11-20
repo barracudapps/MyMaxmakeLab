@@ -11,9 +11,9 @@ use mml_core::machine::{MachineKind, Origin};
 use mml_job::JobWarning;
 
 pub fn section(ui: &mut egui::Ui, title: &str) {
-    ui.add_space(8.0);
-    ui.label(RichText::new(title).strong().size(14.0));
     ui.add_space(2.0);
+    ui.label(RichText::new(title).strong().size(16.0));
+    ui.add_space(4.0);
 }
 
 fn number(
@@ -61,27 +61,25 @@ fn passes(ui: &mut egui::Ui, value: &mut u32) -> bool {
 }
 
 pub fn design_panel(app: &mut MyApp, ui: &mut egui::Ui) {
-    properties(app, ui);
-    ui.separator();
-    layers(app, ui);
-    ui.separator();
-    operation_editor(app, ui);
+    use crate::theme::card;
+    card(ui, |ui| properties(app, ui));
+    card(ui, |ui| layers(app, ui));
+    card(ui, |ui| operation_editor(app, ui));
 }
 
 pub fn prepare_panel(app: &mut MyApp, ui: &mut egui::Ui) {
-    job_summary(app, ui);
-    if app
+    use crate::theme::card;
+    card(ui, |ui| job_summary(app, ui));
+    let external = app
         .job
         .built
         .as_ref()
-        .is_some_and(|built| built.external.is_some())
-    {
+        .is_some_and(|built| built.external.is_some());
+    if external {
         return;
     }
-    ui.separator();
-    layers(app, ui);
-    ui.separator();
-    operation_editor(app, ui);
+    card(ui, |ui| layers(app, ui));
+    card(ui, |ui| operation_editor(app, ui));
 }
 
 fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
@@ -198,7 +196,7 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
             });
         }
         if ui
-            .button(RichText::new(tr("menu.delete")).color(Color32::from_rgb(200, 60, 50)))
+            .button(RichText::new(tr("menu.delete")).color(crate::theme::DANGER))
             .clicked()
         {
             app.delete_selection();
@@ -395,14 +393,24 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 let layer = &mut app.document.layers[index];
                 let mut changed = ui.color_edit_button_srgb(&mut layer.color).changed();
-                changed |= ui
-                    .checkbox(&mut layer.visible, "")
+                let eye = if layer.visible { "👁" } else { "🚫" };
+                if ui
+                    .selectable_label(layer.visible, eye)
                     .on_hover_text(tr("layers.visible"))
-                    .changed();
-                changed |= ui
-                    .checkbox(&mut layer.output, "")
+                    .clicked()
+                {
+                    layer.visible = !layer.visible;
+                    changed = true;
+                }
+                let output = if layer.output { "🔥" } else { "⏵" };
+                if ui
+                    .selectable_label(layer.output, output)
                     .on_hover_text(tr("layers.output"))
-                    .changed();
+                    .clicked()
+                {
+                    layer.output = !layer.output;
+                    changed = true;
+                }
                 if selected {
                     changed |= ui
                         .add(egui::TextEdit::singleline(&mut layer.name).desired_width(90.0))
@@ -415,9 +423,10 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
                 let layer = &app.document.layers[index];
                 let label = format!("{} · {}", operation_label(&layer.operation), used);
-                if ui
-                    .selectable_label(false, RichText::new(label).weak().small())
-                    .clicked()
+                if !selected
+                    && ui
+                        .selectable_label(false, RichText::new(label).weak().small())
+                        .clicked()
                 {
                     app.current_layer = layer_id;
                 }
@@ -891,8 +900,7 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
         });
     for warning in &warnings {
         ui.label(
-            RichText::new(format!("⚠ {}", warning_text(warning)))
-                .color(Color32::from_rgb(210, 140, 20)),
+            RichText::new(format!("⚠ {}", warning_text(warning))).color(crate::theme::WARNING),
         );
     }
     if !app.job_is_current() {
@@ -930,8 +938,8 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
         if ui.button(tr("menu.export_gcode")).clicked() {
             app.export_gcode();
         }
-        let run = egui::Button::new(RichText::new(tr("job.go_run")).strong())
-            .fill(Color32::from_rgb(40, 130, 80));
+        let run =
+            egui::Button::new(RichText::new(tr("job.go_run")).strong()).fill(crate::theme::SUCCESS);
         if ui.add(run).clicked() {
             app.mode = Mode::Run;
         }

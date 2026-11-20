@@ -224,12 +224,26 @@ impl Document {
         self.shapes.iter_mut().find(|shape| shape.id == id)
     }
 
+    /// Palette colour farthest from the colours already in use, so a new
+    /// layer never looks like an existing one (imported SVG colours are
+    /// rarely exactly the palette ones).
     pub fn next_layer_color(&self) -> [u8; 3] {
+        let distance = |a: [u8; 3], b: [u8; 3]| {
+            (0..3)
+                .map(|channel| (a[channel] as i32 - b[channel] as i32).pow(2))
+                .sum::<i32>()
+        };
         LAYER_COLORS
             .iter()
             .copied()
-            .find(|color| self.layers.iter().all(|layer| layer.color != *color))
-            .unwrap_or(LAYER_COLORS[self.layers.len() % LAYER_COLORS.len()])
+            .max_by_key(|candidate| {
+                self.layers
+                    .iter()
+                    .map(|layer| distance(*candidate, layer.color))
+                    .min()
+                    .unwrap_or(i32::MAX)
+            })
+            .unwrap_or(LAYER_COLORS[0])
     }
 
     pub fn shapes_on(&self, layer: LayerId) -> impl Iterator<Item = &Shape> {
@@ -291,6 +305,17 @@ mod base64_bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_layer_colour_differs_from_close_existing_colours() {
+        let mut document = Document::default();
+        document.layers[0].color = [31, 119, 180];
+        let color = document.next_layer_color();
+        let distance: i32 = (0..3)
+            .map(|channel| (color[channel] as i32 - [31, 119, 180][channel]).pow(2))
+            .sum();
+        assert!(distance > 100 * 100);
+    }
 
     #[test]
     fn rotated_rectangle_bounds_and_hit() {

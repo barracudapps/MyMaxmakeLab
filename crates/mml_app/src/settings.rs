@@ -116,7 +116,12 @@ impl Default for Settings {
     }
 }
 
+/// `MYMAXMAKELAB_CONFIG_DIR` overrides the location, for portable
+/// installs on a USB stick and for isolated test sessions.
 fn config_dir() -> Option<PathBuf> {
+    if let Some(directory) = std::env::var_os("MYMAXMAKELAB_CONFIG_DIR") {
+        return Some(PathBuf::from(directory));
+    }
     directories::ProjectDirs::from("", "", "MyMaxmakeLab")
         .map(|dirs| dirs.config_dir().to_path_buf())
 }

@@ -17,6 +17,7 @@ pub fn render(
     max_s: f64,
     done_line: Option<usize>,
     cnc: bool,
+    dark: bool,
 ) -> Option<PreviewImage> {
     let mut bounds = program.cut_bounds();
     if bounds.is_empty() {
@@ -77,10 +78,12 @@ pub fn render(
             }
         }
     }
-    let (strong_color, faint_color) = if cnc {
-        ([30, 110, 200], [120, 150, 190])
-    } else {
-        ([70, 35, 10], [150, 120, 95])
+    // Burn colours readable on both canvas themes.
+    let (strong_color, faint_color) = match (cnc, dark) {
+        (true, true) => ([90, 170, 255], [120, 150, 190]),
+        (true, false) => ([30, 110, 200], [120, 150, 190]),
+        (false, true) => ([255, 176, 80], [170, 140, 110]),
+        (false, false) => ([70, 35, 10], [150, 120, 95]),
     };
     let pixels = strong
         .iter()

@@ -322,7 +322,7 @@ impl DeviceState {
         let (text, color) = if self.connecting {
             (
                 tr("device.connecting_short").to_owned(),
-                Color32::from_rgb(200, 150, 30),
+                crate::theme::WARNING,
             )
         } else if self.controller.is_some() {
             let state = self.state();
@@ -351,40 +351,33 @@ fn state_label(state: MachineState) -> &'static str {
 
 fn state_color(state: MachineState) -> Color32 {
     match state {
-        MachineState::Idle => Color32::from_rgb(40, 160, 80),
+        MachineState::Idle => crate::theme::SUCCESS,
         MachineState::Run | MachineState::Jog | MachineState::Home => {
             Color32::from_rgb(40, 120, 220)
         }
         MachineState::Hold | MachineState::HoldComplete | MachineState::Door => {
-            Color32::from_rgb(220, 150, 20)
+            crate::theme::WARNING
         }
-        MachineState::Alarm => Color32::from_rgb(210, 50, 40),
+        MachineState::Alarm => crate::theme::DANGER,
         _ => Color32::GRAY,
     }
 }
 
 pub fn run_panel(app: &mut MyApp, ui: &mut egui::Ui) {
-    connection(app, ui);
+    use crate::theme::card;
+    card(ui, |ui| connection(app, ui));
     if !app.device.is_connected() {
-        ui.separator();
-        job_card(app, ui);
+        card(ui, |ui| job_card(app, ui));
         return;
     }
-    ui.separator();
-    machine_state(app, ui);
-    ui.separator();
-    job_card(app, ui);
-    ui.separator();
-    jog(app, ui);
-    ui.separator();
-    crate::workflow::probe_section(app, ui);
-    ui.separator();
-    crate::workflow::basics_section(app, ui);
+    card(ui, |ui| machine_state(app, ui));
+    card(ui, |ui| job_card(app, ui));
+    card(ui, |ui| jog(app, ui));
+    card(ui, |ui| crate::workflow::probe_section(app, ui));
+    card(ui, |ui| crate::workflow::basics_section(app, ui));
     if app.settings.advanced {
-        ui.separator();
-        console(app, ui);
-        ui.separator();
-        crate::workflow::controller_settings(app, ui);
+        card(ui, |ui| console(app, ui));
+        card(ui, |ui| crate::workflow::controller_settings(app, ui));
     }
 }
 
@@ -539,7 +532,7 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
                 if !status.pins.is_empty() {
                     ui.label(
                         RichText::new(trf("device.pins", &[&status.pins]))
-                            .color(Color32::from_rgb(220, 150, 20)),
+                            .color(crate::theme::WARNING),
                     );
                 }
             }
@@ -971,7 +964,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     section(ui, tr("job.title"));
     if let Some((anomaly, paused)) = app.device.anomaly.clone() {
         egui::Frame::new()
-            .fill(Color32::from_rgb(200, 40, 30).gamma_multiply(0.2))
+            .fill(crate::theme::DANGER.gamma_multiply(0.2))
             .corner_radius(8.0)
             .inner_margin(8.0)
             .show(ui, |ui| {
@@ -979,7 +972,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
                 ui.label(
                     RichText::new(tr("safety.title"))
                         .strong()
-                        .color(Color32::from_rgb(220, 60, 50)),
+                        .color(crate::theme::DANGER),
                 );
                 ui.label(anomaly_text(&anomaly));
                 if paused {
@@ -1023,7 +1016,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         let paused = job.paused;
         if let Some(reason) = app.job.waiting_pause.clone() {
             egui::Frame::new()
-                .fill(Color32::from_rgb(220, 150, 20).gamma_multiply(0.2))
+                .fill(crate::theme::WARNING.gamma_multiply(0.2))
                 .corner_radius(8.0)
                 .inner_margin(8.0)
                 .show(ui, |ui| {
@@ -1061,7 +1054,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             }
             let stop =
                 egui::Button::new(RichText::new(tr("job.stop")).strong().color(Color32::WHITE))
-                    .fill(Color32::from_rgb(200, 45, 35))
+                    .fill(crate::theme::DANGER)
                     .min_size(egui::vec2(110.0, 32.0));
             if ui.add(stop).on_hover_text(tr("job.stop_hint")).clicked() {
                 app.device.send(Command::Stop);
@@ -1091,8 +1084,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     let pauses = built.pauses.len();
     for warning in &warnings {
         ui.label(
-            RichText::new(format!("⚠ {}", warning_text(warning)))
-                .color(Color32::from_rgb(210, 140, 20)),
+            RichText::new(format!("⚠ {}", warning_text(warning))).color(crate::theme::WARNING),
         );
     }
     ui.label(trf("job.estimate", &[&format_short(estimate)]));
@@ -1108,7 +1100,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         Vec::new()
     };
     for blocker in &blockers {
-        ui.label(RichText::new(format!("⛔ {blocker}")).color(Color32::from_rgb(210, 50, 40)));
+        ui.label(RichText::new(format!("⛔ {blocker}")).color(crate::theme::DANGER));
     }
     if connected && !app.device.homed && anchor.is_none() {
         ui.label(RichText::new(tr("safety.not_homed")).weak().small());
@@ -1119,6 +1111,13 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         ui.label(tr("job.frame_power"));
         ui.add(egui::Slider::new(&mut app.settings.frame_power, 0.0..=5.0).suffix(" %"));
     });
+    let gates = crate::workflow::start_gates(app);
+    for gate in &gates {
+        ui.label(RichText::new(format!("🔒 {gate}")).color(crate::theme::WARNING));
+    }
+    let out_of_bounds = warnings.contains(&mml_job::JobWarning::OutOfBounds) && anchor.is_none();
+    let can_start =
+        connected && idle && current && !out_of_bounds && blockers.is_empty() && gates.is_empty();
     ui.horizontal(|ui| {
         let frame = ui
             .add_enabled(
@@ -1141,29 +1140,16 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             );
             app.job.frame_for = Some(app.job_key());
         }
-        let start = egui::Button::new(
-            RichText::new(tr("job.start"))
-                .strong()
-                .color(Color32::WHITE)
-                .size(16.0),
-        )
-        .fill(Color32::from_rgb(40, 140, 80))
-        .min_size(egui::vec2(150.0, 32.0));
-        let out_of_bounds =
-            warnings.contains(&mml_job::JobWarning::OutOfBounds) && anchor.is_none();
-        let gates = crate::workflow::start_gates(app);
-        for gate in &gates {
-            ui.label(RichText::new(format!("🔒 {gate}")).color(Color32::from_rgb(210, 140, 20)));
+        // The green fill only when Start is really possible, so a
+        // disabled button never looks ready.
+        let label = RichText::new(tr("job.start")).strong().size(16.0);
+        let start = if can_start {
+            egui::Button::new(label.color(Color32::WHITE)).fill(crate::theme::SUCCESS)
+        } else {
+            egui::Button::new(label)
         }
-        let response = ui.add_enabled(
-            connected
-                && idle
-                && current
-                && !out_of_bounds
-                && blockers.is_empty()
-                && gates.is_empty(),
-            start,
-        );
+        .min_size(egui::vec2(150.0, 34.0));
+        let response = ui.add_enabled(can_start, start);
         let response = if !connected {
             response.on_disabled_hover_text(tr("job.need_connection"))
         } else if !idle {
@@ -1248,7 +1234,7 @@ fn console(app: &mut MyApp, ui: &mut egui::Ui) {
                         let color = match kind {
                             ConsoleKind::Sent => ui.visuals().strong_text_color(),
                             ConsoleKind::Received => ui.visuals().weak_text_color(),
-                            ConsoleKind::Error => Color32::from_rgb(210, 60, 50),
+                            ConsoleKind::Error => crate::theme::DANGER,
                             ConsoleKind::Info => Color32::from_rgb(60, 140, 210),
                         };
                         let prefix = if *kind == ConsoleKind::Sent {

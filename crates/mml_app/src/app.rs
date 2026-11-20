@@ -244,9 +244,7 @@ impl MyApp {
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);
         }
-        if let Some(path) = std::env::args().nth(1).map(PathBuf::from) {
-            app.open_path(&path);
-        }
+        app.apply_arguments(std::env::args().skip(1).collect());
         app
     }
 
@@ -263,6 +261,35 @@ impl MyApp {
     }
 
     // ----- editing and undo -------------------------------------------
+
+    /// `mymaxmakelab [--mode design|prepare|run] [--3d] [--play] [files…]`:
+    /// files are opened or imported in order, then the step is chosen.
+    /// Useful for file associations, kiosks and training material.
+    fn apply_arguments(&mut self, arguments: Vec<String>) {
+        let mut mode = None;
+        let mut iterator = arguments.into_iter();
+        while let Some(argument) = iterator.next() {
+            match argument.as_str() {
+                "--mode" => {
+                    mode = match iterator.next().as_deref() {
+                        Some("prepare") => Some(Mode::Prepare),
+                        Some("run") => Some(Mode::Run),
+                        _ => Some(Mode::Design),
+                    }
+                }
+                "--3d" => self.view3d.enabled = true,
+                "--play" => {
+                    self.job.simulate = Some(0.0);
+                    self.job.simulating = true;
+                }
+                path => self.open_path(Path::new(path)),
+            }
+        }
+        if let Some(mode) = mode {
+            self.mode = mode;
+        }
+        self.selection.clear();
+    }
 
     /// Records an undo step before a discrete change.
     pub fn begin_edit(&mut self) {
@@ -564,12 +591,39 @@ impl MyApp {
 
     /// Places imported content at the centre of the bed when it fits,
     /// at the origin otherwise.
+    /// Centre of the bed for the first import; later imports go next to
+    /// the existing content (right, then above) so nothing lands on top
+    /// of the previous drawing.
     fn placement(&self, width: f64, height: f64) -> Point {
-        if width <= self.machine.width && height <= self.machine.height {
-            Point::new(self.machine.width / 2.0, self.machine.height / 2.0)
-        } else {
-            Point::new(width / 2.0, height / 2.0)
+        if width > self.machine.width || height > self.machine.height {
+            return Point::new(width / 2.0, height / 2.0);
         }
+        let center = Point::new(self.machine.width / 2.0, self.machine.height / 2.0);
+        let existing = self.document.bounds();
+        if existing.is_empty() {
+            return center;
+        }
+        let gap = 5.0;
+        let candidate = mml_core::geometry::Rect::from_points(
+            Point::new(center.x - width / 2.0, center.y - height / 2.0),
+            Point::new(center.x + width / 2.0, center.y + height / 2.0),
+        );
+        if !candidate.intersects(&existing) {
+            return center;
+        }
+        let right = Point::new(existing.max.x + gap + width / 2.0, existing.center().y);
+        if right.x + width / 2.0 <= self.machine.width
+            && right.y + height / 2.0 <= self.machine.height
+        {
+            return right;
+        }
+        let above = Point::new(existing.center().x, existing.max.y + gap + height / 2.0);
+        if above.y + height / 2.0 <= self.machine.height
+            && above.x + width / 2.0 <= self.machine.width
+        {
+            return above;
+        }
+        center
     }
 
     fn import_vectors(&mut self, groups: Vec<mml_io::ImportedGroup>, path: &Path) {
@@ -596,7 +650,7 @@ impl MyApp {
                 {
                     Some(layer) => layer.id,
                     None => {
-                        let name = format!("#{:02X}{:02X}{:02X}", color[0], color[1], color[2]);
+                        let name = crate::theme::color_name(color).to_owned();
                         let layer = Layer::new(name, color, self.default_vector_operation());
                         let id = layer.id;
                         self.document.layers.push(layer);
@@ -625,6 +679,17 @@ impl MyApp {
             self.document.shapes.push(shape);
         }
         self.selection = ids;
+        // A multi-colour drawing creates one layer per colour: drop the
+        // untouched default layer instead of leaving an empty one.
+        if several
+            && self.document.layers.len() > 1
+            && self.document.shapes_on(fallback).next().is_none()
+        {
+            self.document.remove_layer(fallback);
+            if self.current_layer == fallback {
+                self.current_layer = self.document.layers[0].id;
+            }
+        }
         self.end_edit();
         self.mode = Mode::Design;
         self.canvas.request_fit();
@@ -873,6 +938,7 @@ impl MyApp {
                     self.machine.max_s,
                     line,
                     self.machine.kind == MachineKind::Cnc,
+                    ctx.theme() == egui::Theme::Dark,
                 )
             });
             self.canvas.set_preview(ctx, preview);
@@ -973,6 +1039,9 @@ impl MyApp {
         if self.applied_theme == Some(self.settings.theme) {
             return;
         }
+        if self.applied_theme.is_none() {
+            crate::theme::apply(ctx);
+        }
         let preference = match self.settings.theme {
             ThemeChoice::System => egui::ThemePreference::System,
             ThemeChoice::Light => egui::ThemePreference::Light,
@@ -980,6 +1049,7 @@ impl MyApp {
         };
         ctx.set_theme(preference);
         self.applied_theme = Some(self.settings.theme);
+        self.job.preview_line = Some(None);
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
@@ -1292,16 +1362,17 @@ impl MyApp {
         egui::Panel::top("workflow").show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                for (mode, key) in [
+                let steps = [
                     (Mode::Design, "mode.design"),
                     (Mode::Prepare, "mode.prepare"),
                     (Mode::Run, "mode.run"),
-                ] {
-                    let selected = self.mode == mode;
-                    let text = RichText::new(tr(key)).size(15.0).strong();
-                    let button =
-                        egui::Button::selectable(selected, text).min_size(egui::vec2(130.0, 30.0));
-                    if ui.add(button).clicked() {
+                ];
+                for (index, (mode, key)) in steps.into_iter().enumerate() {
+                    let pill = crate::theme::step_pill(ui, index + 1, tr(key), self.mode == mode);
+                    if pill
+                        .on_hover_text(format!("Ctrl/Cmd+{}", index + 1))
+                        .clicked()
+                    {
                         self.mode = mode;
                     }
                 }
@@ -1314,7 +1385,7 @@ impl MyApp {
                                 .strong()
                                 .color(Color32::WHITE),
                         )
-                        .fill(Color32::from_rgb(200, 30, 30))
+                        .fill(crate::theme::DANGER)
                         .min_size(egui::vec2(170.0, 30.0));
                         if ui
                             .add(stop)
@@ -1537,9 +1608,9 @@ impl MyApp {
             .show(ctx, |ui| {
                 for (text, level, _) in &self.notices {
                     let color = match level {
-                        Level::Info => Color32::from_rgb(40, 140, 80),
-                        Level::Warning => Color32::from_rgb(200, 130, 20),
-                        Level::Error => Color32::from_rgb(200, 50, 40),
+                        Level::Info => crate::theme::SUCCESS,
+                        Level::Warning => crate::theme::WARNING,
+                        Level::Error => crate::theme::DANGER,
                     };
                     egui::Frame::popup(ui.style())
                         .stroke(egui::Stroke::new(1.5, color))
