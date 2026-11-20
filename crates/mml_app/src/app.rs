@@ -161,6 +161,8 @@ pub struct MyApp {
     pub tool_selected: Option<usize>,
     pub deform: Option<(ShapeId, crate::text_tools::WarpSettings)>,
     pub svg_code: Option<crate::text_tools::SvgCodeDialog>,
+    /// Optimised version of the opened G-code, keyed by its length.
+    pub optimize_preview: Option<(usize, (String, mml_gcode::OptimizeReport))>,
 }
 
 impl MyApp {
@@ -243,6 +245,7 @@ impl MyApp {
             tool_selected: None,
             deform: None,
             svg_code: None,
+            optimize_preview: None,
         };
         if let Some(fonts) = crate::settings::fonts_dir().filter(|directory| directory.is_dir()) {
             mml_io::add_font_directory(&fonts);

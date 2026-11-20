@@ -76,6 +76,7 @@ pub fn prepare_panel(app: &mut MyApp, ui: &mut egui::Ui) {
         .as_ref()
         .is_some_and(|built| built.external.is_some());
     if external {
+        card(ui, |ui| optimize_card(app, ui));
         return;
     }
     card(ui, |ui| layers(app, ui));
@@ -941,6 +942,82 @@ fn material_picker(
             });
         }
     });
+}
+
+/// Diagnosis and lightening of an opened G-code file.
+fn optimize_card(app: &mut MyApp, ui: &mut egui::Ui) {
+    section(ui, tr("optimize.title"));
+    let Some(built) = &app.job.built else { return };
+    let (optimized, report) = match &app.optimize_preview {
+        Some((length, preview)) if *length == built.gcode.len() => preview.clone(),
+        _ => {
+            let result = mml_gcode::optimize(&built.gcode, mml_gcode::OptimizeOptions::default());
+            app.optimize_preview = Some((built.gcode.len(), result.clone()));
+            result
+        }
+    };
+    let saved = report.bytes_before.saturating_sub(report.bytes_after) as f64
+        / report.bytes_before.max(1) as f64
+        * 100.0;
+    ui.label(trf(
+        "optimize.summary",
+        &[
+            &report.lines_before,
+            &report.lines_after,
+            &format!("{saved:.0}"),
+        ],
+    ));
+    let mut items = Vec::new();
+    if report.segments_merged > 0 {
+        items.push(trf("optimize.merged", &[&report.segments_merged]));
+    }
+    if report.zero_moves_removed > 0 {
+        items.push(trf("optimize.zero", &[&report.zero_moves_removed]));
+    }
+    if report.words_removed > 0 {
+        items.push(trf("optimize.words", &[&report.words_removed]));
+    }
+    if report.comments_removed > 0 {
+        items.push(trf("optimize.comments", &[&report.comments_removed]));
+    }
+    if report.feed_inserted {
+        items.push(tr("optimize.feed").to_owned());
+    }
+    for item in &items {
+        ui.label(format!("• {item}"));
+    }
+    if report.relative_mode {
+        ui.label(RichText::new(tr("optimize.relative")).color(crate::theme::WARNING));
+    }
+    if report.inches {
+        ui.label(RichText::new(tr("optimize.inches")).color(crate::theme::WARNING));
+    }
+    for warning in report.warnings.iter().take(5) {
+        ui.label(
+            RichText::new(format!("⚠ {warning}"))
+                .color(crate::theme::WARNING)
+                .small(),
+        );
+    }
+    let useful = report.bytes_after < report.bytes_before || report.feed_inserted;
+    if ui
+        .add_enabled(
+            useful,
+            egui::Button::new(RichText::new(tr("optimize.apply")).strong()),
+        )
+        .on_hover_text(tr("optimize.apply_hint"))
+        .clicked()
+    {
+        let program = mml_gcode::parse(&optimized);
+        let stats = mml_gcode::analyze(&program, app.motion_settings());
+        if let Some(built) = &mut app.job.built {
+            built.gcode = std::sync::Arc::new(optimized);
+            built.program = program;
+            built.stats = stats;
+        }
+        app.job.preview_line = Some(None);
+        app.notify(tr("optimize.done"), Level::Info);
+    }
 }
 
 fn format_duration(duration: std::time::Duration) -> String {
