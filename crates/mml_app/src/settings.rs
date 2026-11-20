@@ -62,6 +62,18 @@ pub struct Settings {
     pub auto_pause: bool,
     /// Recent successful homing durations in seconds, newest last.
     pub homing_times: Vec<f64>,
+    /// Advanced mode shows the console and the controller settings.
+    pub advanced: bool,
+    /// Mandatory checks before a job; can only be lifted in advanced
+    /// mode. The live machine monitor stays active either way.
+    pub barriers: bool,
+    pub require_probe_cnc: bool,
+    pub require_frame_laser: bool,
+    pub probe: mml_probe::ProbeSettings,
+    /// Jog speed follows the step size (fine steps move slowly).
+    pub jog_proportional: bool,
+    pub idle_rpm: f64,
+    pub tutorial_done: bool,
 }
 
 impl Default for Settings {
@@ -92,6 +104,14 @@ impl Default for Settings {
             library_import_offered: false,
             auto_pause: true,
             homing_times: Vec::new(),
+            advanced: false,
+            barriers: true,
+            require_probe_cnc: true,
+            require_frame_laser: true,
+            probe: mml_probe::ProbeSettings::default(),
+            jog_proportional: true,
+            idle_rpm: 8000.0,
+            tutorial_done: false,
         }
     }
 }

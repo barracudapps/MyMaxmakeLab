@@ -925,6 +925,8 @@ fn refresh_simulation(app: &mut MyApp) {
 }
 
 pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
+    crate::workflow::checklist_modal(app, ctx);
+    crate::workflow::tutorial(app, ctx);
     text_dialog(app, ctx);
     array_dialog(app, ctx);
     preset_dialog(app, ctx);
@@ -1336,6 +1338,7 @@ fn preferences(app: &mut MyApp, ctx: &egui::Context) {
                 );
             });
             ui.checkbox(&mut app.settings.snap, tr("view.snap"));
+            crate::workflow::advanced_settings(app, ui);
         });
     app.settings_open = open;
 }

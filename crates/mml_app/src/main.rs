@@ -8,6 +8,7 @@ mod machine_panel;
 mod panels;
 mod preview;
 mod settings;
+mod workflow;
 
 use eframe::egui;
 

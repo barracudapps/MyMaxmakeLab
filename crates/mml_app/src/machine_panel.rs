@@ -20,12 +20,22 @@ pub enum ConsoleKind {
     Info,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobKind {
+    Main,
+    /// Dry run on the outline (frame), to be approved before the job.
+    Frame,
+    ProbeOrigin,
+    ProbeGrid,
+}
+
 pub struct RunningJob {
     pub total: usize,
     pub acknowledged: usize,
     pub started: Instant,
     pub estimate: Duration,
     pub paused: bool,
+    pub kind: JobKind,
 }
 
 pub struct DeviceState {
@@ -52,6 +62,12 @@ pub struct DeviceState {
     pub homing_results: Vec<(Duration, bool)>,
     pub reached_pause: Option<usize>,
     pub homed: bool,
+    pub probe_reports: Vec<([f64; 3], bool)>,
+    pub finished: Option<(JobKind, JobOutcome)>,
+    pub z_probed: bool,
+    /// Continuous jog in progress: direction and whether the long jog
+    /// was sent (held longer than a click).
+    pub hold: Option<([f64; 3], Instant, bool)>,
 }
 
 impl DeviceState {
@@ -80,6 +96,10 @@ impl DeviceState {
             homing_results: Vec::new(),
             reached_pause: None,
             homed: false,
+            probe_reports: Vec::new(),
+            finished: None,
+            z_probed: false,
+            hold: None,
         }
     }
 
@@ -216,7 +236,12 @@ impl DeviceState {
                     self.status = Some(status);
                 }
                 Event::Sent(line) => self.log(ConsoleKind::Sent, line),
-                Event::Received(line) => self.log(ConsoleKind::Received, line),
+                Event::Received(line) => {
+                    if let Some(report) = mml_probe::parse_probe_report(&line) {
+                        self.probe_reports.push(report);
+                    }
+                    self.log(ConsoleKind::Received, line);
+                }
                 Event::Error { code, line } => {
                     let text = format!("error:{code} — {} ({line})", grbl_error(code));
                     self.log(ConsoleKind::Error, text.clone());
@@ -262,7 +287,12 @@ impl DeviceState {
                     }
                 }
                 Event::JobFinished { outcome, elapsed } => {
-                    self.job = None;
+                    if let Some(job) = self.job.take() {
+                        self.finished = Some((job.kind, outcome));
+                        if job.kind != JobKind::Main {
+                            continue;
+                        }
+                    }
                     let minutes = elapsed.as_secs() / 60;
                     let seconds = elapsed.as_secs() % 60;
                     let (text, level) = match outcome {
@@ -346,7 +376,15 @@ pub fn run_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.separator();
     jog(app, ui);
     ui.separator();
-    console(app, ui);
+    crate::workflow::probe_section(app, ui);
+    ui.separator();
+    crate::workflow::basics_section(app, ui);
+    if app.settings.advanced {
+        ui.separator();
+        console(app, ui);
+        ui.separator();
+        crate::workflow::controller_settings(app, ui);
+    }
 }
 
 fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
@@ -525,14 +563,22 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
     });
 }
 
+/// Jog pad: a click moves one step, holding a button moves until it is
+/// released (long jog cancelled with the GRBL jog-cancel command), so
+/// the head can be brought quickly and then precisely into place.
 fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
     section(ui, tr("jog.title"));
     let busy = app.device.job_running();
+    let step = app.settings.jog_step;
+    let step_feed = if app.settings.jog_proportional {
+        (step * 300.0).clamp(30.0, app.settings.jog_feed)
+    } else {
+        app.settings.jog_feed
+    };
+    let size = egui::vec2(44.0, 38.0);
+    let mut pressed: Option<[f64; 3]> = None;
+    let mut go_zero = false;
     ui.add_enabled_ui(!busy, |ui| {
-        let step = app.settings.jog_step;
-        let feed = app.settings.jog_feed;
-        let size = egui::vec2(44.0, 38.0);
-        let mut target: Option<(f64, f64, f64)> = None;
         ui.horizontal(|ui| {
             egui::Grid::new("jog-pad")
                 .spacing([4.0, 4.0])
@@ -544,42 +590,30 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                     ];
                     for row in buttons {
                         for (icon, dx, dy) in row {
-                            let response = ui.add(
-                                egui::Button::new(RichText::new(icon).size(18.0)).min_size(size),
-                            );
-                            if response.clicked() {
-                                target = Some(if icon == "🏠" {
-                                    (f64::NAN, 0.0, 0.0)
-                                } else {
-                                    (dx * step, dy * step, 0.0)
-                                });
+                            let button = egui::Button::new(RichText::new(icon).size(18.0))
+                                .min_size(size)
+                                .sense(egui::Sense::click_and_drag());
+                            let response = ui.add(button);
+                            if icon == "🏠" {
+                                go_zero |= response.on_hover_text(tr("device.goto_zero")).clicked();
+                            } else if response.is_pointer_button_down_on() {
+                                pressed = Some([dx, dy, 0.0]);
                             }
                         }
                         ui.end_row();
                     }
                 });
             ui.vertical(|ui| {
-                if ui
-                    .add(egui::Button::new(RichText::new("Z+").size(16.0)).min_size(size))
-                    .clicked()
-                {
-                    target = Some((0.0, 0.0, step.min(10.0)));
-                }
-                if ui
-                    .add(egui::Button::new(RichText::new("Z−").size(16.0)).min_size(size))
-                    .clicked()
-                {
-                    target = Some((0.0, 0.0, -step.min(10.0)));
+                for (label, dz) in [("Z+", 1.0), ("Z−", -1.0)] {
+                    let button = egui::Button::new(RichText::new(label).size(16.0))
+                        .min_size(size)
+                        .sense(egui::Sense::click_and_drag());
+                    if ui.add(button).is_pointer_button_down_on() {
+                        pressed = Some([0.0, 0.0, dz]);
+                    }
                 }
             });
         });
-        if let Some((dx, dy, dz)) = target {
-            if dx.is_nan() {
-                app.device.line("G90 G0 X0 Y0");
-            } else {
-                app.device.jog(dx, dy, dz, feed, &app.machine);
-            }
-        }
         ui.horizontal(|ui| {
             ui.label(tr("jog.step"));
             for value in [0.1, 1.0, 10.0, 50.0] {
@@ -594,9 +628,57 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                     .suffix(" mm/min")
                     .speed(10.0),
             );
+            if app.settings.jog_proportional {
+                ui.label(
+                    RichText::new(trf("jog.step_feed", &[&format!("{step_feed:.0}")]))
+                        .weak()
+                        .small(),
+                );
+            }
         });
         ui.label(RichText::new(tr("jog.keyboard_hint")).weak().small());
     });
+    if go_zero {
+        app.device.line("G90 G0 X0 Y0");
+    }
+    let held = app.device.hold;
+    match (pressed, held) {
+        (Some(direction), None) => app.device.hold = Some((direction, Instant::now(), false)),
+        (Some(direction), Some((current, since, false)))
+            if direction == current && since.elapsed() > Duration::from_millis(300) =>
+        {
+            // Long jog towards the travel end; jog() clamps it to the work area.
+            let [dx, dy, dz] = direction;
+            let z_reach = app.machine.z_travel.max(10.0);
+            app.device.jog(
+                dx * 10_000.0,
+                dy * 10_000.0,
+                dz * z_reach,
+                app.settings.jog_feed,
+                &app.machine,
+            );
+            app.device.hold = Some((direction, since, true));
+        }
+        (None, Some((direction, _, continuous))) => {
+            app.device.hold = None;
+            if continuous {
+                app.device.send(Command::Realtime(realtime::JOG_CANCEL));
+            } else {
+                let [dx, dy, dz] = direction;
+                app.device.jog(
+                    dx * step,
+                    dy * step,
+                    dz * step.min(10.0),
+                    step_feed,
+                    &app.machine,
+                );
+            }
+        }
+        _ => {}
+    }
+    if app.device.hold.is_some() {
+        ui.ctx().request_repaint_after(Duration::from_millis(30));
+    }
 }
 
 pub fn anomaly_text(anomaly: &Anomaly) -> String {
@@ -641,7 +723,7 @@ fn pause_text(reason: &mml_job::PauseReason) -> String {
 
 /// Reasons that forbid starting, checked against the live position:
 /// the whole job envelope must fit in the machine travel.
-fn start_blockers(app: &MyApp) -> Vec<String> {
+pub fn start_blockers(app: &MyApp) -> Vec<String> {
     let mut blockers = Vec::new();
     let Some(built) = &app.job.built else {
         return blockers;
@@ -705,7 +787,7 @@ fn start_blockers(app: &MyApp) -> Vec<String> {
     blockers
 }
 
-fn guard_for(app: &MyApp) -> Option<JobGuard> {
+pub fn guard_for(app: &MyApp) -> Option<JobGuard> {
     let built = app.job.built.as_ref()?;
     let bounds = built.program.bounds();
     let (z_low, z_high) = built.program.z_range;
@@ -895,6 +977,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         }
         return;
     }
+    crate::workflow::frame_review(app, ui);
     placement(app, ui);
     ui.add_space(4.0);
     let Some(built) = &app.job.built else {
@@ -904,7 +987,6 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     let estimate = built.stats.duration;
     let bounds = built.stats.cut_bounds;
     let warnings = built.warnings.clone();
-    let gcode = built.gcode.clone();
     let anchor = built.anchor;
     let pauses = built.pauses.len();
     for warning in &warnings {
@@ -952,17 +1034,12 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
                 app.settings.frame_power,
                 3000.0,
             );
-            app.device.send(Command::StartJob {
-                lines: program.lines().map(str::to_owned).collect(),
-                guard: None,
-            });
-            app.device.job = Some(RunningJob {
-                total: 0,
-                acknowledged: 0,
-                started: Instant::now(),
-                estimate: Duration::ZERO,
-                paused: false,
-            });
+            crate::workflow::run_auxiliary(
+                app,
+                program.lines().map(str::to_owned).collect(),
+                JobKind::Frame,
+            );
+            app.job.frame_for = Some(app.job_key());
         }
         let start = egui::Button::new(
             RichText::new(tr("job.start"))
@@ -974,8 +1051,17 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         .min_size(egui::vec2(150.0, 32.0));
         let out_of_bounds =
             warnings.contains(&mml_job::JobWarning::OutOfBounds) && anchor.is_none();
+        let gates = crate::workflow::start_gates(app);
+        for gate in &gates {
+            ui.label(RichText::new(format!("🔒 {gate}")).color(Color32::from_rgb(210, 140, 20)));
+        }
         let response = ui.add_enabled(
-            connected && idle && current && !out_of_bounds && blockers.is_empty(),
+            connected
+                && idle
+                && current
+                && !out_of_bounds
+                && blockers.is_empty()
+                && gates.is_empty(),
             start,
         );
         let response = if !connected {
@@ -988,22 +1074,11 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             response
         };
         if response.clicked() {
-            let guard = guard_for(app);
-            app.device.send(Command::StartJob {
-                lines: gcode.lines().map(str::to_owned).collect(),
-                guard,
-            });
-            app.device.job = Some(RunningJob {
-                total: gcode.lines().count(),
-                acknowledged: 0,
-                started: Instant::now(),
-                estimate,
-                paused: false,
-            });
-            app.device.alarm = None;
-            app.device.anomaly = None;
-            app.job.waiting_pause = None;
-            app.notify(tr("job.started"), Level::Info);
+            if app.settings.barriers {
+                app.job.checklist = Some(Default::default());
+            } else {
+                crate::workflow::launch_job(app);
+            }
         }
     });
 }
@@ -1050,7 +1125,7 @@ fn overrides(app: &mut MyApp, ui: &mut egui::Ui) {
     });
 }
 
-fn format_short(duration: Duration) -> String {
+pub fn format_short(duration: Duration) -> String {
     let seconds = duration.as_secs();
     format!(
         "{}:{:02}:{:02}",

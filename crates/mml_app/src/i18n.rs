@@ -128,6 +128,7 @@ mod tests {
             include_str!("canvas.rs"),
             include_str!("machine_panel.rs"),
             include_str!("panels.rs"),
+            include_str!("workflow.rs"),
             include_str!("../../mml_core/src/layer.rs"),
         ];
         let english = &tables()[0];

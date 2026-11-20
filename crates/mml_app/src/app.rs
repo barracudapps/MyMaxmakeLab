@@ -78,6 +78,12 @@ pub struct JobState {
     pub picking_anchor: bool,
     /// Pause the job reached and that the operator must handle.
     pub waiting_pause: Option<mml_job::PauseReason>,
+    /// Job key the last frame (dry run) was traced for.
+    pub frame_for: Option<(u64, u64)>,
+    /// Job key whose frame the operator approved.
+    pub frame_approved: Option<(u64, u64)>,
+    pub frame_review: bool,
+    pub checklist: Option<crate::workflow::Checklist>,
     pub simulate: Option<f32>,
     pub simulating: bool,
     pub preview_line: Option<Option<usize>>,
@@ -149,6 +155,9 @@ pub struct MyApp {
     lock_ratio: bool,
     pub live_links: Vec<LiveLink>,
     last_link_check: Instant,
+    pub probe: crate::workflow::ProbeState,
+    pub settings_editor: crate::workflow::SettingsEditor,
+    pub tutorial_step: Option<usize>,
 }
 
 impl MyApp {
@@ -197,6 +206,10 @@ impl MyApp {
                 options_revision: 0,
                 picking_anchor: false,
                 waiting_pause: None,
+                frame_for: None,
+                frame_approved: None,
+                frame_review: false,
+                checklist: None,
                 simulate: None,
                 simulating: false,
                 preview_line: None,
@@ -214,7 +227,15 @@ impl MyApp {
             lock_ratio: true,
             live_links: Vec::new(),
             last_link_check: Instant::now(),
+            probe: crate::workflow::ProbeState::default(),
+            settings_editor: crate::workflow::SettingsEditor {
+                drafts: Default::default(),
+            },
+            tutorial_step: None,
         };
+        if !app.settings.tutorial_done {
+            app.tutorial_step = Some(0);
+        }
         if let Some(path) = std::env::args().nth(1).map(PathBuf::from) {
             app.open_path(&path);
         }
@@ -908,6 +929,14 @@ impl MyApp {
         self.mode = Mode::Prepare;
     }
 
+    /// Identifies the job content; frames and approvals are tied to it.
+    pub fn job_key(&self) -> (u64, u64) {
+        match &self.job.built {
+            Some(built) if built.external.is_some() => (u64::MAX, built.gcode.len() as u64),
+            _ => (self.revision, self.job.options_revision),
+        }
+    }
+
     pub fn job_is_current(&self) -> bool {
         self.job.built.as_ref().is_some_and(|built| {
             built.external.is_some()
@@ -1464,6 +1493,7 @@ impl eframe::App for MyApp {
         self.device.poll(&ctx, &mut self.notices);
         self.process_machine_events();
         self.refresh_live_links();
+        crate::workflow::process_finished(self);
         self.handle_dropped_files(&ctx);
         self.shortcuts(&ctx);
         self.maintain_job(&ctx);
