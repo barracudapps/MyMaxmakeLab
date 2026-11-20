@@ -25,6 +25,10 @@ pub struct Layer {
     pub visible: bool,
     /// Excluded layers stay on the canvas but produce no G-code.
     pub output: bool,
+    /// Pause before this layer so the operator can change the tool or
+    /// head; the job resumes from the machine button or the interface.
+    #[serde(default)]
+    pub pause_before: bool,
     pub operation: Operation,
 }
 
@@ -36,6 +40,7 @@ impl Layer {
             color,
             visible: true,
             output: true,
+            pause_before: false,
             operation,
         }
     }

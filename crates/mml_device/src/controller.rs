@@ -109,6 +109,11 @@ pub enum Event {
         duration: Duration,
         success: bool,
     },
+    /// The job reached its `index`-th program pause (`M0`/`M1`) and
+    /// waits for cycle start: machine button or `Resume`.
+    ProgramPaused {
+        index: usize,
+    },
 }
 
 pub fn list_serial_ports() -> Vec<(String, String)> {
@@ -232,6 +237,7 @@ struct Job {
     acknowledged: usize,
     started: Instant,
     last_progress: Instant,
+    pauses: usize,
 }
 
 struct Worker {
@@ -344,6 +350,7 @@ impl Worker {
                         acknowledged: 0,
                         started: now,
                         last_progress: now,
+                        pauses: 0,
                     });
                 }
             }
@@ -538,6 +545,13 @@ impl Worker {
             }
             match origin {
                 Origin::Job(_) => {
+                    if is_program_pause(&sent)
+                        && let Some(job) = &mut self.job
+                    {
+                        let index = job.pauses;
+                        job.pauses += 1;
+                        self.emit(Event::ProgramPaused { index });
+                    }
                     if let Some(job) = &mut self.job {
                         job.acknowledged += 1;
                         let done = job.acknowledged == job.lines.len();
@@ -586,6 +600,11 @@ impl Worker {
         self.emit(Event::Received(line.to_owned()));
         Ok(())
     }
+}
+
+fn is_program_pause(line: &str) -> bool {
+    let code = line.trim().to_ascii_uppercase();
+    code == "M0" || code == "M1" || code == "M00" || code == "M01"
 }
 
 fn strip_comment(line: &str) -> String {

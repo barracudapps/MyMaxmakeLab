@@ -229,6 +229,7 @@ impl DeviceState {
                         job.total = total;
                     }
                 }
+                Event::Anomaly { .. } | Event::HomingFinished { .. } | Event::ProgramPaused { .. } => {}
                 Event::JobFinished { outcome, elapsed } => {
                     self.job = None;
                     let minutes = elapsed.as_secs() / 60;
@@ -661,10 +662,11 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             .on_hover_text(tr("job.frame_hint"));
         if frame.clicked() {
             let program =
-                mml_job::frame_job(bounds, &app.machine, app.settings.frame_power, 3000.0);
-            app.device.send(Command::StartJob(
-                program.lines().map(str::to_owned).collect(),
-            ));
+                mml_job::frame_job(bounds, None, &app.machine, app.settings.frame_power, 3000.0);
+            app.device.send(Command::StartJob {
+                lines: program.lines().map(str::to_owned).collect(),
+                guard: None,
+            });
             app.device.job = Some(RunningJob {
                 total: 0,
                 acknowledged: 0,
@@ -693,9 +695,10 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             response
         };
         if response.clicked() {
-            app.device.send(Command::StartJob(
-                gcode.lines().map(str::to_owned).collect(),
-            ));
+            app.device.send(Command::StartJob {
+                lines: gcode.lines().map(str::to_owned).collect(),
+                guard: None,
+            });
             app.device.job = Some(RunningJob {
                 total: gcode.lines().count(),
                 acknowledged: 0,
