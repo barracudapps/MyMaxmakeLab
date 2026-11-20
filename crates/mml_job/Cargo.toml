@@ -1,0 +1,14 @@
+[package]
+name = "mml_job"
+description = "Builds the complete G-code program of a document"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mml_core.workspace = true
+mml_gcode.workspace = true
+mml_laser.workspace = true
+mml_cnc.workspace = true

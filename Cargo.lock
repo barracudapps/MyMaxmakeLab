@@ -330,6 +330,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mml_job"
+version = "0.1.0"
+dependencies = [
+ "mml_cnc",
+ "mml_core",
+ "mml_gcode",
+ "mml_laser",
+]
+
+[[package]]
 name = "mml_laser"
 version = "0.1.0"
 dependencies = [

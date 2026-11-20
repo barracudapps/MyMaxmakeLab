@@ -41,6 +41,7 @@ development packages for the window.
 | `mml_gcode`     | G-code parser, writer, job analysis                |
 | `mml_laser`     | Laser toolpaths (line, fill, image dithering)      |
 | `mml_cnc`       | CNC toolpaths (profile, pocket, tabs)              |
+| `mml_job`       | Assembles the full program, frame job, checks      |
 | `mml_io`        | SVG, DXF and raster import                         |
 | `mml_materials` | Material presets and LightBurn library import      |
 | `mml_device`    | GRBL protocol, serial and TCP transports           |

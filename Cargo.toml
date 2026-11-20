@@ -14,6 +14,7 @@ mml_core = { path = "crates/mml_core" }
 mml_gcode = { path = "crates/mml_gcode" }
 mml_laser = { path = "crates/mml_laser" }
 mml_cnc = { path = "crates/mml_cnc" }
+mml_job = { path = "crates/mml_job" }
 mml_io = { path = "crates/mml_io" }
 mml_materials = { path = "crates/mml_materials" }
 mml_device = { path = "crates/mml_device" }
