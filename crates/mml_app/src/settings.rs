@@ -76,6 +76,8 @@ pub struct Settings {
     pub jog_proportional: bool,
     pub idle_rpm: f64,
     pub tutorial_done: bool,
+    /// Prices and lifetimes for job costs.
+    pub costs: mml_core::stats::CostSettings,
     /// Install new production releases from GitHub by itself.
     pub auto_update: bool,
     /// Bed corners clicked on the camera picture (front-left, front-right,
@@ -121,6 +123,7 @@ impl Default for Settings {
             jog_proportional: true,
             idle_rpm: 8000.0,
             tutorial_done: false,
+            costs: Default::default(),
             auto_update: true,
             camera_corners: None,
             camera_url: String::new(),
@@ -141,6 +144,40 @@ fn config_dir() -> Option<PathBuf> {
 /// Fonts added by the user, loaded next to the system and bundled ones.
 pub fn fonts_dir() -> Option<PathBuf> {
     config_dir().map(|dir| dir.join("fonts"))
+}
+
+/// Every job that ran, one JSON record per line (appended, never
+/// rewritten, so a crash cannot lose the history).
+fn usage_path() -> Option<PathBuf> {
+    config_dir().map(|dir| dir.join("usage.jsonl"))
+}
+
+pub fn load_usage() -> Vec<mml_core::stats::JobRecord> {
+    usage_path()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .map(|text| {
+            text.lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub fn append_usage(record: &mml_core::stats::JobRecord) {
+    use std::io::Write;
+    let Some(path) = usage_path() else { return };
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let (Ok(mut file), Ok(line)) = (
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path),
+        serde_json::to_string(record),
+    ) {
+        let _ = writeln!(file, "{line}");
+    }
 }
 
 pub fn library_path() -> Option<PathBuf> {

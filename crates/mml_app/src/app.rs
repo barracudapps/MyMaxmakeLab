@@ -167,6 +167,11 @@ pub struct MyApp {
     pub updater: crate::update::Updater,
     pub makers: Option<crate::makers_dialog::MakersDialog>,
     pub fleet: crate::fleet::FleetState,
+    /// Jobs that ran, for statistics and costs.
+    pub usage: Vec<mml_core::stats::JobRecord>,
+    pub stats_open: bool,
+    /// Tool times of the built program, keyed by the program.
+    pub tool_cache: Option<(usize, Vec<mml_core::stats::ToolUse>)>,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -264,6 +269,9 @@ impl MyApp {
             updater: Default::default(),
             makers: None,
             fleet: Default::default(),
+            usage: crate::settings::load_usage(),
+            stats_open: false,
+            tool_cache: None,
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,
@@ -336,6 +344,7 @@ impl MyApp {
                     }
                 }
                 "--3d" => self.view3d.enabled = true,
+                "--stats" => self.stats_open = true,
                 "--orbit" => {
                     self.view3d.enabled = true;
                     self.view3d.orbit = true;
@@ -980,6 +989,53 @@ impl MyApp {
     }
 
     // ----- job ----------------------------------------------------------
+
+    /// Time of each tool in a program at the estimated pace.
+    pub fn tool_times(&self, gcode: &str) -> Vec<mml_core::stats::ToolUse> {
+        let program = mml_gcode::parse(gcode);
+        mml_gcode::tool_breakdown(gcode, &program, self.motion_settings())
+            .into_iter()
+            .map(|(label, seconds, cut)| mml_core::stats::ToolUse {
+                label,
+                seconds,
+                cut,
+            })
+            .collect()
+    }
+
+    /// Adds a job that ran to the history, its tool times scaled to the
+    /// real duration, with its cost.
+    pub fn record_job(
+        &mut self,
+        machine: String,
+        job: String,
+        gcode: &str,
+        completed: bool,
+        elapsed: Duration,
+    ) {
+        let mut tools = self.tool_times(gcode);
+        let estimated: f64 = tools.iter().map(|tool| tool.seconds).sum();
+        let seconds = elapsed.as_secs_f64();
+        if estimated > 0.0 {
+            for tool in &mut tools {
+                tool.seconds *= seconds / estimated;
+            }
+        }
+        let cost = self.settings.costs.job_cost(seconds, &tools, 0.0).total();
+        let record = mml_core::stats::JobRecord {
+            at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |time| time.as_secs()),
+            job,
+            machine,
+            seconds,
+            completed,
+            tools,
+            cost,
+        };
+        crate::settings::append_usage(&record);
+        self.usage.push(record);
+    }
 
     pub fn motion_settings(&self) -> MotionSettings {
         let mut settings = MotionSettings::default();
@@ -1650,6 +1706,13 @@ impl MyApp {
                     }
                     if ui.button(tr("tools.title")).clicked() {
                         self.tools_open = true;
+                    }
+                    if ui
+                        .button(tr("stats.title"))
+                        .on_hover_text(tr("stats.menu_hint"))
+                        .clicked()
+                    {
+                        self.stats_open = true;
                     }
                     if ui
                         .button(tr("fleet.title"))

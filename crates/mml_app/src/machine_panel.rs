@@ -67,6 +67,8 @@ pub struct DeviceState {
     pub homed: bool,
     pub probe_reports: Vec<([f64; 3], bool)>,
     pub finished: Option<(JobKind, JobOutcome)>,
+    /// Duration of the last finished job.
+    pub last_elapsed: Duration,
     pub z_probed: bool,
     /// Continuous jog in progress: direction and whether the long jog
     /// was sent (held longer than a click).
@@ -107,6 +109,7 @@ impl DeviceState {
             homed: false,
             probe_reports: Vec::new(),
             finished: None,
+            last_elapsed: Duration::ZERO,
             z_probed: false,
             hold: None,
             discovery: None,
@@ -300,6 +303,7 @@ impl DeviceState {
                     }
                 }
                 Event::JobFinished { outcome, elapsed } => {
+                    self.last_elapsed = elapsed;
                     if let Some(job) = self.job.take() {
                         self.finished = Some((job.kind, outcome));
                         if job.kind != JobKind::Main {

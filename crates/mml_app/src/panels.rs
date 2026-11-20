@@ -1204,6 +1204,26 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
     let warnings = built.warnings.clone();
     let lines = stats.line_count;
     let size = built.gcode.len();
+    // Tool times and cost, computed once per program.
+    let key = std::sync::Arc::as_ptr(&built.gcode) as usize ^ size;
+    if app
+        .tool_cache
+        .as_ref()
+        .is_none_or(|(cached, _)| *cached != key)
+    {
+        let gcode = built.gcode.clone();
+        app.tool_cache = Some((key, app.tool_times(&gcode)));
+    }
+    let tools = app
+        .tool_cache
+        .as_ref()
+        .map(|(_, tools)| tools.clone())
+        .unwrap_or_default();
+    let cost = app
+        .settings
+        .costs
+        .job_cost(stats.duration.as_secs_f64(), &tools, 0.0);
+    let currency = app.settings.costs.currency.clone();
     egui::Grid::new("stats")
         .num_columns(2)
         .spacing([12.0, 4.0])
@@ -1214,6 +1234,31 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
                     .strong()
                     .size(16.0),
             );
+            ui.end_row();
+            if tools.len() > 1 || tools.first().is_some_and(|tool| tool.label != "Program") {
+                for tool in &tools {
+                    ui.label(RichText::new(format!("  {}", tool.label)).weak());
+                    ui.label(
+                        RichText::new(format_duration(std::time::Duration::from_secs_f64(
+                            tool.seconds,
+                        )))
+                        .weak(),
+                    );
+                    ui.end_row();
+                }
+            }
+            ui.label(tr("job.cost")).on_hover_text(tr("job.cost_hint"));
+            ui.label(format!("{:.2} {currency}", cost.total()))
+                .on_hover_text(trf(
+                    "job.cost_detail",
+                    &[
+                        &format!("{:.2}", cost.machine),
+                        &format!("{:.2}", cost.electricity),
+                        &format!("{:.2}", cost.consumables),
+                        &format!("{:.2}", cost.tools),
+                        &format!("{:.2}", cost.labour),
+                    ],
+                ));
             ui.end_row();
             if !stats.cut_bounds.is_empty() {
                 ui.label(tr("job.size"));
@@ -1341,6 +1386,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);
     crate::fleet::show(app, ctx);
+    crate::stats_dialog::show(app, ctx);
     preset_dialog(app, ctx);
     machine_dialog(app, ctx);
     preferences(app, ctx);

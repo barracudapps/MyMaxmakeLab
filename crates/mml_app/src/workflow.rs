@@ -166,6 +166,18 @@ pub fn process_finished(app: &mut MyApp) {
         return;
     };
     let completed = outcome == JobOutcome::Completed;
+    if kind == JobKind::Main
+        && let Some(built) = &app.job.built
+    {
+        let gcode = built.gcode.clone();
+        let name = built
+            .external
+            .clone()
+            .unwrap_or_else(|| app.document_name());
+        let machine = app.machine.name.clone();
+        let elapsed = app.device.last_elapsed;
+        app.record_job(machine, name, &gcode, completed, elapsed);
+    }
     match kind {
         JobKind::Frame if completed => app.job.frame_review = true,
         JobKind::ProbeOrigin => {

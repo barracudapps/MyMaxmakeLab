@@ -146,8 +146,24 @@ fn guard(gcode: &str, auto_pause: bool) -> JobGuard {
 /// Reads the events of every machine and hands out jobs.
 pub fn poll(app: &mut MyApp) {
     let auto_pause = app.settings.auto_pause;
+    // Hours worked by each machine, to share the wear fairly.
+    let worked = |name: &str, records: &[mml_core::stats::JobRecord]| -> f64 {
+        records
+            .iter()
+            .filter(|record| record.machine == name)
+            .map(|record| record.seconds)
+            .sum()
+    };
+    let hours: Vec<f64> = app
+        .fleet
+        .machines
+        .iter()
+        .map(|machine| worked(&machine.name, &app.usage))
+        .collect();
     let fleet = &mut app.fleet;
     let mut notices = Vec::new();
+    let mut finished_jobs: Vec<(String, String, Arc<String>, bool, std::time::Duration)> =
+        Vec::new();
     for machine in &mut fleet.machines {
         let Some(controller) = &machine.controller else {
             continue;
@@ -175,8 +191,17 @@ pub fn poll(app: &mut MyApp) {
                         job.3 = total;
                     }
                 }
-                Event::JobFinished { outcome, .. } => {
+                Event::JobFinished { outcome, elapsed } => {
                     if let Some((index, name, ..)) = machine.job.take() {
+                        if let Some(item) = fleet.queue.items.get(index) {
+                            finished_jobs.push((
+                                machine.name.clone(),
+                                name.clone(),
+                                item.gcode.clone(),
+                                outcome == JobOutcome::Completed,
+                                elapsed,
+                            ));
+                        }
                         if outcome == JobOutcome::Completed {
                             fleet.queue.finished(index);
                             machine.message = Some((trf("fleet.done", &[&name]), false));
@@ -199,21 +224,34 @@ pub fn poll(app: &mut MyApp) {
                 _ => {}
             }
         }
-        if machine.connected
-            && machine.ready
-            && machine.job.is_none()
-            && machine.state() == MachineState::Idle
-            && let Some((index, name, gcode)) = fleet.queue.take()
-        {
-            let lines: Vec<String> = gcode.lines().map(str::to_owned).collect();
-            let total = lines.len();
-            machine.send(Command::StartJob {
-                lines,
-                guard: Some(guard(&gcode, auto_pause)),
-            });
-            machine.job = Some((index, name, 0, total));
-            machine.message = None;
-        }
+    }
+    // Fair share: of the machines ready now, the least used starts first.
+    let mut ready: Vec<usize> = (0..fleet.machines.len())
+        .filter(|&index| {
+            let machine = &fleet.machines[index];
+            machine.connected
+                && machine.ready
+                && machine.job.is_none()
+                && machine.state() == MachineState::Idle
+        })
+        .collect();
+    ready.sort_by(|&a, &b| hours[a].total_cmp(&hours[b]));
+    for index in ready {
+        let Some((item, name, gcode)) = fleet.queue.take() else {
+            break;
+        };
+        let machine = &mut fleet.machines[index];
+        let lines: Vec<String> = gcode.lines().map(str::to_owned).collect();
+        let total = lines.len();
+        machine.send(Command::StartJob {
+            lines,
+            guard: Some(guard(&gcode, auto_pause)),
+        });
+        machine.job = Some((item, name, 0, total));
+        machine.message = None;
+    }
+    for (machine, job, gcode, completed, elapsed) in finished_jobs {
+        app.record_job(machine, job, &gcode, completed, elapsed);
     }
     for notice in notices {
         app.notify(notice, Level::Error);
