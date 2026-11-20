@@ -926,7 +926,10 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
         }
     });
     if app.job.simulating {
-        let value = app.job.simulate.unwrap_or(0.0) + 0.004;
+        // Time based: a whole job plays in about eight seconds whatever
+        // the frame rate.
+        let delta = ui.input(|input| input.stable_dt).min(0.1) / 8.0;
+        let value = app.job.simulate.unwrap_or(0.0) + delta;
         app.job.simulate = Some(value.min(1.0));
         if value >= 1.0 {
             app.job.simulating = false;

@@ -939,6 +939,9 @@ impl MyApp {
                     line,
                     self.machine.kind == MachineKind::Cnc,
                     ctx.theme() == egui::Theme::Dark,
+                    // While simulating only what is already done shows;
+                    // while running the rest stays visible, faint.
+                    self.mode == Mode::Run,
                 )
             });
             self.canvas.set_preview(ctx, preview);

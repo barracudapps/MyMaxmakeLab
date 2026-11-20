@@ -18,6 +18,7 @@ pub fn render(
     done_line: Option<usize>,
     cnc: bool,
     dark: bool,
+    show_remaining: bool,
 ) -> Option<PreviewImage> {
     let mut bounds = program.cut_bounds();
     if bounds.is_empty() {
@@ -92,7 +93,7 @@ pub fn render(
             if strong_value > 0 {
                 let [r, g, b] = strong_color;
                 Color32::from_rgba_unmultiplied(r, g, b, strong_value.max(40))
-            } else if faint_value > 0 {
+            } else if faint_value > 0 && show_remaining {
                 let [r, g, b] = faint_color;
                 Color32::from_rgba_unmultiplied(r, g, b, (faint_value / 3).max(20))
             } else {
