@@ -240,6 +240,7 @@ mod tests {
                     "fleet",
                     "mcp",
                     "stats",
+                    "suggest",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')

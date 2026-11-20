@@ -919,3 +919,15 @@ stats.records = {0} travaux dans l’historique
 job.cost = Coût estimé
 job.cost_hint = D’après Statistiques et coûts : usure de la machine, électricité, consommables, outils, main-d’œuvre (matériau non compris)
 job.cost_detail = machine {0} · électricité {1} · consommables {2} · outils {3} · main-d’œuvre {4}
+
+suggest.button = Suggérer
+suggest.hint = Analyse les formes de ce calque et propose l’outil adapté : la plus grosse fraise qui garde tous les détails (plus rapide et plus rigide), ou une fraise en V assez large pour le trait le plus épais
+suggest.no_shape = Aucune forme fermée à mesurer sur ce calque.
+suggest.too_fine = Les détails sont plus fins que toute fraise : utilisez le laser ou la gravure en V.
+suggest.fine_hint = Détails très fins : un laser ou une fraise en V fera peut-être mieux.
+suggest.mill = La plus grosse fraise qui garde tous les détails fait Ø{0} mm. Dans votre bibliothèque : {1}.
+suggest.mill_missing = La plus grosse fraise qui garde tous les détails fait Ø{0} mm ; votre bibliothèque n’en a aucune qui convienne. Une fraise standard de Ø{1} mm irait : ajoutez-la dans la bibliothèque d’outils.
+suggest.vbit = Le trait le plus large fait {0} mm. Dans votre bibliothèque : {1}, environ {2} mm de profondeur à cet endroit.
+suggest.vbit_missing = Le trait le plus large fait {0} mm : il faut une fraise en V au moins aussi large (une fraise à 60° descend à {1} mm). Ajoutez-en une dans la bibliothèque d’outils.
+suggest.use = Utiliser cet outil
+suggest.close = Fermer

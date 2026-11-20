@@ -910,6 +910,143 @@ fn cnc_common(
 }
 
 /// Fills the cutting data of a CNC operation from the tool library.
+/// Fills the operation with a library tool and its cutting data.
+fn apply_tool(operation: &mut Operation, tool: &mml_materials::Tool) {
+    use mml_materials::ToolKind;
+    match operation {
+        Operation::CncProfile(params) => {
+            params.tool_diameter = tool.diameter;
+            params.feed = tool.feed;
+            params.plunge = tool.plunge;
+            params.spindle = tool.spindle;
+            params.pass_depth = tool.stepdown;
+        }
+        Operation::CncPocket(params) => {
+            params.tool_diameter = tool.diameter;
+            params.feed = tool.feed;
+            params.plunge = tool.plunge;
+            params.spindle = tool.spindle;
+            params.pass_depth = tool.stepdown;
+            params.stepover = tool.stepover;
+        }
+        Operation::CncVCarve(params) => {
+            if let ToolKind::VBit { angle } = tool.kind {
+                params.angle = angle;
+            }
+            params.tool_diameter = tool.diameter;
+            params.feed = tool.feed;
+            params.plunge = tool.plunge;
+            params.spindle = tool.spindle;
+        }
+        _ => {}
+    }
+}
+
+/// Usual cutter sizes, to suggest one the library does not have.
+const STANDARD_SIZES: [f64; 10] = [0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 3.175, 4.0, 6.0, 8.0];
+
+pub struct ToolSuggestion {
+    pub text: String,
+    pub tool: Option<mml_materials::Tool>,
+}
+
+/// The tool the geometry of the layer calls for: the biggest that keeps
+/// every detail (faster and stiffer), a V-bit wide enough for the widest
+/// stroke.
+fn suggest_tool(app: &MyApp, layer: mml_core::LayerId, operation: &Operation) -> ToolSuggestion {
+    use mml_cnc::fit::{Side, largest_tool, widest_stroke};
+    use mml_materials::ToolKind;
+    let shapes: Vec<Vec<mml_core::geometry::Path>> = app
+        .document
+        .shapes
+        .iter()
+        .filter(|shape| shape.layer == layer && !shape.is_image())
+        .map(|shape| shape.world_paths())
+        .filter(|paths| paths.iter().any(|path| path.closed))
+        .collect();
+    let none = |text: String| ToolSuggestion { text, tool: None };
+    if shapes.is_empty() {
+        return none(tr("suggest.no_shape").to_owned());
+    }
+    if let Operation::CncVCarve(params) = operation {
+        let Some(stroke) = widest_stroke(&shapes) else {
+            return none(tr("suggest.no_shape").to_owned());
+        };
+        let candidate = app
+            .library
+            .tools
+            .iter()
+            .filter(|tool| {
+                matches!(tool.kind, ToolKind::VBit { .. }) && tool.diameter + 1e-6 >= stroke
+            })
+            .min_by(|a, b| a.diameter.total_cmp(&b.diameter))
+            .cloned();
+        let depth = |angle: f64| stroke / 2.0 / (angle / 2.0).to_radians().tan();
+        return match candidate {
+            Some(tool) => {
+                let angle = match tool.kind {
+                    ToolKind::VBit { angle } => angle,
+                    _ => params.angle,
+                };
+                ToolSuggestion {
+                    text: trf(
+                        "suggest.vbit",
+                        &[
+                            &format!("{stroke:.2}"),
+                            &tool.label(),
+                            &format!("{:.2}", depth(angle)),
+                        ],
+                    ),
+                    tool: Some(tool),
+                }
+            }
+            None => none(trf(
+                "suggest.vbit_missing",
+                &[&format!("{stroke:.2}"), &format!("{:.2}", depth(60.0))],
+            )),
+        };
+    }
+    let side = match operation {
+        Operation::CncProfile(params) if params.side == ProfileSide::Inside => Side::Inside,
+        Operation::CncPocket(_) => Side::Inside,
+        _ => Side::Outside,
+    };
+    let Some(limit) = largest_tool(&shapes, side, 0.005) else {
+        return none(tr("suggest.too_fine").to_owned());
+    };
+    let candidate = app
+        .library
+        .tools
+        .iter()
+        .filter(|tool| matches!(tool.kind, ToolKind::FlatEndMill) && tool.diameter <= limit + 1e-6)
+        .max_by(|a, b| a.diameter.total_cmp(&b.diameter))
+        .cloned();
+    let mut text = match &candidate {
+        Some(tool) => trf("suggest.mill", &[&format!("{limit:.2}"), &tool.label()]),
+        None => {
+            let standard = STANDARD_SIZES
+                .iter()
+                .copied()
+                .rfind(|size| *size <= limit + 1e-6);
+            match standard {
+                Some(size) => trf(
+                    "suggest.mill_missing",
+                    &[&format!("{limit:.2}"), &format!("{size}")],
+                ),
+                None => tr("suggest.too_fine").to_owned(),
+            }
+        }
+    };
+    if limit < 0.8 {
+        text.push(' ');
+        text.push_str(tr("suggest.fine_hint"));
+    }
+    ToolSuggestion {
+        text,
+        tool: candidate,
+    }
+}
+
 fn tool_picker(app: &mut MyApp, ui: &mut egui::Ui, operation: &mut Operation, changed: &mut bool) {
     use mml_materials::ToolKind;
     if operation.is_laser() {
@@ -936,37 +1073,18 @@ fn tool_picker(app: &mut MyApp, ui: &mut egui::Ui, operation: &mut Operation, ch
             .show_ui(ui, |ui| {
                 for tool in &tools {
                     if ui.selectable_label(false, tool.label()).clicked() {
-                        match operation {
-                            Operation::CncProfile(params) => {
-                                params.tool_diameter = tool.diameter;
-                                params.feed = tool.feed;
-                                params.plunge = tool.plunge;
-                                params.spindle = tool.spindle;
-                                params.pass_depth = tool.stepdown;
-                            }
-                            Operation::CncPocket(params) => {
-                                params.tool_diameter = tool.diameter;
-                                params.feed = tool.feed;
-                                params.plunge = tool.plunge;
-                                params.spindle = tool.spindle;
-                                params.pass_depth = tool.stepdown;
-                                params.stepover = tool.stepover;
-                            }
-                            Operation::CncVCarve(params) => {
-                                if let ToolKind::VBit { angle } = tool.kind {
-                                    params.angle = angle;
-                                }
-                                params.tool_diameter = tool.diameter;
-                                params.feed = tool.feed;
-                                params.plunge = tool.plunge;
-                                params.spindle = tool.spindle;
-                            }
-                            _ => {}
-                        }
+                        apply_tool(operation, tool);
                         *changed = true;
                     }
                 }
             });
+        if ui
+            .small_button(tr("suggest.button"))
+            .on_hover_text(tr("suggest.hint"))
+            .clicked()
+        {
+            app.tool_suggestion = Some(suggest_tool(app, app.current_layer, operation));
+        }
         if ui
             .small_button("⚙")
             .on_hover_text(tr("tools.manage"))
@@ -975,6 +1093,29 @@ fn tool_picker(app: &mut MyApp, ui: &mut egui::Ui, operation: &mut Operation, ch
             app.tools_open = true;
         }
     });
+    let mut apply = None;
+    let mut close = false;
+    if let Some(suggestion) = &app.tool_suggestion {
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.label(&suggestion.text);
+            ui.horizontal(|ui| {
+                if let Some(tool) = &suggestion.tool
+                    && ui.button(tr("suggest.use")).clicked()
+                {
+                    apply = Some(tool.clone());
+                }
+                close = ui.small_button(tr("suggest.close")).clicked();
+            });
+        });
+    }
+    if close {
+        app.tool_suggestion = None;
+    }
+    if let Some(tool) = apply {
+        apply_tool(operation, &tool);
+        *changed = true;
+        app.tool_suggestion = None;
+    }
 }
 
 fn material_picker(

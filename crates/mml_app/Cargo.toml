@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 mml_core.workspace = true
+mml_cnc.workspace = true
 mml_gcode.workspace = true
 mml_job.workspace = true
 mml_io.workspace = true

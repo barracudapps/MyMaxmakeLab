@@ -887,3 +887,15 @@ stats.records = {0} jobs in the history
 job.cost = Estimated cost
 job.cost_hint = From Statistics and costs: machine wear, electricity, consumables, tools, labour (material not included)
 job.cost_detail = machine {0} · electricity {1} · consumables {2} · tools {3} · labour {4}
+
+suggest.button = Suggest
+suggest.hint = Looks at the shapes of this layer and proposes the tool that fits: the biggest end mill that keeps every detail (faster and stiffer), or a V-bit wide enough for the widest stroke
+suggest.no_shape = No closed shape on this layer to measure.
+suggest.too_fine = Details are finer than any cutter: use the laser or V-carving.
+suggest.fine_hint = Very fine details: a laser or a V-bit may do better.
+suggest.mill = The biggest cutter that keeps every detail is Ø{0} mm. From your library: {1}.
+suggest.mill_missing = The biggest cutter that keeps every detail is Ø{0} mm; your library has none that fits. A standard Ø{1} mm end mill would do: add it in the tool library.
+suggest.vbit = The widest stroke is {0} mm. From your library: {1}, about {2} mm deep there.
+suggest.vbit_missing = The widest stroke is {0} mm: a V-bit at least that wide is needed (a 60° bit goes {1} mm deep). Add one in the tool library.
+suggest.use = Use this tool
+suggest.close = Close

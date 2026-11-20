@@ -172,6 +172,8 @@ pub struct MyApp {
     pub stats_open: bool,
     /// Tool times of the built program, keyed by the program.
     pub tool_cache: Option<(usize, Vec<mml_core::stats::ToolUse>)>,
+    /// Last tool suggestion shown in the operation card.
+    pub tool_suggestion: Option<crate::panels::ToolSuggestion>,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -272,6 +274,7 @@ impl MyApp {
             usage: crate::settings::load_usage(),
             stats_open: false,
             tool_cache: None,
+            tool_suggestion: None,
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,

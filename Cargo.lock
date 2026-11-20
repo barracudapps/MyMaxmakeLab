@@ -1640,6 +1640,7 @@ dependencies = [
  "eframe",
  "egui",
  "image",
+ "mml_cnc",
  "mml_core",
  "mml_device",
  "mml_gcode",
