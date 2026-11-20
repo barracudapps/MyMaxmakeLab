@@ -6,13 +6,14 @@ use crate::i18n::{tr, tr_key};
 use eframe::egui::{self, DragValue, RichText};
 use mml_core::document::{Shape, ShapeKind};
 use mml_core::geometry::Path;
-use mml_core::makers::{boxes, jigsaw, maze};
+use mml_core::makers::{boxes, jigsaw, maze, test_grid};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Box,
     Maze,
     Jigsaw,
+    TestGrid,
 }
 
 pub struct MakersDialog {
@@ -21,6 +22,7 @@ pub struct MakersDialog {
     maze: maze::MazeParams,
     solution: bool,
     jigsaw: jigsaw::JigsawParams,
+    grid: test_grid::TestGridParams,
 }
 
 impl Default for MakersDialog {
@@ -31,6 +33,7 @@ impl Default for MakersDialog {
             maze: maze::MazeParams::default(),
             solution: false,
             jigsaw: jigsaw::JigsawParams::default(),
+            grid: test_grid::TestGridParams::default(),
         }
     }
 }
@@ -60,6 +63,8 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 ui.selectable_value(&mut dialog.kind, Kind::Box, tr("makers.box"));
                 ui.selectable_value(&mut dialog.kind, Kind::Maze, tr("makers.maze"));
                 ui.selectable_value(&mut dialog.kind, Kind::Jigsaw, tr("makers.jigsaw"));
+                ui.selectable_value(&mut dialog.kind, Kind::TestGrid, tr("makers.test_grid"))
+                    .on_hover_text(tr("makers.test_grid_hint"));
             });
             ui.separator();
             egui::Grid::new("makers-grid")
@@ -132,6 +137,50 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                         }
                         ui.end_row();
                     }
+                    Kind::TestGrid => {
+                        let params = &mut dialog.grid;
+                        ui.label(tr("makers.grid_power"));
+                        ui.horizontal(|ui| {
+                            ui.add(
+                                DragValue::new(&mut params.power.0)
+                                    .range(1.0..=100.0)
+                                    .suffix(" %"),
+                            );
+                            ui.label("-");
+                            ui.add(
+                                DragValue::new(&mut params.power.1)
+                                    .range(1.0..=100.0)
+                                    .suffix(" %"),
+                            );
+                            ui.add(DragValue::new(&mut params.rows).range(1..=20).prefix("x "));
+                        });
+                        ui.end_row();
+                        ui.label(tr("makers.grid_speed"));
+                        ui.horizontal(|ui| {
+                            ui.add(
+                                DragValue::new(&mut params.speed.0)
+                                    .range(10.0..=60_000.0)
+                                    .suffix(" mm/min")
+                                    .speed(10.0),
+                            );
+                            ui.label("-");
+                            ui.add(
+                                DragValue::new(&mut params.speed.1)
+                                    .range(10.0..=60_000.0)
+                                    .suffix(" mm/min")
+                                    .speed(10.0),
+                            );
+                            ui.add(
+                                DragValue::new(&mut params.columns)
+                                    .range(1..=20)
+                                    .prefix("x "),
+                            );
+                        });
+                        ui.end_row();
+                        ui.label(tr("makers.cell"));
+                        millimetres(ui, &mut params.cell, 2.0..=50.0);
+                        ui.end_row();
+                    }
                     Kind::Jigsaw => {
                         let params = &mut dialog.jigsaw;
                         ui.label(tr("makers.size"));
@@ -184,6 +233,10 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 tr("makers.jigsaw").to_owned(),
                 jigsaw::generate(&dialog.jigsaw),
             )),
+            Kind::TestGrid => {
+                create_test_grid(app, &dialog.grid);
+                return;
+            }
         }
         app.begin_edit("history.add");
         app.selection.clear();
@@ -197,4 +250,99 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     } else if !open {
         app.makers = None;
     }
+}
+
+/// One fill layer per square with its own power and speed, labels
+/// engraved lightly next to the rows and above the columns.
+fn create_test_grid(app: &mut MyApp, params: &test_grid::TestGridParams) {
+    use mml_core::layer::{FillParams, Layer, LineParams, Operation};
+    let cells = test_grid::cells(params);
+    app.begin_edit("history.add");
+    app.selection.clear();
+    let family = mml_io::hershey_families()
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    let labels = Layer::new(
+        tr("makers.grid_labels"),
+        app.document.next_layer_color(),
+        Operation::LaserLine(LineParams {
+            power: 20.0,
+            speed: 1500.0,
+            ..LineParams::default()
+        }),
+    );
+    let label_layer = labels.id;
+    app.document.layers.push(labels);
+    let size = (params.cell * 0.35).clamp(2.0, 5.0);
+    let add_label = |app: &mut MyApp, text: &str, x: f64, y: f64, right: bool| {
+        let mut paths = mml_io::hershey_text(text, &family, size, 1.2);
+        let bounds = paths
+            .iter()
+            .fold(mml_core::geometry::Rect::EMPTY, |rect, path| {
+                rect.union(path.bounds())
+            });
+        let dx = if right {
+            x - bounds.max.x
+        } else {
+            x - (bounds.min.x + bounds.max.x) / 2.0
+        };
+        for point in paths.iter_mut().flat_map(|path| path.points.iter_mut()) {
+            point.x += dx;
+            point.y += y - bounds.min.y;
+        }
+        let shape = Shape::new(text.to_owned(), label_layer, ShapeKind::Paths { paths });
+        app.selection.push(shape.id);
+        app.document.shapes.push(shape);
+    };
+    let pitch = params.cell + params.gap;
+    for row in 0..params.rows.max(1) {
+        let power = cells[row * params.columns.max(1)].power;
+        add_label(
+            app,
+            &format!("{power:.0}%"),
+            -params.gap,
+            row as f64 * pitch + params.cell / 3.0,
+            true,
+        );
+    }
+    for column in 0..params.columns.max(1) {
+        let speed = cells[column].speed;
+        let top = params.rows.max(1) as f64 * pitch;
+        add_label(
+            app,
+            &format!("{speed:.0}"),
+            column as f64 * pitch + params.cell / 2.0,
+            top,
+            false,
+        );
+    }
+    for cell in cells {
+        let layer = Layer::new(
+            format!("{:.0}% · {:.0} mm/min", cell.power, cell.speed),
+            app.document.next_layer_color(),
+            Operation::LaserFill(FillParams {
+                power: cell.power,
+                speed: cell.speed,
+                ..FillParams::default()
+            }),
+        );
+        let layer_id = layer.id;
+        app.document.layers.push(layer);
+        let shape = Shape::new(
+            layer_name_of(&cell),
+            layer_id,
+            ShapeKind::Paths {
+                paths: vec![cell.square],
+            },
+        );
+        app.selection.push(shape.id);
+        app.document.shapes.push(shape);
+    }
+    app.end_edit();
+    app.canvas.request_fit();
+}
+
+fn layer_name_of(cell: &test_grid::TestCell) -> String {
+    format!("{:.0}% {:.0}", cell.power, cell.speed)
 }
