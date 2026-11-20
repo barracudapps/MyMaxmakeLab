@@ -35,6 +35,9 @@ pub struct MachineProfile {
     /// Laser jobs run from the current head position instead of the
     /// machine origin.
     pub relative_to_current: bool,
+    /// Automatic tool changer: CNC layers load their tool with `M6 T…`
+    /// instead of pausing for the operator.
+    pub tool_changer: bool,
 }
 
 impl Default for MachineProfile {
@@ -58,6 +61,7 @@ impl MachineProfile {
             end_gcode: String::new(),
             safe_z: 5.0,
             relative_to_current: false,
+            tool_changer: false,
         }
     }
 
@@ -86,11 +90,26 @@ impl MachineProfile {
         }
     }
 
+    /// Makera Carvera: Smoothieware based, 6-slot tool changer that
+    /// also measures each tool, connected over Wi-Fi (port 2222) or USB.
+    pub fn makera_carvera() -> Self {
+        Self {
+            name: "Makera Carvera".into(),
+            width: 300.0,
+            height: 200.0,
+            z_travel: 140.0,
+            max_s: 15000.0,
+            tool_changer: true,
+            ..Self::generic_cnc()
+        }
+    }
+
     pub fn presets() -> Vec<MachineProfile> {
         vec![
             Self::generic_laser(),
             Self::generic_cnc(),
             Self::generic_hybrid(),
+            Self::makera_carvera(),
         ]
     }
 }

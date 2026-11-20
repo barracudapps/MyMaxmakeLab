@@ -208,6 +208,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     let mut head = anchor.unwrap_or_default();
 
     let mut previous_family: Option<bool> = None;
+    let mut loaded_tool: Option<u32> = None;
     for layer in document
         .layers
         .iter()
@@ -241,6 +242,18 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             });
         }
         previous_family = Some(is_laser);
+        if machine.tool_changer
+            && !is_laser
+            && let Some(tool) = layer.tool
+            && loaded_tool != Some(tool)
+        {
+            // The firmware fetches and measures the tool, then returns.
+            writer.tool_off();
+            writer.rapid_z(machine.safe_z);
+            writer.comment(&format!("Tool {tool} for layer {name}"));
+            writer.raw(&format!("M6 T{tool}"));
+            loaded_tool = Some(tool);
+        }
         match (&layer.operation, machine.kind) {
             (operation, MachineKind::Laser) if !operation.is_laser() => {
                 warnings.push(JobWarning::CncOnLaser(name.clone()))
@@ -500,6 +513,40 @@ mod tests {
         assert!(job.gcode.find("; Layer Mill").unwrap() < pause_at);
         assert!(pause_at < job.gcode.find("; Layer Cut").unwrap());
         let _ = laser_layer;
+    }
+
+    #[test]
+    fn a_tool_changer_loads_each_layer_tool_without_pausing() {
+        let (mut document, first) = document_with_square(50.0);
+        document.layers[0].operation = Operation::CncProfile(CncProfileParams::default());
+        document.layers[0].tool = Some(2);
+        let mut second = Layer::new(
+            "Finish",
+            [0, 0, 0],
+            Operation::CncProfile(CncProfileParams::default()),
+        );
+        second.tool = Some(5);
+        let second_id = second.id;
+        document.layers.push(second);
+        let mut copy = document.shapes[0].clone();
+        copy.id = ShapeId::new();
+        copy.layer = second_id;
+        document.shapes.push(copy);
+        let job = build_job(&document, &MachineProfile::makera_carvera());
+        assert!(job.pauses.is_empty());
+        let t2 = job.gcode.find("M6 T2").unwrap();
+        let t5 = job.gcode.find("M6 T5").unwrap();
+        assert!(t2 < job.gcode.find("; Layer Finish").unwrap() && t5 > t2);
+        assert!(!job.gcode.contains("M0\n"));
+        let after = &job.gcode[t5..];
+        let spindle = after.find("M3").unwrap();
+        assert!(
+            spindle < after.find("G1").unwrap(),
+            "spindle restarts after the change"
+        );
+        let manual = build_job(&document, &MachineProfile::generic_cnc());
+        assert!(!manual.gcode.contains("M6"));
+        let _ = first;
     }
 
     #[test]

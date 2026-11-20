@@ -29,6 +29,10 @@ pub struct Layer {
     /// head; the job resumes from the machine button or the interface.
     #[serde(default)]
     pub pause_before: bool,
+    /// Tool changer slot loaded before this layer (`M6 T…`) on machines
+    /// that have one; ignored otherwise.
+    #[serde(default)]
+    pub tool: Option<u32>,
     pub operation: Operation,
 }
 
@@ -41,6 +45,7 @@ impl Layer {
             visible: true,
             output: true,
             pause_before: false,
+            tool: None,
             operation,
         }
     }
