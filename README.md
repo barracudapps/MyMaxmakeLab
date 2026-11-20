@@ -10,6 +10,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
 ![Tests](https://img.shields.io/badge/tests-84%20passing-34a870)
 ![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL-informational)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <img src="docs/images/design.png" alt="Design step" width="900">
 
@@ -251,6 +252,7 @@ sombre.
 ---
 
 <div align="center">
+MyMaxmakeLab is released under the <a href="LICENSE">MIT license</a>.<br>
 Fonts are redistributed under their own licenses, see
 <a href="crates/mml_io/fonts/LICENSES.md">LICENSES.md</a>.
 </div>
