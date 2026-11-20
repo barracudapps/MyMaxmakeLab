@@ -677,3 +677,9 @@ relief.stock = Stock
 relief.faces = Faces
 relief.indexed_setup = Y0 on the A axis, Z0 on top of the stock. Positive A must turn by the right-hand rule around X: check with a small jog first.
 relief.indexed_rough = Without roughing the tool plunges to full depth: keep roughing on for 4-axis faces.
+
+relief.stem = Holding stem
+relief.stem_hint = Kept along the axis so the part never comes loose from the chuck; cut it at the end. 0 only for parts that stay attached by themselves.
+relief.continuous = Continuous 4-axis finish
+relief.continuous_hint = The stock turns while cutting: the tool follows a helix around the part instead of finishing face by face. Smoother surface, no marks between faces. Fed in inverse time (G93).
+view.rotary = 4-axis program, drawn around the A axis at true scale

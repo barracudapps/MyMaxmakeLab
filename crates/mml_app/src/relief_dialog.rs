@@ -280,6 +280,19 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                         ui.selectable_value(&mut indexed.faces, faces, faces.to_string());
                     }
                 });
+                ui.horizontal(|ui| {
+                    ui.label(tr("relief.stem"))
+                        .on_hover_text(tr("relief.stem_hint"));
+                    ui.add(
+                        DragValue::new(&mut indexed.stem_diameter)
+                            .range(0.0..=indexed.stock_diameter)
+                            .prefix("Ø ")
+                            .suffix(" mm")
+                            .speed(0.1),
+                    );
+                });
+                ui.checkbox(&mut indexed.continuous_finish, tr("relief.continuous"))
+                    .on_hover_text(tr("relief.continuous_hint"));
                 ui.label(RichText::new(tr("relief.indexed_setup")).weak().small());
                 if !dialog.params.roughing {
                     ui.label(

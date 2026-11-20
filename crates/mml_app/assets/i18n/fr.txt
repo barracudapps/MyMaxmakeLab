@@ -709,3 +709,9 @@ relief.stock = Brut
 relief.faces = Faces
 relief.indexed_setup = Y0 sur l’axe A, Z0 sur le dessus du brut. Le sens positif de A doit suivre la règle de la main droite autour de X : vérifiez d’abord par un petit déplacement.
 relief.indexed_rough = Sans ébauche, l’outil plonge à pleine profondeur : gardez l’ébauche pour les faces 4 axes.
+
+relief.stem = Tige de maintien
+relief.stem_hint = Conservée le long de l’axe pour que la pièce ne se détache jamais du mandrin ; coupez-la à la fin. 0 seulement pour une pièce qui reste tenue d’elle-même.
+relief.continuous = Finition 4 axes continue
+relief.continuous_hint = Le brut tourne pendant la coupe : l’outil suit une hélice autour de la pièce au lieu de finir face par face. Surface plus lisse, sans marques entre les faces. Avance en temps inverse (G93).
+view.rotary = Programme 4 axes, dessiné autour de l’axe A à l’échelle réelle

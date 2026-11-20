@@ -1822,7 +1822,14 @@ impl MyApp {
                             ui.selectable_value(&mut toggle, false, "2D");
                             ui.selectable_value(&mut toggle, true, "3D")
                                 .on_hover_text(tr("view.3d_hint"));
-                            if toggle {
+                            let rotary = self
+                                .job
+                                .built
+                                .as_ref()
+                                .is_some_and(|built| built.program.uses_rotary);
+                            if rotary && toggle {
+                                ui.label(RichText::new(tr("view.rotary")).weak());
+                            } else if toggle {
                                 ui.add(
                                     egui::Slider::new(&mut self.view3d.z_scale, 1.0..=10.0)
                                         .text(tr("view.z_scale")),
