@@ -144,6 +144,55 @@ pub struct FillParams {
     /// so that the head reaches full speed before burning.
     pub overscan: f64,
     pub air_assist: bool,
+    pub pattern: FillPattern,
+}
+
+/// How a filled area is swept by the laser.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum FillPattern {
+    /// Parallel lines at `angle` (0 horizontal, 45 diagonal...).
+    #[default]
+    Lines,
+    /// Circles around the centre of the design, `interval` apart.
+    Circles,
+    /// Rings following the outline inwards, like contour lines.
+    Contours,
+}
+
+impl FillPattern {
+    pub const ALL: [FillPattern; 3] = [Self::Lines, Self::Circles, Self::Contours];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Lines => "op.pattern_lines",
+            Self::Circles => "op.pattern_circles",
+            Self::Contours => "op.pattern_contours",
+        }
+    }
+}
+
+/// Path the laser follows over a picture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ImagePattern {
+    #[default]
+    Lines,
+    /// Lines at 45°: hides the banding of some machines and gives a
+    /// different texture on wood grain.
+    Diagonal,
+    /// Circles around the centre of the picture (spiral-art look).
+    Circles,
+}
+
+impl ImagePattern {
+    pub const ALL: [ImagePattern; 3] = [Self::Lines, Self::Diagonal, Self::Circles];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Lines => "op.pattern_lines",
+            Self::Diagonal => "op.pattern_diagonal",
+            Self::Circles => "op.pattern_circles",
+        }
+    }
 }
 
 impl Default for FillParams {
@@ -158,6 +207,7 @@ impl Default for FillParams {
             crosshatch: false,
             overscan: 2.5,
             air_assist: false,
+            pattern: FillPattern::Lines,
         }
     }
 }
@@ -226,6 +276,7 @@ pub struct ImageParams {
     pub bidirectional: bool,
     pub overscan: f64,
     pub air_assist: bool,
+    pub pattern: ImagePattern,
 }
 
 impl Default for ImageParams {
@@ -244,6 +295,7 @@ impl Default for ImageParams {
             bidirectional: true,
             overscan: 2.5,
             air_assist: false,
+            pattern: ImagePattern::Lines,
         }
     }
 }
