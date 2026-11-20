@@ -843,3 +843,8 @@ relief.slices_done = {0} tranches disposées, numérotées depuis le bas
 bed.front = AVANT de la machine (côté opérateur)
 bed.back = ARRIÈRE
 bed.home = Origine machine
+
+relief.suggest = Suggérer la meilleure face vers le haut
+relief.suggest_hint = Compare les six façons de poser le modèle : part de la surface accessible à l’outil par le dessus, hauteur, assise à plat sur la table
+relief.pose = {0}. accessible {1} %, hauteur {2}, assise {3} %
+relief.apply_pose = Utiliser

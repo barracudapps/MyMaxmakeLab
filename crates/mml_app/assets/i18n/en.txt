@@ -811,3 +811,8 @@ relief.slices_done = {0} slices laid out, numbered from the bottom
 bed.front = FRONT of the machine (where you stand)
 bed.back = BACK
 bed.home = Home
+
+relief.suggest = Suggest the best side up
+relief.suggest_hint = Compares the six ways to lay the model: share of the surface the tool can reach from above, height, flat base on the table
+relief.pose = {0}. reachable {1} %, height {2}, flat base {3} %
+relief.apply_pose = Use

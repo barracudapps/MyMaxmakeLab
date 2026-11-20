@@ -25,6 +25,8 @@ pub struct ReliefDialog {
     pub mold: Option<MoldParams>,
     /// Sheet thickness for stacked slices.
     pub slice_thickness: f64,
+    /// Poses ranked by the orientation guide, best first.
+    pub poses: Vec<mml_relief::Pose>,
 }
 
 impl ReliefDialog {
@@ -45,6 +47,7 @@ impl ReliefDialog {
             positional: None,
             mold: None,
             slice_thickness: 3.0,
+            poses: Vec::new(),
         }
     }
 
@@ -127,9 +130,46 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                         let mut triangles = (*dialog.triangles).clone();
                         mml_relief::rotate_quarter(&mut triangles, axis);
                         dialog.triangles = Arc::new(triangles);
+                        dialog.poses.clear();
                     }
                 }
+                if ui
+                    .button(tr("relief.suggest"))
+                    .on_hover_text(tr("relief.suggest_hint"))
+                    .clicked()
+                {
+                    dialog.poses = mml_relief::rank_poses(&dialog.triangles);
+                }
             });
+            let mut chosen = None;
+            for (rank, pose) in dialog.poses.iter().take(3).enumerate() {
+                ui.horizontal(|ui| {
+                    let text = trf(
+                        "relief.pose",
+                        &[
+                            &(rank + 1),
+                            &format!("{:.0}", pose.reachable * 100.0),
+                            &format!("{:.0}", pose.height),
+                            &format!("{:.0}", pose.base * 100.0),
+                        ],
+                    );
+                    let label = if rank == 0 {
+                        RichText::new(text).color(crate::theme::SUCCESS)
+                    } else {
+                        RichText::new(text).weak()
+                    };
+                    ui.label(label);
+                    if ui.small_button(tr("relief.apply_pose")).clicked() {
+                        chosen = Some(pose.turns);
+                    }
+                });
+            }
+            if let Some(turns) = chosen {
+                let mut triangles = (*dialog.triangles).clone();
+                mml_relief::apply_pose(&mut triangles, turns);
+                dialog.triangles = Arc::new(triangles);
+                dialog.poses.clear();
+            }
             egui::Grid::new("relief-grid")
                 .num_columns(2)
                 .spacing([10.0, 5.0])
