@@ -84,6 +84,7 @@ pub struct JobState {
     pub frame_approved: Option<(u64, u64)>,
     pub frame_review: bool,
     pub checklist: Option<crate::workflow::Checklist>,
+    pub rotary: Option<mml_job::Rotary>,
     pub simulate: Option<f32>,
     pub simulating: bool,
     pub preview_line: Option<Option<usize>>,
@@ -210,6 +211,7 @@ impl MyApp {
                 frame_approved: None,
                 frame_review: false,
                 checklist: None,
+                rotary: None,
                 simulate: None,
                 simulating: false,
                 preview_line: None,
@@ -882,6 +884,7 @@ impl MyApp {
         mml_job::JobOptions {
             only: self.job.selection_only.then(|| self.selection.clone()),
             anchor,
+            rotary: self.job.rotary,
         }
     }
 

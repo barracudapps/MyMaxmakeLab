@@ -852,6 +852,7 @@ fn placement(app: &mut MyApp, ui: &mut egui::Ui) {
         ui.label(RichText::new(tr("place.head_hint")).weak().small());
     }
     app.set_placement(placement);
+    rotary(app, ui);
     let count = app.selection.len();
     let mut only = app.job.selection_only;
     let response = ui.add_enabled(
@@ -863,6 +864,99 @@ fn placement(app: &mut MyApp, ui: &mut egui::Ui) {
         .changed()
     {
         app.job.selection_only = only;
+        app.job.options_revision += 1;
+    }
+}
+
+/// Simplified 4-axis engraving: the design is drawn flat and wrapped
+/// around the cylinder.
+fn rotary(app: &mut MyApp, ui: &mut egui::Ui) {
+    use mml_job::Rotary;
+    let mut rotary = app.job.rotary;
+    ui.horizontal(|ui| {
+        ui.label(tr("rotary.title"));
+        let diameter = match rotary {
+            Some(Rotary::AxisA { diameter } | Rotary::ReplaceY { diameter, .. }) => diameter,
+            None => 60.0,
+        };
+        if ui
+            .selectable_label(rotary.is_none(), tr("rotary.off"))
+            .clicked()
+        {
+            rotary = None;
+        }
+        if ui
+            .selectable_label(
+                matches!(rotary, Some(Rotary::AxisA { .. })),
+                tr("rotary.axis_a"),
+            )
+            .on_hover_text(tr("rotary.axis_a_hint"))
+            .clicked()
+        {
+            rotary = Some(Rotary::AxisA { diameter });
+        }
+        if ui
+            .selectable_label(
+                matches!(rotary, Some(Rotary::ReplaceY { .. })),
+                tr("rotary.replace_y"),
+            )
+            .on_hover_text(tr("rotary.replace_y_hint"))
+            .clicked()
+        {
+            rotary = Some(Rotary::ReplaceY {
+                diameter,
+                y_per_rotation: 100.0,
+            });
+        }
+    });
+    match &mut rotary {
+        Some(Rotary::AxisA { diameter }) => {
+            ui.horizontal(|ui| {
+                ui.label(tr("rotary.diameter"));
+                ui.add(
+                    DragValue::new(diameter)
+                        .range(1.0..=500.0)
+                        .suffix(" mm")
+                        .speed(0.1),
+                );
+            });
+        }
+        Some(Rotary::ReplaceY {
+            diameter,
+            y_per_rotation,
+        }) => {
+            ui.horizontal(|ui| {
+                ui.label(tr("rotary.diameter"));
+                ui.add(
+                    DragValue::new(diameter)
+                        .range(1.0..=500.0)
+                        .suffix(" mm")
+                        .speed(0.1),
+                );
+                ui.label(tr("rotary.y_per_rotation"))
+                    .on_hover_text(tr("rotary.y_per_rotation_hint"));
+                ui.add(
+                    DragValue::new(y_per_rotation)
+                        .range(1.0..=5000.0)
+                        .suffix(" mm")
+                        .speed(0.5),
+                );
+            });
+        }
+        None => {}
+    }
+    if let Some(value) = rotary {
+        ui.label(
+            RichText::new(trf(
+                "rotary.circumference",
+                &[&format!("{:.1}", value.circumference())],
+            ))
+            .weak()
+            .small(),
+        );
+    }
+    if rotary != app.job.rotary {
+        app.job.rotary = rotary;
         app.job.options_revision += 1;
     }
 }

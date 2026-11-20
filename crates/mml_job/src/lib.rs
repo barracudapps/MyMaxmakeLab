@@ -31,6 +31,70 @@ pub enum PauseReason {
     NextFile { name: String },
 }
 
+/// Engraving around a cylinder. The design is drawn flat: its height
+/// is the unrolled circumference, `π × diameter`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Rotary {
+    /// Chuck on a real A axis configured in degrees (grblHAL, 4-axis
+    /// boards): Y lengths become A angles.
+    AxisA { diameter: f64 },
+    /// Rotary plugged in place of the Y motor (rollers or chuck): Y
+    /// lengths are scaled so that one turn of the object equals
+    /// `y_per_rotation` controller millimetres (found by calibration).
+    ReplaceY { diameter: f64, y_per_rotation: f64 },
+}
+
+impl Rotary {
+    pub fn circumference(&self) -> f64 {
+        let diameter = match self {
+            Self::AxisA { diameter } | Self::ReplaceY { diameter, .. } => *diameter,
+        };
+        std::f64::consts::PI * diameter.max(0.1)
+    }
+}
+
+/// Rewrites the Y words of a program for a rotary attachment.
+pub fn wrap_rotary(gcode: &str, rotary: Rotary) -> String {
+    let circumference = rotary.circumference();
+    let (letter, factor) = match rotary {
+        Rotary::AxisA { .. } => ('A', 360.0 / circumference),
+        Rotary::ReplaceY { y_per_rotation, .. } => ('Y', y_per_rotation / circumference),
+    };
+    let mut out = String::with_capacity(gcode.len() + gcode.len() / 8);
+    for line in gcode.lines() {
+        let (code, comment) = match line.find(';') {
+            Some(index) => line.split_at(index),
+            None => (line, ""),
+        };
+        let mut chars = code.chars().peekable();
+        while let Some(character) = chars.next() {
+            if character == 'Y' || character == 'y' {
+                let mut number = String::new();
+                while let Some(&next) = chars.peek() {
+                    if next.is_ascii_digit() || next == '.' || next == '-' || next == '+' {
+                        number.push(next);
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
+                match number.parse::<f64>() {
+                    Ok(value) => out.push_str(&format!("{letter}{:.3}", value * factor)),
+                    Err(_) => {
+                        out.push(character);
+                        out.push_str(&number);
+                    }
+                }
+            } else {
+                out.push(character);
+            }
+        }
+        out.push_str(comment);
+        out.push('\n');
+    }
+    out
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct JobOptions {
     /// Only these shapes are output (partial engraving of large pieces).
@@ -38,6 +102,7 @@ pub struct JobOptions {
     /// Design point that the head currently marks; the job then runs
     /// relative to the head position. Overrides the machine setting.
     pub anchor: Option<Point>,
+    pub rotary: Option<Rotary>,
 }
 
 #[derive(Debug, Clone)]
@@ -105,8 +170,10 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             anchor,
         };
     }
-    let machine_area =
-        Rect::from_points(Point::default(), Point::new(machine.width, machine.height));
+    let height = options.rotary.map_or(machine.height, |rotary| {
+        rotary.circumference().max(bounds.max.y)
+    });
+    let machine_area = Rect::from_points(Point::default(), Point::new(machine.width, height));
     if anchor.is_none() && !(machine_area.contains(bounds.min) && machine_area.contains(bounds.max))
     {
         warnings.push(JobWarning::OutOfBounds);
@@ -232,8 +299,12 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         writer.rapid(0.0, 0.0);
     }
     writer.program_end();
+    let gcode = match options.rotary {
+        Some(rotary) => wrap_rotary(&writer.finish(), rotary),
+        None => writer.finish(),
+    };
     Job {
-        gcode: writer.finish(),
+        gcode,
         bounds,
         warnings,
         pauses,
@@ -420,6 +491,24 @@ mod tests {
         assert!(job.gcode.find("; Layer Mill").unwrap() < pause_at);
         assert!(pause_at < job.gcode.find("; Layer Cut").unwrap());
         let _ = laser_layer;
+    }
+
+    #[test]
+    fn rotary_turns_y_lengths_into_angles_or_scaled_y() {
+        let diameter = 360.0 / std::f64::consts::PI;
+        let chuck = wrap_rotary(
+            "G1X1Y10F600 ; Y in comment\nG0 Y-5",
+            Rotary::AxisA { diameter },
+        );
+        assert_eq!(chuck, "G1X1A10.000F600 ; Y in comment\nG0 A-5.000\n");
+        let rollers = wrap_rotary(
+            "G1 Y180",
+            Rotary::ReplaceY {
+                diameter,
+                y_per_rotation: 100.0,
+            },
+        );
+        assert_eq!(rollers, "G1 Y50.000\n");
     }
 
     #[test]
