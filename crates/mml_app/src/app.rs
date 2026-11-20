@@ -356,6 +356,20 @@ impl MyApp {
                 }
                 "--3d" => self.view3d.enabled = true,
                 "--stats" => self.stats_open = true,
+                // Opens a window at start (documentation screenshots).
+                "--open" => match iterator.next().as_deref() {
+                    Some("stats") => self.stats_open = true,
+                    Some("fleet") => self.fleet.open = true,
+                    Some("makers") => self.makers = Some(Default::default()),
+                    Some("ornament") => self.ornament = Some(Default::default()),
+                    Some("sprue") => self.sprue = Some(Default::default()),
+                    Some("tools") => self.tools_open = true,
+                    Some("preferences") => self.settings_open = true,
+                    Some("camera") => self.camera.open = true,
+                    Some("pairing") => self.pairing.open = true,
+                    Some("firmware") => self.firmware.open = true,
+                    _ => {}
+                },
                 "--orbit" => {
                     self.view3d.enabled = true;
                     self.view3d.orbit = true;
