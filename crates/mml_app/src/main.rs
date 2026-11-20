@@ -6,6 +6,8 @@ mod canvas;
 mod i18n;
 mod icons;
 mod machine_panel;
+mod pairing;
+mod pairing_dialog;
 mod panels;
 mod preview;
 mod relief_dialog;

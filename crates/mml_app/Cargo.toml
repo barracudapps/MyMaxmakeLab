@@ -28,3 +28,4 @@ directories = "6"
 sys-locale = "0.3"
 mml_probe = { version = "0.1.0", path = "../mml_probe" }
 mml_relief = { version = "0.1.0", path = "../mml_relief" }
+qrcode = { version = "0.14", default-features = false }

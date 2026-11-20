@@ -189,6 +189,7 @@ pub struct MyApp {
     pub tabs: Vec<Option<ProjectTab>>,
     pub active_tab: usize,
     pub closing_tab: Option<usize>,
+    pub pairing: crate::pairing_dialog::PairingState,
 }
 
 impl MyApp {
@@ -275,6 +276,7 @@ impl MyApp {
             tabs: vec![None],
             active_tab: 0,
             closing_tab: None,
+            pairing: Default::default(),
         };
         if let Some(fonts) = crate::settings::fonts_dir().filter(|directory| directory.is_dir()) {
             mml_io::add_font_directory(&fonts);
@@ -1525,6 +1527,9 @@ impl MyApp {
                     if ui.button(tr("menu.open_sequence")).clicked() {
                         self.open_sequence_dialog();
                     }
+                    if ui.button(tr("pairing.title")).clicked() {
+                        self.pairing.open = true;
+                    }
                     if ui.button(tr("menu.relief")).clicked()
                         && let Some(path) = rfd::FileDialog::new()
                             .add_filter("3D", &["stl", "obj"])
@@ -1922,6 +1927,7 @@ impl eframe::App for MyApp {
         self.process_machine_events();
         self.refresh_live_links();
         crate::workflow::process_finished(self);
+        crate::pairing_dialog::poll(self);
         self.handle_dropped_files(&ctx);
         self.shortcuts(&ctx);
         self.maintain_job(&ctx);
@@ -1974,7 +1980,11 @@ impl eframe::App for MyApp {
         self.central(ui);
         crate::panels::dialogs(self, &ctx);
         self.notices(&ctx);
-        if self.device.is_connected() || self.job.building.is_some() || self.job.simulating {
+        if self.device.is_connected()
+            || self.job.building.is_some()
+            || self.job.simulating
+            || self.pairing.server.is_some()
+        {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
     }

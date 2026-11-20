@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>MyMaxmakeLab · Draw</title>
+<style>
+  :root { --bg: #1e1f25; --card: #26272e; --text: #e8e6ec; --accent: #7c6cf2; --muted: #96949f; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f6f4f0; --card: #fff; --text: #2b2a28; --muted: #76726c; } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px -apple-system, system-ui, sans-serif; }
+  header { display: flex; gap: 8px; align-items: center; padding: 10px 12px; flex-wrap: wrap; }
+  header b { margin-right: auto; }
+  button { border: 0; border-radius: 18px; padding: 9px 16px; background: var(--card); color: var(--text); font: inherit; }
+  button.primary { background: var(--accent); color: #fff; }
+  #wrap { position: relative; margin: 0 12px 12px; border-radius: 14px; overflow: hidden; background: #fff; touch-action: none; }
+  #design, #pad { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #design { opacity: .45; pointer-events: none; }
+  #status { color: var(--muted); font-size: 13px; padding: 0 12px 8px; }
+</style>
+</head>
+<body>
+<header>
+  <b>MyMaxmakeLab</b>
+  <label><input id="pen" type="range" min="1" max="12" value="3"> pen</label>
+  <button id="undo">Undo</button>
+  <button id="clear">Clear</button>
+  <button id="send" class="primary">Send</button>
+</header>
+<div id="status">Draw with your finger or stylus. Strokes go to the computer when you press Send (or at once with Live).</div>
+<label style="padding:0 12px"><input id="live" type="checkbox" checked> Live</label>
+<div id="wrap"><img id="design" alt=""><canvas id="pad"></canvas></div>
+<script>
+const token = new URLSearchParams(location.search).get("t") || "";
+const wrap = document.getElementById("wrap"), pad = document.getElementById("pad"), ctx = pad.getContext("2d");
+const design = document.getElementById("design"), status = document.getElementById("status");
+let strokes = [], current = null, area = { width: 100, height: 100 };
+function layout() {
+  const width = window.innerWidth - 24, height = window.innerHeight - wrap.getBoundingClientRect().top - 12;
+  const ratio = area.width / area.height;
+  let w = width, h = width / ratio;
+  if (h > height) { h = height; w = h * ratio; }
+  wrap.style.width = w + "px"; wrap.style.height = h + "px";
+  pad.width = w * devicePixelRatio; pad.height = h * devicePixelRatio;
+  redraw();
+}
+function toMm(event) {
+  const rect = pad.getBoundingClientRect();
+  return [ (event.clientX - rect.left) / rect.width * area.width, (1 - (event.clientY - rect.top) / rect.height) * area.height,
+           event.pressure || 0.5 ];
+}
+function redraw() {
+  ctx.clearRect(0, 0, pad.width, pad.height);
+  ctx.strokeStyle = "#7c6cf2"; ctx.lineCap = ctx.lineJoin = "round";
+  for (const stroke of strokes.concat(current ? [current] : [])) {
+    ctx.lineWidth = stroke.width * devicePixelRatio;
+    ctx.beginPath();
+    stroke.points.forEach(([x, y], index) => {
+      const px = x / area.width * pad.width, py = (1 - y / area.height) * pad.height;
+      index ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    });
+    ctx.stroke();
+  }
+}
+pad.addEventListener("pointerdown", event => { pad.setPointerCapture(event.pointerId); current = { width: +document.getElementById("pen").value, points: [toMm(event)], sent: false }; });
+pad.addEventListener("pointermove", event => { if (!current) return; for (const e of event.getCoalescedEvents ? event.getCoalescedEvents() : [event]) current.points.push(toMm(e)); redraw(); });
+pad.addEventListener("pointerup", () => { if (!current) return; strokes.push(current); current = null; redraw(); if (document.getElementById("live").checked) send(); });
+document.getElementById("undo").onclick = () => { strokes.pop(); redraw(); };
+document.getElementById("clear").onclick = () => { strokes = []; redraw(); };
+document.getElementById("send").onclick = send;
+async function send() {
+  const pending = strokes.filter(stroke => !stroke.sent);
+  if (!pending.length) return;
+  const response = await fetch("/strokes?t=" + token, { method: "POST", body: JSON.stringify({ strokes: pending.map(stroke => stroke.points.map(([x, y]) => [x, y])) }) });
+  if (response.ok) { pending.forEach(stroke => stroke.sent = true); status.textContent = pending.length + " stroke(s) sent"; }
+  else status.textContent = "Not accepted (" + response.status + ")";
+}
+async function refresh() {
+  try {
+    const info = await (await fetch("/area?t=" + token)).json();
+    if (info.width !== area.width || info.height !== area.height) { area = info; layout(); }
+    design.src = "/design.svg?t=" + token + "&v=" + Date.now();
+  } catch (error) { status.textContent = "Computer not reachable"; }
+}
+window.addEventListener("resize", layout);
+layout(); refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>

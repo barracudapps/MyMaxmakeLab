@@ -225,7 +225,7 @@ body): `git log` is the technical changelog. See
 - [x] Laser line / fill / image, CNC profile / pocket / V-carve / relief
 - [x] Live safety monitor, probe, surface following, rotary
 - [x] Assistant, tool library with Fusion import, G-code repair
-- [ ] Pairing with a tablet or phone drawing on a shared canvas
+- [x] Pairing with a tablet or phone drawing on a shared canvas (local web page, QR code)
 - [ ] Camera overlay and movement consistency check (webcam, phone, Insta360, GoPro)
 - [ ] Native protocols for non-GRBL machines (Makera Carvera, Smoothieware)
 - [ ] Firmware update per vendor protocol
