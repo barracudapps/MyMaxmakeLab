@@ -621,3 +621,7 @@ camera.fetch_failed = L’image de la caméra n’a pas pu être récupérée : 
 device.protocol_grbl = GRBL et grblHAL (HiMill, la plupart des lasers) : envoi le plus rapide
 device.protocol_other = Smoothieware / Carvera
 device.protocol_other_hint = Smoothieware, Makera Carvera et autres firmwares proches de GRBL : chaque ligne attend son acquittement. Les fonctions propres à la machine (changeur d’outils) ne sont pas encore gérées.
+relief.rotary = Enrouler sur le rotatif (axe A)
+relief.rotary_hint = Relief 4 axes : la longueur du modèle selon Y est enroulée autour d’un cylindre tournant sur l’axe A. Z0 est le dessus du cylindre.
+relief.one_turn = Un tour complet
+relief.one_turn_hint = Met le modèle à l’échelle pour que sa longueur couvre exactement un tour du cylindre

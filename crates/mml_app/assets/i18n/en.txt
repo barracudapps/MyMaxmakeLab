@@ -621,3 +621,7 @@ camera.fetch_failed = The camera picture could not be fetched: {0}
 device.protocol_grbl = GRBL and grblHAL (HiMill, most lasers): fastest streaming
 device.protocol_other = Smoothieware / Carvera
 device.protocol_other_hint = Smoothieware, Makera Carvera and other GRBL-like firmwares: each line waits for its acknowledgement. Machine specific features (tool changer) are not handled yet.
+relief.rotary = Wrap on the rotary (A axis)
+relief.rotary_hint = 4-axis relief: the length of the model along Y is wrapped around a cylinder turning on the A axis. Z0 is the top of the cylinder.
+relief.one_turn = One full turn
+relief.one_turn_hint = Scales the model so that its length covers exactly one turn of the cylinder

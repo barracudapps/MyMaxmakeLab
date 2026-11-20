@@ -13,6 +13,8 @@ pub struct ReliefDialog {
     pub triangles: Arc<Vec<Triangle>>,
     pub params: ReliefParams,
     pub computing: Option<Receiver<String>>,
+    /// Wraps the relief around a cylinder on an A axis (diameter, mm).
+    pub rotary_diameter: Option<f64>,
 }
 
 impl ReliefDialog {
@@ -28,6 +30,7 @@ impl ReliefDialog {
             triangles: Arc::new(triangles),
             params,
             computing: None,
+            rotary_diameter: None,
         }
     }
 
@@ -206,6 +209,34 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     );
                     ui.end_row();
                 });
+            let mut wrap = dialog.rotary_diameter.is_some();
+            ui.horizontal(|ui| {
+                if ui
+                    .checkbox(&mut wrap, tr("relief.rotary"))
+                    .on_hover_text(tr("relief.rotary_hint"))
+                    .changed()
+                {
+                    dialog.rotary_diameter = wrap.then_some(50.0);
+                }
+                if let Some(diameter) = &mut dialog.rotary_diameter {
+                    ui.add(
+                        DragValue::new(diameter)
+                            .range(5.0..=400.0)
+                            .prefix("Ø ")
+                            .suffix(" mm")
+                            .speed(0.5),
+                    );
+                    if ui
+                        .small_button(tr("relief.one_turn"))
+                        .on_hover_text(tr("relief.one_turn_hint"))
+                        .clicked()
+                    {
+                        let ratio = height / width.max(1e-6);
+                        dialog.params.width = std::f64::consts::PI * *diameter / ratio.max(1e-6);
+                        dialog.params.origin[1] = 0.0;
+                    }
+                }
+            });
             ui.label(RichText::new(tr("relief.hint")).weak().small());
             if dialog.computing.is_some() {
                 ui.horizontal(|ui| {
@@ -222,9 +253,17 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         let (sender, receiver) = channel();
         let triangles = dialog.triangles.clone();
         let params = dialog.params;
+        let rotary = dialog.rotary_diameter;
         let repaint = ctx.clone();
         std::thread::spawn(move || {
-            let _ = sender.send(mml_relief::relief_gcode(&triangles, &params));
+            let gcode = mml_relief::relief_gcode(&triangles, &params);
+            let gcode = match rotary {
+                // Y of the unrolled relief becomes the A angle; Z0 is the
+                // top of the cylinder, which must sit on the A axis line.
+                Some(diameter) => mml_job::wrap_rotary(&gcode, mml_job::Rotary::AxisA { diameter }),
+                None => gcode,
+            };
+            let _ = sender.send(gcode);
             repaint.request_repaint();
         });
         dialog.computing = Some(receiver);
