@@ -618,3 +618,6 @@ camera.back_left = back left of the bed
 camera.calibrated = Calibrated: the picture is shown on the canvas.
 camera.recalibrate = Calibrate again
 camera.fetch_failed = The camera picture could not be fetched: {0}
+device.protocol_grbl = GRBL and grblHAL (HiMill, most lasers): fastest streaming
+device.protocol_other = Smoothieware / Carvera
+device.protocol_other_hint = Smoothieware, Makera Carvera and other GRBL-like firmwares: each line waits for its acknowledgement. Machine specific features (tool changer) are not handled yet.

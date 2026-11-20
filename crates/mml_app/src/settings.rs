@@ -19,6 +19,7 @@ pub struct SavedConnection {
     pub baud: u32,
     pub host: String,
     pub tcp_port: u16,
+    pub protocol: mml_device::Protocol,
 }
 
 impl Default for SavedConnection {
@@ -29,6 +30,7 @@ impl Default for SavedConnection {
             baud: 115_200,
             host: "192.168.4.1".into(),
             tcp_port: 23,
+            protocol: mml_device::Protocol::Grbl,
         }
     }
 }

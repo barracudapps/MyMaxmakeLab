@@ -14,6 +14,18 @@ const STATUS_PERIOD: Duration = Duration::from_millis(200);
 const STOP_TIMEOUT: Duration = Duration::from_secs(3);
 const STATUS_TIMEOUT: Duration = Duration::from_millis(1500);
 
+/// How lines are paced to the controller.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum Protocol {
+    /// GRBL and grblHAL: character counting on the receive buffer.
+    #[default]
+    Grbl,
+    /// Smoothieware, Makera Carvera and other GRBL-like firmwares: each
+    /// line waits for its `ok`, the safe choice when the buffer size
+    /// is unknown.
+    SendAndWait,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Connection {
     Serial {
@@ -46,6 +58,7 @@ pub enum Command {
         lines: Vec<String>,
         guard: Option<JobGuard>,
     },
+    SetProtocol(Protocol),
     /// Feed hold and immediate reset. The position may be lost (alarm 3
     /// when moving) but everything stops at once. Software only: a
     /// physical emergency stop that cuts power remains mandatory.
@@ -170,11 +183,27 @@ pub struct Controller {
     commands: Sender<Command>,
     events: Receiver<Event>,
     thread: Option<JoinHandle<()>>,
+    pub protocol: Protocol,
 }
 
 impl Controller {
     pub fn connect(connection: Connection) -> Self {
-        Self::spawn(move || open(&connection))
+        Self::connect_with(connection, Protocol::Grbl)
+    }
+
+    #[cfg(test)]
+    fn connect_with_transport(transport: Box<dyn Transport>, protocol: Protocol) -> Self {
+        let mut controller = Self::spawn(move || Ok(transport));
+        controller.send(Command::SetProtocol(protocol));
+        controller.protocol = protocol;
+        controller
+    }
+
+    pub fn connect_with(connection: Connection, protocol: Protocol) -> Self {
+        let mut controller = Self::spawn(move || open(&connection));
+        controller.send(Command::SetProtocol(protocol));
+        controller.protocol = protocol;
+        controller
     }
 
     /// Runs the protocol over any transport; used by tests with a
@@ -204,6 +233,7 @@ impl Controller {
             commands: command_sender,
             events: event_receiver,
             thread: Some(thread),
+            protocol: Protocol::Grbl,
         }
     }
 
@@ -255,6 +285,7 @@ struct Worker {
     last_status: Instant,
     monitor: SafetyMonitor,
     homing_since: Option<Instant>,
+    protocol: Protocol,
 }
 
 impl Worker {
@@ -278,6 +309,7 @@ impl Worker {
             last_status: Instant::now(),
             monitor: SafetyMonitor::default(),
             homing_since: None,
+            protocol: Protocol::Grbl,
         }
     }
 
@@ -364,6 +396,7 @@ impl Worker {
                 self.realtime(realtime::FEED_HOLD)?;
                 self.stopping = Some(Instant::now());
             }
+            Command::SetProtocol(protocol) => self.protocol = protocol,
             Command::Disconnect => {}
         }
         Ok(())
@@ -467,7 +500,11 @@ impl Worker {
         }
         while let Some((line, _)) = self.queue.front() {
             let size = line.len() + 1;
-            if self.buffered + size > RX_BUFFER && !self.in_flight.is_empty() {
+            let full = match self.protocol {
+                Protocol::Grbl => self.buffered + size > RX_BUFFER,
+                Protocol::SendAndWait => true,
+            };
+            if full && !self.in_flight.is_empty() {
                 break;
             }
             let (line, origin) = self.queue.pop_front().unwrap();
@@ -743,6 +780,28 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn send_and_wait_keeps_a_single_line_in_flight() {
+        let grbl = FakeGrbl::default();
+        let received = grbl.received.clone();
+        let controller = Controller::connect_with_transport(Box::new(grbl), Protocol::SendAndWait);
+        controller.send(Command::StartJob {
+            lines: (0..50).map(|index| format!("G1 X{index}")).collect(),
+            guard: None,
+        });
+        let events = wait_for(&controller, |event| {
+            matches!(event, Event::JobFinished { .. })
+        });
+        assert!(matches!(
+            events.last(),
+            Some(Event::JobFinished {
+                outcome: JobOutcome::Completed,
+                ..
+            })
+        ));
+        assert_eq!(received.lock().unwrap().len(), 50);
     }
 
     #[test]

@@ -618,3 +618,6 @@ camera.back_left = arrière gauche du plateau
 camera.calibrated = Calibré : l’image est affichée sur le canevas.
 camera.recalibrate = Recalibrer
 camera.fetch_failed = L’image de la caméra n’a pas pu être récupérée : {0}
+device.protocol_grbl = GRBL et grblHAL (HiMill, la plupart des lasers) : envoi le plus rapide
+device.protocol_other = Smoothieware / Carvera
+device.protocol_other_hint = Smoothieware, Makera Carvera et autres firmwares proches de GRBL : chaque ligne attend son acquittement. Les fonctions propres à la machine (changeur d’outils) ne sont pas encore gérées.

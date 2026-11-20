@@ -228,7 +228,8 @@ body): `git log` is the technical changelog. See
 - [x] Pairing with a tablet or phone drawing on a shared canvas (local web page, QR code)
 - [x] Camera overlay: photo or live snapshots (phone, IP camera, GoPro, Insta360 pictures), 4-corner calibration
 - [ ] Automatic movement consistency check by computer vision on the live camera
-- [ ] Native protocols for non-GRBL machines (Makera Carvera, Smoothieware)
+- [x] GRBL-like firmwares (Smoothieware, Makera Carvera): send-and-wait streaming, legacy status reports
+- [ ] Makera Carvera specifics (automatic tool changer, its Wi-Fi discovery), to validate on the machine
 - [ ] Firmware update per vendor protocol
 - [x] Single-line (Hershey) fonts for pen and V-bit
 - [ ] 4-axis reliefs and 5-axis machining with a kinematics model

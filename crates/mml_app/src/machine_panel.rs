@@ -56,6 +56,7 @@ pub struct DeviceState {
     pub baud: u32,
     pub host: String,
     pub tcp_port: u16,
+    pub protocol: mml_device::Protocol,
     last_preview: Instant,
     pub new_macro: Option<(String, String)>,
     /// Last anomaly and whether the job was paused for it.
@@ -91,6 +92,7 @@ impl DeviceState {
             baud: connection.baud,
             host: connection.host.clone(),
             tcp_port: connection.tcp_port,
+            protocol: connection.protocol,
             last_preview: Instant::now(),
             new_macro: None,
             anomaly: None,
@@ -110,6 +112,7 @@ impl DeviceState {
         settings.connection.baud = self.baud;
         settings.connection.host = self.host.clone();
         settings.connection.tcp_port = self.tcp_port;
+        settings.connection.protocol = self.protocol;
     }
 
     pub fn is_connected(&self) -> bool {
@@ -152,7 +155,7 @@ impl DeviceState {
             }
         };
         self.log(ConsoleKind::Info, trf("device.connecting", &[&connection]));
-        self.controller = Some(Controller::connect(connection));
+        self.controller = Some(Controller::connect_with(connection, self.protocol));
         self.connecting = true;
     }
 
@@ -406,6 +409,15 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         ui.selectable_value(&mut device.use_tcp, false, tr("device.usb"));
         ui.selectable_value(&mut device.use_tcp, true, tr("device.wifi"));
+        ui.separator();
+        ui.selectable_value(&mut device.protocol, mml_device::Protocol::Grbl, "GRBL")
+            .on_hover_text(tr("device.protocol_grbl"));
+        ui.selectable_value(
+            &mut device.protocol,
+            mml_device::Protocol::SendAndWait,
+            tr("device.protocol_other"),
+        )
+        .on_hover_text(tr("device.protocol_other_hint"));
     });
     if device.use_tcp {
         ui.horizontal(|ui| {

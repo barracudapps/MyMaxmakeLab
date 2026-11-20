@@ -68,8 +68,27 @@ impl MachineStatus {
 
 /// Parses `<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:...>`. GRBL sends the
 /// work offset only now and then, so the previous status provides it.
+/// Converts the comma separated report of GRBL 0.9, Smoothieware and the
+/// Makera Carvera (`<Idle,MPos:1,2,3,WPos:1,2,3>`) to the GRBL 1.1 form.
+fn normalise(body: &str) -> String {
+    if body.contains('|') {
+        return body.to_owned();
+    }
+    let mut fields: Vec<String> = Vec::new();
+    for token in body.split(',') {
+        match fields.last_mut() {
+            Some(field) if !token.contains(':') && field.contains(':') => {
+                field.push(',');
+                field.push_str(token);
+            }
+            _ => fields.push(token.to_owned()),
+        }
+    }
+    fields.join("|")
+}
+
 pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatus> {
-    let body = line.trim().strip_prefix('<')?.strip_suffix('>')?;
+    let body = normalise(line.trim().strip_prefix('<')?.strip_suffix('>')?);
     let mut fields = body.split('|');
     let state_text = fields.next()?;
     let state = match state_text {
@@ -141,7 +160,13 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
     }
     let offset = status.work_offset;
     match (machine, work) {
-        (Some(machine), _) => {
+        // Older firmwares report both: the offset follows from them.
+        (Some(machine), Some(work)) => {
+            status.machine_position = machine;
+            status.work_position = work;
+            status.work_offset = [0, 1, 2].map(|axis| machine[axis] - work[axis]);
+        }
+        (Some(machine), None) => {
             status.machine_position = machine;
             status.work_position = [0, 1, 2].map(|axis| machine[axis] - offset[axis]);
         }
@@ -173,6 +198,18 @@ mod tests {
         assert_eq!((second.feed, second.spindle), (1200.0, 800.0));
         assert_eq!(second.pins, "X");
         assert_eq!(second.active_limits(), "X");
+    }
+
+    #[test]
+    fn legacy_comma_reports_are_understood() {
+        let status = parse_status(
+            "<Run,MPos:10.000,20.000,-1.000,WPos:5.000,5.000,-1.000>",
+            &MachineStatus::default(),
+        )
+        .unwrap();
+        assert_eq!(status.state, MachineState::Run);
+        assert_eq!(status.machine_position, [10.0, 20.0, -1.0]);
+        assert_eq!(status.work_position, [5.0, 5.0, -1.0]);
     }
 
     #[test]
