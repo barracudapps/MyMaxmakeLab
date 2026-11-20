@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>MyMaxmakeLab</string>
+    <key>CFBundleDisplayName</key><string>MyMaxmakeLab</string>
+    <key>CFBundleIdentifier</key><string>io.github.barracudapps.mymaxmakelab</string>
+    <key>CFBundleExecutable</key><string>mymaxmakelab</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>@VERSION@</string>
+    <key>CFBundleVersion</key><string>@VERSION@</string>
+    <key>LSMinimumSystemVersion</key><string>11.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSCameraUsageDescription</key><string>Shows the bed under the design.</string>
+    <key>NSLocalNetworkUsageDescription</key><string>Finds and controls machines and tablets on the local network.</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key><string>MyMaxmakeLab project</string>
+            <key>CFBundleTypeExtensions</key><array><string>mml</string></array>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>G-code</string>
+            <key>CFBundleTypeExtensions</key><array><string>nc</string><string>gcode</string><string>gc</string></array>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+        </dict>
+    </array>
+</dict>
+</plist>

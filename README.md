@@ -177,6 +177,22 @@ flowchart TB
 
 ## Install
 
+Download the archive of your system from the
+[latest release](https://github.com/barracudapps/MyMaxmakeLab/releases/latest)
+(macOS universal `.app`, Linux, Windows). Installed copies update
+themselves: every production release is downloaded, checked against its
+SHA-256 and installed, and runs at next start (Help menu: check now, or
+turn it off).
+
+Publishing a release is pushing a version tag; CI tests, builds the three
+platforms and attaches the archives:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+From source:
+
 ```bash
 git clone https://github.com/barracudapps/MyMaxmakeLab.git
 cd MyMaxmakeLab
