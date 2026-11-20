@@ -4,7 +4,7 @@
 use crate::app::{BuiltJob, Level, Mode, MyApp};
 use crate::i18n::{tr, trf};
 use eframe::egui::{self, DragValue, RichText};
-use mml_relief::{ReliefParams, ToolShape, Triangle};
+use mml_relief::{IndexedParams, ReliefParams, ToolShape, Triangle};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, channel};
 
@@ -12,9 +12,11 @@ pub struct ReliefDialog {
     pub name: String,
     pub triangles: Arc<Vec<Triangle>>,
     pub params: ReliefParams,
-    pub computing: Option<Receiver<String>>,
+    pub computing: Option<Receiver<Result<String, String>>>,
     /// Wraps the relief around a cylinder on an A axis (diameter, mm).
     pub rotary_diameter: Option<f64>,
+    /// Machines the whole part from several angles on an A axis.
+    pub indexed: Option<IndexedParams>,
 }
 
 impl ReliefDialog {
@@ -31,6 +33,7 @@ impl ReliefDialog {
             params,
             computing: None,
             rotary_diameter: None,
+            indexed: None,
         }
     }
 
@@ -46,8 +49,16 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         return;
     };
     if let Some(receiver) = &dialog.computing
-        && let Ok(gcode) = receiver.try_recv()
+        && let Ok(result) = receiver.try_recv()
     {
+        let gcode = match result {
+            Ok(gcode) => gcode,
+            Err(error) => {
+                dialog.computing = None;
+                app.notify(error, Level::Error);
+                return;
+            }
+        };
         let name = dialog.name.clone();
         app.relief = None;
         let program = mml_gcode::parse(&gcode);
@@ -209,16 +220,33 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     );
                     ui.end_row();
                 });
-            let mut wrap = dialog.rotary_diameter.is_some();
             ui.horizontal(|ui| {
-                if ui
-                    .checkbox(&mut wrap, tr("relief.rotary"))
-                    .on_hover_text(tr("relief.rotary_hint"))
-                    .changed()
-                {
-                    dialog.rotary_diameter = wrap.then_some(50.0);
+                ui.label(tr("relief.axes"));
+                let flat = dialog.rotary_diameter.is_none() && dialog.indexed.is_none();
+                if ui.selectable_label(flat, tr("relief.flat_stock")).clicked() {
+                    dialog.rotary_diameter = None;
+                    dialog.indexed = None;
                 }
-                if let Some(diameter) = &mut dialog.rotary_diameter {
+                if ui
+                    .selectable_label(dialog.rotary_diameter.is_some(), tr("relief.rotary"))
+                    .on_hover_text(tr("relief.rotary_hint"))
+                    .clicked()
+                {
+                    dialog.rotary_diameter = Some(50.0);
+                    dialog.indexed = None;
+                }
+                if ui
+                    .selectable_label(dialog.indexed.is_some(), tr("relief.indexed"))
+                    .on_hover_text(tr("relief.indexed_hint"))
+                    .clicked()
+                {
+                    dialog.indexed = Some(IndexedParams::default());
+                    dialog.rotary_diameter = None;
+                    dialog.params.origin[1] = 0.0;
+                }
+            });
+            if let Some(diameter) = &mut dialog.rotary_diameter {
+                ui.horizontal(|ui| {
                     ui.add(
                         DragValue::new(diameter)
                             .range(5.0..=400.0)
@@ -235,8 +263,30 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                         dialog.params.width = std::f64::consts::PI * *diameter / ratio.max(1e-6);
                         dialog.params.origin[1] = 0.0;
                     }
+                });
+            }
+            if let Some(indexed) = &mut dialog.indexed {
+                ui.horizontal(|ui| {
+                    ui.label(tr("relief.stock"));
+                    ui.add(
+                        DragValue::new(&mut indexed.stock_diameter)
+                            .range(5.0..=400.0)
+                            .prefix("Ø ")
+                            .suffix(" mm")
+                            .speed(0.5),
+                    );
+                    ui.label(tr("relief.faces"));
+                    for faces in [2, 3, 4, 6, 8] {
+                        ui.selectable_value(&mut indexed.faces, faces, faces.to_string());
+                    }
+                });
+                ui.label(RichText::new(tr("relief.indexed_setup")).weak().small());
+                if !dialog.params.roughing {
+                    ui.label(
+                        RichText::new(tr("relief.indexed_rough")).color(crate::theme::WARNING),
+                    );
                 }
-            });
+            }
             ui.label(RichText::new(tr("relief.hint")).weak().small());
             if dialog.computing.is_some() {
                 ui.horizontal(|ui| {
@@ -254,8 +304,17 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         let triangles = dialog.triangles.clone();
         let params = dialog.params;
         let rotary = dialog.rotary_diameter;
+        let indexed = dialog.indexed;
         let repaint = ctx.clone();
         std::thread::spawn(move || {
+            if let Some(indexed) = indexed {
+                let _ = sender.send(
+                    mml_relief::indexed_gcode(&triangles, &params, &indexed)
+                        .map_err(|error| error.to_string()),
+                );
+                repaint.request_repaint();
+                return;
+            }
             let gcode = mml_relief::relief_gcode(&triangles, &params);
             let gcode = match rotary {
                 // Y of the unrolled relief becomes the A angle; Z0 is the
@@ -263,7 +322,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 Some(diameter) => mml_job::wrap_rotary(&gcode, mml_job::Rotary::AxisA { diameter }),
                 None => gcode,
             };
-            let _ = sender.send(gcode);
+            let _ = sender.send(Ok(gcode));
             repaint.request_repaint();
         });
         dialog.computing = Some(receiver);
