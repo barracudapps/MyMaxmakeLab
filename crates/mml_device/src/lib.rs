@@ -2,6 +2,7 @@
 //! user interface talks to it through channels and never blocks.
 
 mod controller;
+pub mod discovery;
 mod messages;
 pub mod safety;
 mod status;
@@ -9,7 +10,7 @@ mod status;
 pub use controller::{
     Command, Connection, Controller, Event, JobOutcome, Protocol, list_serial_ports,
 };
-pub use messages::{alarm_message, error_message};
+pub use messages::{alarm_message, error_message, halt_message};
 pub use safety::{Anomaly, JobGuard, travel_violations};
 pub use status::{MachineState, MachineStatus, parse_status};
 

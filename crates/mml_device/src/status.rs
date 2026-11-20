@@ -54,6 +54,11 @@ pub struct MachineStatus {
     /// Machine position of the 4th (rotary) axis when the controller
     /// reports one.
     pub rotary: Option<f64>,
+    /// Tool in the spindle (`T:` of grblHAL and the Carvera), `-1` or
+    /// absent when empty.
+    pub tool: Option<i32>,
+    /// Why a Carvera stopped (`H:`), see `halt_message`.
+    pub halt: Option<u32>,
 }
 
 impl MachineStatus {
@@ -87,6 +92,10 @@ fn normalise(body: &str) -> String {
     fields.join("|")
 }
 
+fn first_number(value: &str) -> Option<f64> {
+    value.split(',').next()?.trim().parse().ok()
+}
+
 pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatus> {
     let body = normalise(line.trim().strip_prefix('<')?.strip_suffix('>')?);
     let mut fields = body.split('|');
@@ -107,6 +116,8 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
     let mut status = MachineStatus {
         state,
         pins: String::new(),
+        tool: None,
+        halt: None,
         ..previous.clone()
     };
     let triple = |text: &str| -> Option<[f64; 3]> {
@@ -138,13 +149,17 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
                 status.rotary = fourth(value);
             }
             "WCO" => status.work_offset = triple(value).unwrap_or(status.work_offset),
-            "FS" | "F" => {
+            "FS" => {
                 let mut values = value
                     .split(',')
                     .filter_map(|value| value.parse::<f64>().ok());
                 status.feed = values.next().unwrap_or(0.0);
                 status.spindle = values.next().unwrap_or(0.0);
             }
+            // GRBL without variable spindle, Smoothieware and the Carvera:
+            // feed first, spindle in its own `S:` field.
+            "F" => status.feed = first_number(value).unwrap_or(0.0),
+            "S" => status.spindle = first_number(value).unwrap_or(0.0),
             "Ov" => {
                 let values: Vec<u32> = value
                     .split(',')
@@ -155,6 +170,19 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
                 }
             }
             "Pn" => status.pins = value.to_owned(),
+            "T" => {
+                status.tool = value
+                    .split(',')
+                    .next()
+                    .and_then(|tool| tool.trim().parse().ok())
+                    .filter(|tool: &i32| *tool >= 0);
+            }
+            "H" => {
+                status.halt = value
+                    .split(',')
+                    .next()
+                    .and_then(|code| code.trim().parse().ok())
+            }
             _ => {}
         }
     }
@@ -221,5 +249,21 @@ mod tests {
         .unwrap();
         assert_eq!(status.rotary, Some(45.0));
         assert_eq!(status.machine_position, [1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn carvera_reports_tool_and_halt_reason() {
+        let status = parse_status(
+            "<Alarm|MPos:-10.000,-5.000,-1.000,0.000|WPos:0.000,0.000,0.000,0.000|F:0,0,100|T:3,-12.345,4|H:7>",
+            &MachineStatus::default(),
+        )
+        .unwrap();
+        assert_eq!(status.tool, Some(3));
+        assert_eq!(status.halt, Some(7));
+        let next = parse_status("<Idle|MPos:0,0,0|T:-1,0.000>", &status).unwrap();
+        assert_eq!((next.tool, next.halt), (None, None));
+        let running =
+            parse_status("<Run|MPos:0,0,0|F:800,1000,100|S:12000,12000,100>", &next).unwrap();
+        assert_eq!((running.feed, running.spindle), (800.0, 12000.0));
     }
 }

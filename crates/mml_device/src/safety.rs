@@ -74,6 +74,30 @@ pub struct SafetyMonitor {
     rotary_reference: Option<f64>,
     idle_reference: Option<[f64; 4]>,
     reported: Vec<u8>,
+    /// An `M6` is executing: the head visits the tool rack, outside the
+    /// job area, on purpose.
+    tool_change: bool,
+}
+
+/// `M6` (any spelling: `M6 T3`, `T3M06`, `m6t8888`), not `M60` or `M61`.
+pub fn is_tool_change(line: &str) -> bool {
+    let code = line
+        .split([';', '('])
+        .next()
+        .unwrap_or("")
+        .to_ascii_uppercase();
+    let bytes = code.as_bytes();
+    bytes.iter().enumerate().any(|(index, &byte)| {
+        if byte != b'M' {
+            return false;
+        }
+        let digits: String = code[index + 1..]
+            .trim_start()
+            .chars()
+            .take_while(char::is_ascii_digit)
+            .collect();
+        !digits.is_empty() && digits.parse::<u32>() == Ok(6)
+    })
 }
 
 fn position_of(status: &MachineStatus) -> [f64; 4] {
@@ -91,6 +115,10 @@ impl SafetyMonitor {
     pub fn end_job(&mut self) {
         self.guard = None;
         self.rotary_reference = None;
+    }
+
+    pub fn set_tool_change(&mut self, active: bool) {
+        self.tool_change = active;
     }
 
     pub fn guard(&self) -> Option<&JobGuard> {
@@ -123,6 +151,7 @@ impl SafetyMonitor {
 
         if let Some(guard) = &self.guard {
             if status.state == MachineState::Run
+                && !self.tool_change
                 && let Some(envelope) = guard.envelope
             {
                 for (axis, name) in ['X', 'Y', 'Z'].into_iter().enumerate() {
@@ -231,6 +260,26 @@ mod tests {
             Anomaly::OutsideEnvelope { axis: 'Y', .. }
         ));
         assert!(found[0].is_critical());
+    }
+
+    #[test]
+    fn the_tool_rack_is_allowed_during_a_tool_change_only() {
+        assert!(is_tool_change("M6 T3"));
+        assert!(is_tool_change("t3m06 ; next"));
+        assert!(is_tool_change("M6T8888"));
+        assert!(!is_tool_change("M60"));
+        assert!(!is_tool_change("G0 X6 ; M6 later"));
+        let mut monitor = SafetyMonitor::default();
+        let guard = JobGuard {
+            envelope: Some([[0.0, 50.0], [0.0, 50.0], [-5.0, 5.0]]),
+            ..JobGuard::default()
+        };
+        monitor.start_job(guard, None);
+        let rack = status(MachineState::Run, [-80.0, 120.0, 5.0], None);
+        monitor.set_tool_change(true);
+        assert!(monitor.observe(&rack, true).is_empty());
+        monitor.set_tool_change(false);
+        assert!(!monitor.observe(&rack, true).is_empty());
     }
 
     #[test]

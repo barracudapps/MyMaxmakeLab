@@ -58,3 +58,30 @@ pub fn alarm_message(code: u32) -> &'static str {
         _ => "Unknown alarm.",
     }
 }
+
+/// Halt reasons of the Makera Carvera (`H:` field of its status).
+pub fn halt_message(code: u32) -> &'static str {
+    match code {
+        1 => "Stopped by hand. Unlock to continue.",
+        2 => "Homing failed. Check that nothing blocks the axes, then home again.",
+        3 => "Probe did not touch. Check the probe and the distance to the part.",
+        4 => "Tool length calibration failed. Check the tool and the setter.",
+        5 => "Tool changer failed to home.",
+        6 => "Tool number not available in the tool changer (slots 1 to 6, probe 0, laser 8888).",
+        7 => "Tool changer could not drop the tool. Check the collet and the empty slot.",
+        8 => "Tool changer slot already occupied. Empty the slot of the tool in the spindle.",
+        9 => "Spindle too hot. Let it cool down.",
+        10 => "Soft limit: the move goes beyond the machine travel.",
+        11 => "Cover opened while running.",
+        12 => "Wireless probe not answering or not paired.",
+        13 => "Emergency stop button pressed.",
+        14 => "Electronics too hot.",
+        16 => "3D probe crash detected.",
+        21 => "Hard limit triggered: reset needed.",
+        22..=24 => "Axis motor error: reset needed.",
+        25 => "Spindle stall: reset needed.",
+        26 => "SD card read failure: reset needed.",
+        41 => "Spindle alarm: power the machine off and on.",
+        _ => "Unknown halt reason.",
+    }
+}

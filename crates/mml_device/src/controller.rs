@@ -525,6 +525,11 @@ impl Worker {
                 self.last_status = Instant::now();
                 self.track_homing(&status);
                 let pending = !self.in_flight.is_empty() || !self.queue.is_empty();
+                let changing_tool = self
+                    .in_flight
+                    .iter()
+                    .any(|(_, _, line)| crate::safety::is_tool_change(line));
+                self.monitor.set_tool_change(changing_tool);
                 for anomaly in self.monitor.observe(&status, pending) {
                     let Some(anomaly) = self.monitor.report(anomaly) else {
                         continue;
