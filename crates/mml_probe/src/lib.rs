@@ -315,6 +315,147 @@ fn convex_hull(points: &mut [Point]) -> Vec<Point> {
     hull
 }
 
+/// Plane `z = a·x + b·y + c`, for flat pieces that may be tilted.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Plane {
+    pub a: f64,
+    pub b: f64,
+    pub c: f64,
+}
+
+impl Plane {
+    /// Least-squares plane through probed points (at least 3, not
+    /// aligned). With 4 points or more the residual tells whether the
+    /// surface really is flat.
+    pub fn fit(points: &[[f64; 3]]) -> Option<Plane> {
+        if points.len() < 3 {
+            return None;
+        }
+        let n = points.len() as f64;
+        let (mut sx, mut sy, mut sz, mut sxx, mut syy, mut sxy, mut sxz, mut syz) =
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        for [x, y, z] in points {
+            sx += x;
+            sy += y;
+            sz += z;
+            sxx += x * x;
+            syy += y * y;
+            sxy += x * y;
+            sxz += x * z;
+            syz += y * z;
+        }
+        // Normal equations solved with Cramer's rule.
+        let m = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, n]];
+        let r = [sxz, syz, sz];
+        let det3 = |m: [[f64; 3]; 3]| {
+            m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+        };
+        let det = det3(m);
+        if det.abs() < 1e-9 {
+            return None;
+        }
+        let replace = |column: usize| {
+            let mut copy = m;
+            for row in 0..3 {
+                copy[row][column] = r[row];
+            }
+            det3(copy) / det
+        };
+        Some(Plane {
+            a: replace(0),
+            b: replace(1),
+            c: replace(2),
+        })
+    }
+
+    pub fn height(&self, point: Point) -> f64 {
+        self.a * point.x + self.b * point.y + self.c
+    }
+
+    pub fn tilt_degrees(&self) -> f64 {
+        self.a.hypot(self.b).atan().to_degrees()
+    }
+
+    /// Largest distance between the points and the plane.
+    pub fn residual(&self, points: &[[f64; 3]]) -> f64 {
+        points
+            .iter()
+            .map(|[x, y, z]| (z - self.height(Point::new(*x, *y))).abs())
+            .fold(0.0, f64::max)
+    }
+
+    pub fn to_map(&self, area: Rect) -> HeightMap {
+        HeightMap::from_fn(area, 2, 2, |point| Some(self.height(point)))
+    }
+}
+
+/// Probes the given points with G38.2 (each must touch), for the plane
+/// mode: 3 points are enough, 4 or more also measure flatness.
+pub fn points_program(points: &[Point], safe_z: f64, min_z: f64, feed: f64) -> Vec<String> {
+    let mut lines = vec!["G21 G90".to_owned(), format!("G0 Z{safe_z:.3}")];
+    for point in points {
+        lines.push(format!("G0 X{:.3} Y{:.3}", point.x, point.y));
+        lines.push(format!("G38.2 Z{min_z:.3} F{feed:.0}"));
+        lines.push(format!("G0 Z{safe_z:.3}"));
+    }
+    lines
+}
+
+impl HeightMap {
+    /// Binary STL of the probed surface (cells whose four corners were
+    /// touched), to rebuild the piece in a CAD program such as Fusion.
+    pub fn to_stl(&self) -> Vec<u8> {
+        let mut triangles: Vec<[[f32; 3]; 3]> = Vec::new();
+        let vertex = |column: usize, row: usize| -> Option<[f32; 3]> {
+            let height = self.at(column, row)?;
+            let point = self.node(column, row);
+            Some([point.x as f32, point.y as f32, height as f32])
+        };
+        for row in 0..self.rows - 1 {
+            for column in 0..self.columns - 1 {
+                if let (Some(a), Some(b), Some(c), Some(d)) = (
+                    vertex(column, row),
+                    vertex(column + 1, row),
+                    vertex(column + 1, row + 1),
+                    vertex(column, row + 1),
+                ) {
+                    triangles.push([a, b, c]);
+                    triangles.push([a, c, d]);
+                }
+            }
+        }
+        let mut out = Vec::with_capacity(84 + triangles.len() * 50);
+        let mut header = [0u8; 80];
+        header[..20].copy_from_slice(b"MyMaxmakeLab surface");
+        out.extend_from_slice(&header);
+        out.extend_from_slice(&(triangles.len() as u32).to_le_bytes());
+        for triangle in &triangles {
+            let [a, b, c] = *triangle;
+            let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+            let v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+            let normal = [
+                u[1] * v[2] - u[2] * v[1],
+                u[2] * v[0] - u[0] * v[2],
+                u[0] * v[1] - u[1] * v[0],
+            ];
+            let length = (normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2])
+                .sqrt()
+                .max(1e-12);
+            for value in normal
+                .iter()
+                .map(|value| value / length)
+                .chain(triangle.iter().flatten().copied())
+            {
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+            out.extend_from_slice(&0u16.to_le_bytes());
+        }
+        out
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct FollowOptions {
     /// Longest move kept straight; longer moves are split so the head
@@ -469,6 +610,35 @@ mod tests {
         let last = followed.motions.last().unwrap();
         assert!((last.to[2] - 1.0).abs() < 1e-9);
         assert!(out.starts_with("M4 S0\n") && out.ends_with("M5\n"));
+    }
+
+    #[test]
+    fn tilted_plane_is_recovered_from_probed_points() {
+        let truth = Plane {
+            a: 0.01,
+            b: -0.02,
+            c: 1.5,
+        };
+        let points: Vec<[f64; 3]> = [(0.0, 0.0), (100.0, 0.0), (100.0, 80.0), (0.0, 80.0)]
+            .iter()
+            .map(|&(x, y)| [x, y, truth.height(Point::new(x, y))])
+            .collect();
+        let plane = Plane::fit(&points).unwrap();
+        assert!(
+            (plane.a - truth.a).abs() < 1e-9
+                && (plane.b - truth.b).abs() < 1e-9
+                && (plane.c - truth.c).abs() < 1e-9
+        );
+        assert!(plane.residual(&points) < 1e-9);
+        assert!(Plane::fit(&[[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 2.0, 0.0]]).is_none());
+    }
+
+    #[test]
+    fn surface_exports_two_triangles_per_touched_cell() {
+        let stl = tilted().to_stl();
+        let count = u32::from_le_bytes(stl[80..84].try_into().unwrap());
+        assert_eq!(count, 8);
+        assert_eq!(stl.len(), 84 + 8 * 50);
     }
 
     #[test]

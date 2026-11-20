@@ -21,6 +21,12 @@ pub struct Checklist {
 
 pub struct ProbeState {
     pub map: Option<HeightMap>,
+    /// Flat mode: the top face is a plane (possibly tilted) measured on
+    /// a few points; otherwise a grid of adjustable size.
+    pub flat: bool,
+    pub plane_points: usize,
+    pub plane: Option<(mml_probe::Plane, f64)>,
+    pub pending_plane: Option<(Rect, Vec<Point>, [f64; 3])>,
     pub pending: Option<(GridSpec, [f64; 3])>,
     pub columns: usize,
     pub rows: usize,
@@ -33,6 +39,10 @@ impl Default for ProbeState {
     fn default() -> Self {
         Self {
             map: None,
+            flat: true,
+            plane_points: 4,
+            plane: None,
+            pending_plane: None,
             pending: None,
             columns: 6,
             rows: 6,
@@ -166,6 +176,32 @@ pub fn process_finished(app: &mut MyApp) {
                 app.notify(tr("probe.origin_done"), Level::Info);
             } else {
                 app.notify(tr("probe.origin_failed"), Level::Error);
+            }
+        }
+        JobKind::ProbePlane => {
+            let reports = std::mem::take(&mut app.device.probe_reports);
+            if let Some((area, points, offset)) = app.probe.pending_plane.take() {
+                let measured: Vec<[f64; 3]> = points
+                    .iter()
+                    .zip(reports.iter().filter(|(_, touched)| *touched))
+                    .map(|(point, (position, _))| [point.x, point.y, position[2] - offset[2]])
+                    .collect();
+                match mml_probe::Plane::fit(&measured) {
+                    Some(plane) if completed => {
+                        let residual = plane.residual(&measured);
+                        app.probe.map = Some(plane.to_map(area));
+                        app.probe.plane = Some((plane, residual));
+                        let text = trf(
+                            "probe.plane_done",
+                            &[
+                                &format!("{:.2}", plane.tilt_degrees()),
+                                &format!("{residual:.2}"),
+                            ],
+                        );
+                        app.notify(text, Level::Info);
+                    }
+                    _ => app.notify(tr("probe.origin_failed"), Level::Error),
+                }
             }
         }
         JobKind::ProbeGrid => {
@@ -343,6 +379,47 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
             ui.add_space(4.0);
             ui.label(RichText::new(tr("probe.map_title")).strong());
             ui.horizontal(|ui| {
+                ui.radio_value(&mut app.probe.flat, true, tr("probe.flat"))
+                    .on_hover_text(tr("probe.flat_hint"));
+                ui.radio_value(&mut app.probe.flat, false, tr("probe.uneven"))
+                    .on_hover_text(tr("probe.uneven_hint"));
+            });
+            if app.probe.flat {
+                ui.horizontal(|ui| {
+                    ui.label(tr("probe.points"));
+                    for count in [3, 4, 5, 9] {
+                        ui.selectable_value(&mut app.probe.plane_points, count, count.to_string());
+                    }
+                });
+                let area = app
+                    .job
+                    .built
+                    .as_ref()
+                    .map(|built| expand(built.stats.cut_bounds, 2.0))
+                    .filter(|area| area.width() > 4.0);
+                let measure = egui::Button::new(tr("probe.measure_plane"));
+                if ui.add_enabled(idle && area.is_some(), measure).clicked()
+                    && let Some(area) = area
+                {
+                    start_plane(app, area);
+                }
+                if let Some((plane, residual)) = app.probe.plane {
+                    ui.label(trf(
+                        "probe.plane_summary",
+                        &[
+                            &format!("{:.2}", plane.tilt_degrees()),
+                            &format!("{residual:.2}"),
+                        ],
+                    ));
+                    if residual > 0.2 {
+                        ui.label(
+                            RichText::new(tr("probe.not_flat"))
+                                .color(Color32::from_rgb(210, 140, 20)),
+                        );
+                    }
+                }
+            }
+            ui.horizontal(|ui| {
                 ui.label(tr("probe.grid"));
                 ui.add(DragValue::new(&mut app.probe.columns).range(2..=40));
                 ui.label("×");
@@ -364,7 +441,7 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
                 let job_area = area.map(|area| expand(area, 2.0));
                 if ui
                     .add_enabled(
-                        idle && job_area.is_some(),
+                        idle && job_area.is_some() && !app.probe.flat,
                         egui::Button::new(tr("probe.map_job")),
                     )
                     .on_hover_text(tr("probe.map_job_hint"))
@@ -406,8 +483,16 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
                     {
                         add_outline(app, outline);
                     }
+                    if ui
+                        .button(tr("probe.export_stl"))
+                        .on_hover_text(tr("probe.export_stl_hint"))
+                        .clicked()
+                    {
+                        export_stl(app);
+                    }
                     if ui.button(tr("probe.clear")).clicked() {
                         app.probe.map = None;
+                        app.probe.plane = None;
                     }
                 });
                 let anchored = matches!(app.job.placement, Placement::Head(_));
@@ -433,6 +518,53 @@ fn expand(area: Rect, margin: f64) -> Rect {
         Point::new(area.min.x - margin, area.min.y - margin),
         Point::new(area.max.x + margin, area.max.y + margin),
     )
+}
+
+fn export_stl(app: &mut MyApp) {
+    let Some(map) = &app.probe.map else { return };
+    let data = map.to_stl();
+    let dialog = rfd::FileDialog::new()
+        .add_filter("STL", &["stl"])
+        .set_file_name("surface.stl");
+    if let Some(path) = dialog.save_file() {
+        match std::fs::write(&path, data) {
+            Ok(()) => app.notify(trf("file.exported", &[&path.display()]), Level::Info),
+            Err(error) => app.notify(trf("file.save_failed", &[&error]), Level::Error),
+        }
+    }
+}
+
+fn start_plane(app: &mut MyApp, area: Rect) {
+    let corners = area.corners();
+    let center = area.center();
+    let points: Vec<Point> = match app.probe.plane_points {
+        3 => vec![corners[0], corners[1], Point::new(center.x, area.max.y)],
+        4 => corners.to_vec(),
+        5 => corners
+            .iter()
+            .copied()
+            .chain(std::iter::once(center))
+            .collect(),
+        _ => (0..3)
+            .flat_map(|row| (0..3).map(move |column| (column, row)))
+            .map(|(column, row)| {
+                Point::new(
+                    area.min.x + area.width() * column as f64 / 2.0,
+                    area.min.y + area.height() * row as f64 / 2.0,
+                )
+            })
+            .collect(),
+    };
+    let offset = app
+        .device
+        .status
+        .as_ref()
+        .map_or([0.0; 3], |status| status.work_offset);
+    app.device.probe_reports.clear();
+    let lines =
+        mml_probe::points_program(&points, 5.0, -app.probe.depth, app.settings.probe.seek_feed);
+    app.probe.pending_plane = Some((area, points, offset));
+    run_auxiliary(app, lines, JobKind::ProbePlane);
 }
 
 fn start_grid(app: &mut MyApp, area: Rect) {

@@ -27,6 +27,7 @@ pub enum JobKind {
     Frame,
     ProbeOrigin,
     ProbeGrid,
+    ProbePlane,
 }
 
 pub struct RunningJob {
