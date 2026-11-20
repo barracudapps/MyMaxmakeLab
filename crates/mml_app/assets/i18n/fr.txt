@@ -880,3 +880,12 @@ mcp.copied = Copié : {0}. Ajoutez-le comme serveur MCP stdio dans votre assista
 
 view.orbit = Tourner
 view.orbit_hint = Plateau tournant : la vue tourne lentement autour de la pièce ; faites glisser pour arrêter
+
+optimize.gentle_title = Ménager la fraise et la machine
+optimize.gentle_hint = Réécrit le programme d’usinage : les plongées deviennent des rampes douces le long de la coupe, l’avance baisse dans les angles vifs. Un peu plus lent, bien plus doux pour les petites fraises et le châssis.
+optimize.gentle = Doux
+optimize.gentle_profile_hint = Rampes à 3°, demi-avance sur 1,5 mm autour des angles de plus de 45° : pour les petites fraises fragiles et les matériaux durs
+optimize.balanced = Équilibré
+optimize.balanced_hint = Partage équitable entre temps et usure : rampes à 8°, trois quarts d’avance autour des angles de plus de 75°
+optimize.gentle_skipped = Laissé tel quel : {0}
+optimize.gentle_done = {0} plongées transformées en rampes, {1} angles ralentis ({2} s de plus)

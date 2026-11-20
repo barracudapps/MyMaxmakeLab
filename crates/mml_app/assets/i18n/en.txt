@@ -848,3 +848,12 @@ mcp.copied = Copied: {0}. Add it as a stdio MCP server in your assistant (see do
 
 view.orbit = Turn
 view.orbit_hint = Turntable: the view turns slowly around the part; drag to stop
+
+optimize.gentle_title = Spare the cutter and the machine
+optimize.gentle_hint = Rewrites the milling program: plunges become shallow ramps along the cut, the feed drops around sharp corners. A little slower, much kinder to small cutters and to the frame.
+optimize.gentle = Gentle
+optimize.gentle_profile_hint = Ramps at 3°, half feed over 1.5 mm around corners sharper than 45°: for small or fragile cutters and hard materials
+optimize.balanced = Balanced
+optimize.balanced_hint = Fair share between time and wear: ramps at 8°, three quarters feed around corners sharper than 75°
+optimize.gentle_skipped = Left unchanged: {0}
+optimize.gentle_done = {0} plunges turned into ramps, {1} corners slowed down ({2} s more)

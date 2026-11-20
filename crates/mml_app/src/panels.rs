@@ -1099,6 +1099,63 @@ fn optimize_card(app: &mut MyApp, ui: &mut egui::Ui) {
         app.job.preview_line = Some(None);
         app.notify(tr("optimize.done"), Level::Info);
     }
+    // Milling only: ramps and corner slowdowns.
+    let milling = app.machine.kind == MachineKind::Cnc
+        && app
+            .job
+            .built
+            .as_ref()
+            .is_some_and(|built| built.program.z_range.0 < -1e-6);
+    if !milling {
+        return;
+    }
+    ui.add_space(6.0);
+    ui.label(RichText::new(tr("optimize.gentle_title")).strong())
+        .on_hover_text(tr("optimize.gentle_hint"));
+    let mut chosen = None;
+    ui.horizontal(|ui| {
+        if ui
+            .button(tr("optimize.gentle"))
+            .on_hover_text(tr("optimize.gentle_profile_hint"))
+            .clicked()
+        {
+            chosen = Some(mml_gcode::GentleOptions::gentle());
+        }
+        if ui
+            .button(tr("optimize.balanced"))
+            .on_hover_text(tr("optimize.balanced_hint"))
+            .clicked()
+        {
+            chosen = Some(mml_gcode::GentleOptions::balanced());
+        }
+    });
+    if let Some(options) = chosen
+        && let Some(built) = &app.job.built
+    {
+        let before = built.stats.duration;
+        let (rewritten, report) = mml_gcode::gentle(&built.gcode, &options);
+        if let Some(reason) = report.skipped {
+            app.notify(trf("optimize.gentle_skipped", &[&reason]), Level::Warning);
+            return;
+        }
+        let program = mml_gcode::parse(&rewritten);
+        let stats = mml_gcode::analyze(&program, app.motion_settings());
+        let extra = stats.duration.as_secs_f64() - before.as_secs_f64();
+        if let Some(built) = &mut app.job.built {
+            built.gcode = std::sync::Arc::new(rewritten);
+            built.program = program;
+            built.stats = stats;
+        }
+        app.optimize_preview = None;
+        app.job.preview_line = Some(None);
+        app.notify(
+            trf(
+                "optimize.gentle_done",
+                &[&report.ramps, &report.corners, &format!("{extra:.0}")],
+            ),
+            Level::Info,
+        );
+    }
 }
 
 fn format_duration(duration: std::time::Duration) -> String {
