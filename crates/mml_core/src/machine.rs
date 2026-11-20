@@ -74,7 +74,23 @@ impl MachineProfile {
         }
     }
 
+    /// Router with an interchangeable laser head (HiMill with iLam
+    /// module and similar): CNC kinematics, laser mode for laser layers,
+    /// jobs pause for the head change between them.
+    pub fn generic_hybrid() -> Self {
+        Self {
+            name: "GRBL CNC + laser".into(),
+            laser_mode: true,
+            max_s: 1000.0,
+            ..Self::generic_cnc()
+        }
+    }
+
     pub fn presets() -> Vec<MachineProfile> {
-        vec![Self::generic_laser(), Self::generic_cnc()]
+        vec![
+            Self::generic_laser(),
+            Self::generic_cnc(),
+            Self::generic_hybrid(),
+        ]
     }
 }

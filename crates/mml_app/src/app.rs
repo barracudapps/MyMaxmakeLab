@@ -1009,6 +1009,15 @@ impl MyApp {
         if pressed(command(Key::E)) {
             self.export_gcode();
         }
+        for (key, mode) in [
+            (Key::Num1, Mode::Design),
+            (Key::Num2, Mode::Prepare),
+            (Key::Num3, Mode::Run),
+        ] {
+            if pressed(command(key)) {
+                self.mode = mode;
+            }
+        }
         if typing {
             return;
         }
