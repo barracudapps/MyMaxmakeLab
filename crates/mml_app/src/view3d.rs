@@ -42,7 +42,8 @@ impl View3d {
         let rx = x * cos_yaw - y * sin_yaw;
         let ry = x * sin_yaw + y * cos_yaw;
         let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
-        let screen_y = ry * cos_pitch - z * sin_pitch;
+        // Pitch 0 looks straight down, 90° from the side: +Z goes up.
+        let screen_y = ry * cos_pitch + z * sin_pitch;
         origin + self.pan + Vec2::new(rx, -screen_y) * scale
     }
 
