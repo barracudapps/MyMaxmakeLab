@@ -241,6 +241,7 @@ mod tests {
                     "mcp",
                     "stats",
                     "suggest",
+                    "os",
                 ]
                 .contains(&prefix);
                 let looks_like_key = candidate.contains('.')

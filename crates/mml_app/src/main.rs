@@ -11,6 +11,7 @@ mod icons;
 mod machine_panel;
 mod makers_dialog;
 mod ornament_dialog;
+mod os;
 mod pairing;
 mod pairing_dialog;
 mod panels;

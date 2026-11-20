@@ -174,6 +174,10 @@ pub struct MyApp {
     pub tool_cache: Option<(usize, Vec<mml_core::stats::ToolUse>)>,
     /// Last tool suggestion shown in the operation card.
     pub tool_suggestion: Option<crate::panels::ToolSuggestion>,
+    /// Held while a job streams so the computer does not sleep.
+    keep_awake: Option<crate::os::KeepAwake>,
+    /// Notification to show and window attention to request.
+    pub attention: Option<(String, String)>,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -275,6 +279,8 @@ impl MyApp {
             stats_open: false,
             tool_cache: None,
             tool_suggestion: None,
+            keep_awake: None,
+            attention: None,
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,
@@ -2104,6 +2110,19 @@ impl eframe::App for MyApp {
         crate::pairing_dialog::poll(self);
         crate::camera_panel::poll(self, &ctx);
         crate::fleet::poll(self);
+        // A sleeping computer would stop the machine half way.
+        let streaming = self.device.job_running() || crate::fleet::running(self);
+        if streaming && self.keep_awake.is_none() {
+            self.keep_awake = Some(crate::os::KeepAwake::new());
+        } else if !streaming {
+            self.keep_awake = None;
+        }
+        if let Some((title, body)) = self.attention.take() {
+            crate::os::notify(&title, &body);
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
+                egui::UserAttentionType::Informational,
+            ));
+        }
         if crate::fleet::busy(self) {
             ctx.request_repaint_after(std::time::Duration::from_millis(200));
         }

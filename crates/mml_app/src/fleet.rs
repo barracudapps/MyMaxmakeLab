@@ -162,6 +162,7 @@ pub fn poll(app: &mut MyApp) {
         .collect();
     let fleet = &mut app.fleet;
     let mut notices = Vec::new();
+    let mut notices_done: Vec<String> = Vec::new();
     let mut finished_jobs: Vec<(String, String, Arc<String>, bool, std::time::Duration)> =
         Vec::new();
     for machine in &mut fleet.machines {
@@ -202,6 +203,7 @@ pub fn poll(app: &mut MyApp) {
                                 elapsed,
                             ));
                         }
+                        notices_done.push(format!("{}: {name}", machine.name));
                         if outcome == JobOutcome::Completed {
                             fleet.queue.finished(index);
                             machine.message = Some((trf("fleet.done", &[&name]), false));
@@ -252,6 +254,9 @@ pub fn poll(app: &mut MyApp) {
     }
     for (machine, job, gcode, completed, elapsed) in finished_jobs {
         app.record_job(machine, job, &gcode, completed, elapsed);
+    }
+    if let Some(last) = notices_done.pop() {
+        app.attention = Some((tr("os.job_done").to_owned(), last));
     }
     for notice in notices {
         app.notify(notice, Level::Error);
@@ -445,6 +450,14 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         }
     }
     app.fleet.open = open;
+}
+
+/// A job streams on one of the production machines.
+pub fn running(app: &MyApp) -> bool {
+    app.fleet
+        .machines
+        .iter()
+        .any(|machine| machine.job.is_some())
 }
 
 /// Keeps machines served while the window is closed.

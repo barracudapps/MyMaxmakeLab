@@ -931,3 +931,6 @@ suggest.vbit = Le trait le plus large fait {0} mm. Dans votre bibliothèque : {1
 suggest.vbit_missing = Le trait le plus large fait {0} mm : il faut une fraise en V au moins aussi large (une fraise à 60° descend à {1} mm). Ajoutez-en une dans la bibliothèque d’outils.
 suggest.use = Utiliser cet outil
 suggest.close = Fermer
+
+os.job_done = MyMaxmakeLab : travail terminé
+os.job_stopped = MyMaxmakeLab : travail arrêté

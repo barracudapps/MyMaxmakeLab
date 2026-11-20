@@ -177,6 +177,12 @@ pub fn process_finished(app: &mut MyApp) {
         let machine = app.machine.name.clone();
         let elapsed = app.device.last_elapsed;
         app.record_job(machine, name, &gcode, completed, elapsed);
+        let title = if completed {
+            tr("os.job_done")
+        } else {
+            tr("os.job_stopped")
+        };
+        app.attention = Some((title.to_owned(), app.document_name()));
     }
     match kind {
         JobKind::Frame if completed => app.job.frame_review = true,

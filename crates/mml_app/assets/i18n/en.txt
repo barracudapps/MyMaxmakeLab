@@ -899,3 +899,6 @@ suggest.vbit = The widest stroke is {0} mm. From your library: {1}, about {2} mm
 suggest.vbit_missing = The widest stroke is {0} mm: a V-bit at least that wide is needed (a 60° bit goes {1} mm deep). Add one in the tool library.
 suggest.use = Use this tool
 suggest.close = Close
+
+os.job_done = MyMaxmakeLab: job finished
+os.job_stopped = MyMaxmakeLab: job stopped
