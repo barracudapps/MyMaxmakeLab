@@ -4,6 +4,7 @@
 //! the coordinate system is the machine one: origin at the front-left
 //! corner of the bed, X to the right, Y to the back.
 
+pub mod attach;
 pub mod document;
 pub mod geometry;
 pub mod history;

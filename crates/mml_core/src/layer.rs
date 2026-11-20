@@ -113,6 +113,13 @@ pub struct LineParams {
     /// means a solid line. Also used for perforations (fold lines).
     pub dash_on: f64,
     pub dash_off: f64,
+    /// Uncut bridges keeping each part in the sheet, mm wide; 0 cuts
+    /// the parts free.
+    #[serde(default)]
+    pub bridge_width: f64,
+    /// Bridges per part; 0 places them automatically.
+    #[serde(default)]
+    pub bridge_count: u32,
 }
 
 impl Default for LineParams {
@@ -125,6 +132,8 @@ impl Default for LineParams {
             z_step: 0.0,
             dash_on: 2.0,
             dash_off: 0.0,
+            bridge_width: 0.0,
+            bridge_count: 0,
         }
     }
 }
