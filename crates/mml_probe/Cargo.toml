@@ -1,0 +1,13 @@
+[package]
+name = "mml_probe"
+description = "Probing routines, height maps and surface-following G-code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mml_core.workspace = true
+mml_gcode.workspace = true
+serde.workspace = true
