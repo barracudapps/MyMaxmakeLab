@@ -481,3 +481,5 @@ assist.proposal = Opération proposée : {0}
 assist.from_library = Réglages issus de votre bibliothèque de matériaux.
 assist.from_defaults = Aucun préréglage correspondant : réglages prudents par défaut. Faites d’abord un essai sur une chute du même matériau.
 assist.apply = Appliquer au calque
+view.3d_hint = Glisser pour tourner, Maj + glisser pour déplacer, molette ou pincement pour zoomer, double-clic pour réinitialiser
+view.z_scale = Exagération Z

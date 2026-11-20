@@ -481,3 +481,5 @@ assist.proposal = Proposed operation: {0}
 assist.from_library = Settings taken from your material library.
 assist.from_defaults = No matching preset: cautious default settings. Test on a scrap of the same material first.
 assist.apply = Apply to the layer
+view.3d_hint = Drag to orbit, Shift + drag to pan, wheel or pinch to zoom, double click to reset
+view.z_scale = Z exaggeration

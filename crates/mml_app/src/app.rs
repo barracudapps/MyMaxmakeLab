@@ -161,6 +161,7 @@ pub struct MyApp {
     pub tutorial_step: Option<usize>,
     pub relief: Option<crate::relief_dialog::ReliefDialog>,
     pub assist: Option<crate::assist::AssistDialog>,
+    pub view3d: crate::view3d::View3d,
 }
 
 impl MyApp {
@@ -238,6 +239,7 @@ impl MyApp {
             tutorial_step: None,
             relief: None,
             assist: None,
+            view3d: crate::view3d::View3d::default(),
         };
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);
@@ -1417,6 +1419,34 @@ impl MyApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ui, |ui| {
+                if self.mode != Mode::Design {
+                    let mut toggle = self.view3d.enabled;
+                    egui::Frame::new().inner_margin(6.0).show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(&mut toggle, false, "2D");
+                            ui.selectable_value(&mut toggle, true, "3D")
+                                .on_hover_text(tr("view.3d_hint"));
+                            if toggle {
+                                ui.add(
+                                    egui::Slider::new(&mut self.view3d.z_scale, 1.0..=10.0)
+                                        .text(tr("view.z_scale")),
+                                );
+                            }
+                        });
+                    });
+                    self.view3d.enabled = toggle;
+                    if toggle {
+                        let program = self.job.built.as_ref().map(|built| &built.program);
+                        let map = self.probe.map.as_ref();
+                        self.view3d.show(
+                            ui,
+                            program,
+                            map,
+                            (self.machine.width, self.machine.height),
+                        );
+                        return;
+                    }
+                }
                 let travel: Vec<(Point, Point)> =
                     if self.settings.show_travel && self.mode != Mode::Design {
                         self.job

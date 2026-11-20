@@ -10,6 +10,7 @@ mod panels;
 mod preview;
 mod relief_dialog;
 mod settings;
+mod view3d;
 mod workflow;
 
 use eframe::egui;
