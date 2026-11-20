@@ -160,8 +160,10 @@ pub fn generate(params: &MazeParams) -> Maze {
                     children[*parent].push(child);
                 }
             }
-            let mut branches: Vec<(usize, usize)> =
-                children[entrance].iter().map(|&child| (entrance, child)).collect();
+            let mut branches: Vec<(usize, usize)> = children[entrance]
+                .iter()
+                .map(|&child| (entrance, child))
+                .collect();
             while let Some((from, child)) = branches.pop() {
                 let mut line = vec![centre(from), centre(child)];
                 let mut here = child;
