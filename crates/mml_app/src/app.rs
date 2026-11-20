@@ -164,6 +164,9 @@ pub struct MyApp {
     pub array_dialog: Option<ArrayDialog>,
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
+    pub updater: crate::update::Updater,
+    check_updates_now: bool,
+    manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
     pub machine_dialog: Option<MachineProfile>,
     pub settings_open: bool,
@@ -256,6 +259,9 @@ impl MyApp {
             array_dialog: None,
             sprue: None,
             ornament: None,
+            updater: Default::default(),
+            check_updates_now: false,
+            manual_update_check: false,
             preset_dialog: None,
             machine_dialog: None,
             settings_open: false,
@@ -1689,6 +1695,19 @@ impl MyApp {
                     if ui.button(tr("menu.about")).clicked() {
                         self.about_open = true;
                     }
+                    ui.separator();
+                    let checking = self.updater.checking();
+                    if ui
+                        .add_enabled(!checking, egui::Button::new(tr("update.check")))
+                        .clicked()
+                    {
+                        self.check_updates_now = true;
+                    }
+                    ui.checkbox(&mut self.settings.auto_update, tr("update.automatic"))
+                        .on_hover_text(tr("update.automatic_hint"));
+                    ui.label(
+                        RichText::new(trf("update.version", &[&env!("CARGO_PKG_VERSION")])).weak(),
+                    );
                 });
             });
         });
@@ -1969,6 +1988,28 @@ impl eframe::App for MyApp {
         crate::workflow::process_finished(self);
         crate::pairing_dialog::poll(self);
         crate::camera_panel::poll(self, &ctx);
+        let asked = std::mem::take(&mut self.check_updates_now);
+        self.manual_update_check |= asked;
+        if let Some(outcome) = self.updater.poll(self.settings.auto_update, asked) {
+            let manual = std::mem::take(&mut self.manual_update_check);
+            use crate::update::Outcome;
+            match outcome {
+                Outcome::Installed(tag) => {
+                    self.notify(trf("update.installed", &[&tag]), Level::Info)
+                }
+                Outcome::Available(tag) => {
+                    self.notify(trf("update.available", &[&tag]), Level::Info)
+                }
+                Outcome::Failed(error) => {
+                    self.notify(trf("update.failed", &[&error]), Level::Error)
+                }
+                Outcome::UpToDate if manual => self.notify(tr("update.up_to_date"), Level::Info),
+                Outcome::UpToDate => {}
+            }
+        }
+        if self.updater.checking() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(500));
+        }
         self.handle_dropped_files(&ctx);
         self.shortcuts(&ctx);
         self.maintain_job(&ctx);

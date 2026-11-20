@@ -76,6 +76,8 @@ pub struct Settings {
     pub jog_proportional: bool,
     pub idle_rpm: f64,
     pub tutorial_done: bool,
+    /// Install new production releases from GitHub by itself.
+    pub auto_update: bool,
     /// Bed corners clicked on the camera picture (front-left, front-right,
     /// back-right, back-left), kept while the camera does not move.
     pub camera_corners: Option<[[f64; 2]; 4]>,
@@ -119,6 +121,7 @@ impl Default for Settings {
             jog_proportional: true,
             idle_rpm: 8000.0,
             tutorial_done: false,
+            auto_update: true,
             camera_corners: None,
             camera_url: String::new(),
         }

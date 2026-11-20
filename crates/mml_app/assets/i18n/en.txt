@@ -758,3 +758,12 @@ ornament.roll = New variation
 ornament.roll_hint = Draws another random combination in the same style
 ornament.seed_hint = Number of this variation: the same number always gives the same ornament
 ornament.insert = Insert
+
+update.check = Check for updates
+update.automatic = Install updates automatically
+update.automatic_hint = Every production release published on GitHub is downloaded, verified and installed; it runs at next start
+update.version = Version {0}
+update.installed = Version {0} installed: it starts next time you open MyMaxmakeLab
+update.available = Version {0} is available on GitHub (this copy runs from a build folder and does not update itself)
+update.failed = Update failed: {0}
+update.up_to_date = MyMaxmakeLab is up to date

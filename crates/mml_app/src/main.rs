@@ -19,6 +19,7 @@ mod sprue_dialog;
 mod text_tools;
 mod theme;
 mod tools_dialog;
+mod update;
 mod view3d;
 mod workflow;
 

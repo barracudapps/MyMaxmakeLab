@@ -25,6 +25,7 @@ eframe = { version = "0.37", default-features = false, features = ["default_font
 egui = { version = "0.37", default-features = false, features = ["monochrome_emoji_fonts"] }
 rfd = "0.18"
 directories = "6"
+sha2 = "0.10"
 sys-locale = "0.3"
 mml_probe = { version = "0.1.0", path = "../mml_probe" }
 mml_relief = { version = "0.1.0", path = "../mml_relief" }
