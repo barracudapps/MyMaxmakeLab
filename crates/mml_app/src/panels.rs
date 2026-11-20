@@ -516,6 +516,19 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
             });
     });
+    if ui
+        .button(tr("assist.open"))
+        .on_hover_text(tr("assist.open_hint"))
+        .clicked()
+    {
+        let layer = app.document.layers[index].id;
+        app.assist = Some(crate::assist::AssistDialog {
+            layer,
+            content: crate::assist::analyze(&app.document, layer),
+            material: None,
+            thickness: 3.0,
+        });
+    }
     material_picker(app, ui, &mut operation, &mut changed);
     let mut pause_before = app.document.layers[index].pause_before;
     if ui
@@ -928,6 +941,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::workflow::checklist_modal(app, ctx);
     crate::workflow::tutorial(app, ctx);
     crate::relief_dialog::show(app, ctx);
+    crate::assist::show(app, ctx);
     text_dialog(app, ctx);
     array_dialog(app, ctx);
     preset_dialog(app, ctx);

@@ -160,6 +160,7 @@ pub struct MyApp {
     pub settings_editor: crate::workflow::SettingsEditor,
     pub tutorial_step: Option<usize>,
     pub relief: Option<crate::relief_dialog::ReliefDialog>,
+    pub assist: Option<crate::assist::AssistDialog>,
 }
 
 impl MyApp {
@@ -236,6 +237,7 @@ impl MyApp {
             },
             tutorial_step: None,
             relief: None,
+            assist: None,
         };
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);

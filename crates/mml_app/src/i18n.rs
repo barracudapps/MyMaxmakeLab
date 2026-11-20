@@ -130,6 +130,7 @@ mod tests {
             include_str!("panels.rs"),
             include_str!("workflow.rs"),
             include_str!("relief_dialog.rs"),
+            include_str!("assist.rs"),
             include_str!("../../mml_core/src/layer.rs"),
         ];
         let english = &tables()[0];
