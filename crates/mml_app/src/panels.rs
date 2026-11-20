@@ -1451,6 +1451,46 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
                         .on_hover_text(tr("machine.tool_changer_hint"));
                     ui.checkbox(&mut profile.tool_changer, "");
                     ui.end_row();
+                    ui.label(tr("machine.trunnion"))
+                        .on_hover_text(tr("machine.trunnion_hint"));
+                    let mut five_axis = profile.trunnion.is_some();
+                    if ui.checkbox(&mut five_axis, "").changed() {
+                        profile.trunnion = five_axis.then(Default::default);
+                    }
+                    ui.end_row();
+                    if let Some(trunnion) = &mut profile.trunnion {
+                        ui.label(tr("machine.table_height"))
+                            .on_hover_text(tr("machine.table_height_hint"));
+                        ui.add(
+                            DragValue::new(&mut trunnion.table_height)
+                                .range(-200.0..=200.0)
+                                .suffix(" mm")
+                                .speed(0.1),
+                        );
+                        ui.end_row();
+                        ui.label(tr("machine.table_radius"));
+                        ui.add(
+                            DragValue::new(&mut trunnion.table_radius)
+                                .range(5.0..=500.0)
+                                .suffix(" mm")
+                                .speed(0.5),
+                        );
+                        ui.end_row();
+                        ui.label(tr("machine.a_travel"));
+                        ui.horizontal(|ui| {
+                            ui.add(
+                                DragValue::new(&mut trunnion.a_min)
+                                    .range(-180.0..=0.0)
+                                    .suffix("°"),
+                            );
+                            ui.add(
+                                DragValue::new(&mut trunnion.a_max)
+                                    .range(0.0..=180.0)
+                                    .suffix("°"),
+                            );
+                        });
+                        ui.end_row();
+                    }
                 });
             ui.label(tr("machine.start_gcode"));
             ui.add(

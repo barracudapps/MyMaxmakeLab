@@ -4,7 +4,7 @@
 use crate::app::{BuiltJob, Level, Mode, MyApp};
 use crate::i18n::{tr, trf};
 use eframe::egui::{self, DragValue, RichText};
-use mml_relief::{IndexedParams, ReliefParams, ToolShape, Triangle};
+use mml_relief::{IndexedParams, PositionalParams, ReliefParams, Side, ToolShape, Triangle};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, channel};
 
@@ -17,6 +17,8 @@ pub struct ReliefDialog {
     pub rotary_diameter: Option<f64>,
     /// Machines the whole part from several angles on an A axis.
     pub indexed: Option<IndexedParams>,
+    /// Positional 5-axis on the trunnion of the machine.
+    pub positional: Option<PositionalParams>,
 }
 
 impl ReliefDialog {
@@ -34,6 +36,7 @@ impl ReliefDialog {
             computing: None,
             rotary_diameter: None,
             indexed: None,
+            positional: None,
         }
     }
 
@@ -81,6 +84,11 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     let mut open = true;
     let mut generate = false;
     let (width, height) = dialog.model_size();
+    let trunnion = app.machine.trunnion;
+    let has_trunnion = trunnion.is_some();
+    if !has_trunnion {
+        dialog.positional = None;
+    }
     egui::Window::new(trf("relief.title", &[&dialog.name]))
         .open(&mut open)
         .collapsible(false)
@@ -222,10 +230,13 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 });
             ui.horizontal(|ui| {
                 ui.label(tr("relief.axes"));
-                let flat = dialog.rotary_diameter.is_none() && dialog.indexed.is_none();
+                let flat = dialog.rotary_diameter.is_none()
+                    && dialog.indexed.is_none()
+                    && dialog.positional.is_none();
                 if ui.selectable_label(flat, tr("relief.flat_stock")).clicked() {
                     dialog.rotary_diameter = None;
                     dialog.indexed = None;
+                    dialog.positional = None;
                 }
                 if ui
                     .selectable_label(dialog.rotary_diameter.is_some(), tr("relief.rotary"))
@@ -234,6 +245,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 {
                     dialog.rotary_diameter = Some(50.0);
                     dialog.indexed = None;
+                    dialog.positional = None;
                 }
                 if ui
                     .selectable_label(dialog.indexed.is_some(), tr("relief.indexed"))
@@ -242,9 +254,59 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 {
                     dialog.indexed = Some(IndexedParams::default());
                     dialog.rotary_diameter = None;
+                    dialog.positional = None;
                     dialog.params.origin[1] = 0.0;
                 }
+                if has_trunnion
+                    && ui
+                        .selectable_label(dialog.positional.is_some(), tr("relief.positional"))
+                        .on_hover_text(tr("relief.positional_hint"))
+                        .clicked()
+                {
+                    dialog.positional = Some(PositionalParams::default());
+                    dialog.rotary_diameter = None;
+                    dialog.indexed = None;
+                }
             });
+            if let Some(positional) = &mut dialog.positional {
+                ui.horizontal(|ui| {
+                    ui.label(tr("relief.stock"));
+                    for (axis, prefix) in ["X ", "Y ", "Z "].iter().enumerate() {
+                        ui.add(
+                            DragValue::new(&mut positional.stock[axis])
+                                .range(1.0..=1000.0)
+                                .prefix(*prefix)
+                                .suffix(" mm")
+                                .speed(0.5),
+                        );
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label(tr("relief.sides"));
+                    for side in Side::ALL {
+                        let mut on = positional.sides.contains(&side);
+                        if ui.checkbox(&mut on, tr(side_key(side))).changed() {
+                            positional.sides.retain(|known| *known != side);
+                            if on {
+                                positional.sides.push(side);
+                                positional.sides.sort_by_key(|side| {
+                                    Side::ALL.iter().position(|known| known == side)
+                                });
+                            }
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label(tr("relief.tilt"))
+                        .on_hover_text(tr("relief.tilt_hint"));
+                    ui.add(
+                        DragValue::new(&mut positional.tilt)
+                            .range(10.0..=90.0)
+                            .suffix("°"),
+                    );
+                });
+                ui.label(RichText::new(tr("relief.positional_setup")).weak().small());
+            }
             if let Some(diameter) = &mut dialog.rotary_diameter {
                 ui.horizontal(|ui| {
                     ui.add(
@@ -318,8 +380,17 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         let params = dialog.params;
         let rotary = dialog.rotary_diameter;
         let indexed = dialog.indexed;
+        let positional = dialog.positional.clone();
         let repaint = ctx.clone();
         std::thread::spawn(move || {
+            if let (Some(positional), Some(trunnion)) = (positional, trunnion) {
+                let _ = sender.send(
+                    mml_relief::positional_gcode(&triangles, &params, &positional, &trunnion)
+                        .map_err(|error| error.to_string()),
+                );
+                repaint.request_repaint();
+                return;
+            }
             if let Some(indexed) = indexed {
                 let _ = sender.send(
                     mml_relief::indexed_gcode(&triangles, &params, &indexed)
@@ -342,5 +413,15 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     }
     if !open {
         app.relief = None;
+    }
+}
+
+fn side_key(side: Side) -> &'static str {
+    match side {
+        Side::Top => "relief.side_top",
+        Side::Front => "relief.side_front",
+        Side::Back => "relief.side_back",
+        Side::Left => "relief.side_left",
+        Side::Right => "relief.side_right",
     }
 }

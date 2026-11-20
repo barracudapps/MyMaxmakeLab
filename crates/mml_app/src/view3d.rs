@@ -85,14 +85,22 @@ impl View3d {
                 ..Self::default()
             };
         }
+        // 5-axis programs are shown in part space: every side lands on
+        // the part where it was cut.
+        let trunnion = program
+            .and_then(|program| program.trunnion_table)
+            .map(|table_height| mml_core::machine::Trunnion {
+                table_height,
+                ..Default::default()
+            });
         let rotary_radius = program
-            .filter(|program| program.uses_rotary)
+            .filter(|program| program.uses_rotary && trunnion.is_none())
             .map(|program| {
                 program
                     .rotary_diameter
                     .map_or((-program.z_range.0).max(5.0), |diameter| diameter / 2.0)
             });
-        self.effective_z_scale = if rotary_radius.is_some() {
+        self.effective_z_scale = if rotary_radius.is_some() || trunnion.is_some() {
             1.0
         } else {
             self.z_scale
@@ -105,6 +113,10 @@ impl View3d {
             None => (0.0, 0.0, bed.0, bed.1),
         };
         let (center, extent) = match rotary_radius {
+            // Part space, origin at the centre of the table.
+            _ if trunnion.is_some() => {
+                ([0.0; 3], (max_x - min_x).max(max_y - min_y).max(1.0) as f32)
+            }
             // The stock turns around X: centre on the axis.
             Some(radius) => (
                 [(min_x + max_x) / 2.0, 0.0, 0.0],
@@ -129,7 +141,7 @@ impl View3d {
             [bed.0, bed.1, 0.0],
             [0.0, bed.1, 0.0],
         ];
-        for index in (0..4).filter(|_| rotary_radius.is_none()) {
+        for index in (0..4).filter(|_| rotary_radius.is_none() && trunnion.is_none()) {
             let a = self.project(corners[index], center, scale, origin);
             let b = self.project(corners[(index + 1) % 4], center, scale, origin);
             painter.line_segment([a, b], Stroke::new(1.0, bed_color));
@@ -194,6 +206,18 @@ impl View3d {
                 )
             };
             let stroke = Stroke::new(if rapid { 0.6 } else { 1.0 }, color);
+            if let Some(trunnion) = trunnion {
+                let a = trunnion.to_part(motion.from, motion.a[0], motion.c[0]);
+                let b = trunnion.to_part(motion.to, motion.a[1], motion.c[1]);
+                painter.line_segment(
+                    [
+                        self.project(a, center, scale, origin),
+                        self.project(b, center, scale, origin),
+                    ],
+                    stroke,
+                );
+                continue;
+            }
             let Some(radius) = rotary_radius else {
                 let a = self.project(motion.from, center, scale, origin);
                 let b = self.project(motion.to, center, scale, origin);
