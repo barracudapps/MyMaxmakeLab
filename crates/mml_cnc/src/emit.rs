@@ -116,18 +116,25 @@ pub fn emit_profile(
     writer.tool_off();
 }
 
-/// Evenly spaced tab intervals along the ring, as arc-length ranges.
+/// Tab intervals along the ring, as arc-length ranges, on calm
+/// stretches of the outline away from corners.
 fn tab_intervals(ring: &Path, count: u32, width: f64) -> Vec<(f64, f64)> {
     let length = ring.length();
-    if length <= width * count as f64 * 2.0 {
-        return Vec::new();
+    let mut intervals = Vec::new();
+    for centre in mml_core::attach::attachment_points(ring, Some(count as usize), width) {
+        let (from, to) = (centre - width / 2.0, centre + width / 2.0);
+        // A tab across the start of the ring is split in two.
+        if from < 0.0 {
+            intervals.push((from + length, length));
+            intervals.push((0.0, to));
+        } else if to > length {
+            intervals.push((from, length));
+            intervals.push((0.0, to - length));
+        } else {
+            intervals.push((from, to));
+        }
     }
-    (0..count)
-        .map(|index| {
-            let center = length * (index as f64 + 0.5) / count as f64;
-            (center - width / 2.0, center + width / 2.0)
-        })
-        .collect()
+    intervals
 }
 
 fn cut_ring(
