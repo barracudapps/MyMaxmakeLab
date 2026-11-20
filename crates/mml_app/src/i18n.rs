@@ -122,6 +122,22 @@ mod tests {
     }
 
     #[test]
+    fn translations_only_use_glyphs_of_the_bundled_fonts() {
+        // These render as empty boxes with the egui default fonts.
+        let missing = [
+            '→', '←', '▲', '▼', '●', '⊙', '⇤', '⇥', '⤒', '⤓', '⬡', '＋', '－', '⌂',
+        ];
+        for table in tables() {
+            for (key, text) in table {
+                assert!(
+                    !text.chars().any(|c| missing.contains(&c)),
+                    "{key} uses a glyph the fonts lack"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn every_key_used_in_the_code_is_translated() {
         let sources = [
             include_str!("app.rs"),

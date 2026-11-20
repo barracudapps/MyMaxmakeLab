@@ -176,10 +176,15 @@ impl Canvas {
             } else {
                 bed.union(input.document.bounds())
             };
+            // Prepare and Run focus on the job itself, not the whole bed.
             if input.show_preview
                 && let Some((_, bounds)) = &self.preview_texture
             {
-                area = area.union(*bounds);
+                let margin = bounds.width().max(bounds.height()) * 0.15;
+                area = Rect::from_points(
+                    Point::new(bounds.min.x - margin, bounds.min.y - margin),
+                    Point::new(bounds.max.x + margin, bounds.max.y + margin),
+                );
             }
             self.fit(rect, area);
             self.fit_requested = false;
