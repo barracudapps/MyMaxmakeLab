@@ -244,6 +244,107 @@ impl MotionCheck {
     }
 }
 
+/// The piece of stock lying on the bed, found on a rectified picture
+/// (`pixels_per_mm`, row 0 at the back): the bed colour is taken from
+/// the border of the picture, pixels clearly different from it form the
+/// stock, and the largest such blob gives its outline in bed
+/// millimetres. `None` when nothing stands out.
+pub fn detect_stock(
+    picture: &image::RgbaImage,
+    pixels_per_mm: f64,
+) -> Option<mml_core::geometry::Rect> {
+    let (width, height) = (picture.width() as usize, picture.height() as usize);
+    if width < 8 || height < 8 {
+        return None;
+    }
+    // Median colour of the border: the bed around the stock.
+    let mut border: Vec<[u8; 3]> = Vec::new();
+    for x in 0..width {
+        for y in [0, height - 1] {
+            let pixel = picture.get_pixel(x as u32, y as u32);
+            if pixel[3] > 0 {
+                border.push([pixel[0], pixel[1], pixel[2]]);
+            }
+        }
+    }
+    for y in 0..height {
+        for x in [0, width - 1] {
+            let pixel = picture.get_pixel(x as u32, y as u32);
+            if pixel[3] > 0 {
+                border.push([pixel[0], pixel[1], pixel[2]]);
+            }
+        }
+    }
+    if border.is_empty() {
+        return None;
+    }
+    let median = |channel: usize| {
+        let mut values: Vec<u8> = border.iter().map(|color| color[channel]).collect();
+        values.sort_unstable();
+        values[values.len() / 2] as f64
+    };
+    let bed = [median(0), median(1), median(2)];
+    let mask: Vec<bool> = picture
+        .pixels()
+        .map(|pixel| {
+            pixel[3] > 0
+                && ((pixel[0] as f64 - bed[0]).powi(2)
+                    + (pixel[1] as f64 - bed[1]).powi(2)
+                    + (pixel[2] as f64 - bed[2]).powi(2))
+                .sqrt()
+                    > 45.0
+        })
+        .collect();
+    // Largest connected blob.
+    let mut seen = vec![false; mask.len()];
+    let mut best: Option<(usize, [usize; 4])> = None;
+    let mut stack = Vec::new();
+    for start in 0..mask.len() {
+        if !mask[start] || seen[start] {
+            continue;
+        }
+        seen[start] = true;
+        stack.push(start);
+        let (mut count, mut bounds) = (0usize, [usize::MAX, usize::MAX, 0, 0]);
+        while let Some(index) = stack.pop() {
+            let (x, y) = (index % width, index / width);
+            count += 1;
+            bounds = [
+                bounds[0].min(x),
+                bounds[1].min(y),
+                bounds[2].max(x),
+                bounds[3].max(y),
+            ];
+            let neighbours = [
+                (x > 0).then(|| index - 1),
+                (x + 1 < width).then(|| index + 1),
+                (y > 0).then(|| index - width),
+                (y + 1 < height).then(|| index + width),
+            ];
+            for next in neighbours.into_iter().flatten() {
+                if mask[next] && !seen[next] {
+                    seen[next] = true;
+                    stack.push(next);
+                }
+            }
+        }
+        if best.is_none_or(|(largest, _)| count > largest) {
+            best = Some((count, bounds));
+        }
+    }
+    let (count, [x0, y0, x1, y1]) = best?;
+    // Noise, or the whole picture: not a piece of stock.
+    if count < (width * height) / 400 || count > (width * height) * 9 / 10 {
+        return None;
+    }
+    let to_mm = |pixels: usize| pixels as f64 / pixels_per_mm;
+    let bed_height = to_mm(height);
+    Some(mml_core::geometry::Rect::from_points(
+        Point::new(to_mm(x0), bed_height - to_mm(y1 + 1)),
+        Point::new(to_mm(x1 + 1), bed_height - to_mm(y0)),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,5 +436,31 @@ mod tests {
         check.commanded(5.4, Point::new(20.0, 0.0));
         let verdict = check.observed(5.1, 5.5, Point::new(10.5, 0.0));
         assert!(matches!(verdict, Verdict::Consistent { error } if error < 1.0));
+    }
+
+    #[test]
+    fn a_board_on_the_bed_is_found_where_it_lies() {
+        // Bed 200 x 100 mm at 2 px/mm, dark grey with a little noise; a
+        // light board from X 50 to 130 mm and Y 20 to 70 mm.
+        let mut picture = image::RgbaImage::from_fn(400, 200, |x, y| {
+            let noise = ((x * 7 + y * 13) % 9) as u8;
+            image::Rgba([60 + noise, 62 + noise, 66 + noise, 255])
+        });
+        for y in 60..160 {
+            for x in 100..260 {
+                picture.put_pixel(x, y, image::Rgba([210, 180, 140, 255]));
+            }
+        }
+        let stock = detect_stock(&picture, 2.0).unwrap();
+        assert!(
+            (stock.min.x - 50.0).abs() < 0.6 && (stock.max.x - 130.0).abs() < 0.6,
+            "{stock:?}"
+        );
+        assert!(
+            (stock.min.y - 20.0).abs() < 0.6 && (stock.max.y - 70.0).abs() < 0.6,
+            "{stock:?}"
+        );
+        let empty = image::RgbaImage::from_pixel(400, 200, image::Rgba([60, 62, 66, 255]));
+        assert_eq!(detect_stock(&empty, 2.0), None);
     }
 }
