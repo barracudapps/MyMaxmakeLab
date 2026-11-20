@@ -1,17 +1,74 @@
 use crate::svg_import::collect;
 use mml_core::geometry::{Path, Point};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, RwLock};
 
-/// System fonts are scanned once; it takes a noticeable time.
+/// Open-licensed fonts shipped with the application (see
+/// fonts/LICENSES.md), so lettering is the same on every computer.
+const BUNDLED: [&[u8]; 19] = [
+    include_bytes!("../fonts/AlfaSlabOne-Regular.ttf"),
+    include_bytes!("../fonts/AllertaStencil-Regular.ttf"),
+    include_bytes!("../fonts/AmaticSC-Bold.ttf"),
+    include_bytes!("../fonts/AmaticSC-Regular.ttf"),
+    include_bytes!("../fonts/BebasNeue-Regular.ttf"),
+    include_bytes!("../fonts/BlackOpsOne-Regular.ttf"),
+    include_bytes!("../fonts/Caveat[wght].ttf"),
+    include_bytes!("../fonts/CinzelDecorative-Regular.ttf"),
+    include_bytes!("../fonts/DancingScript[wght].ttf"),
+    include_bytes!("../fonts/GreatVibes-Regular.ttf"),
+    include_bytes!("../fonts/Lobster-Regular.ttf"),
+    include_bytes!("../fonts/Montserrat[wght].ttf"),
+    include_bytes!("../fonts/Orbitron[wght].ttf"),
+    include_bytes!("../fonts/Pacifico-Regular.ttf"),
+    include_bytes!("../fonts/PermanentMarker-Regular.ttf"),
+    include_bytes!("../fonts/Sacramento-Regular.ttf"),
+    include_bytes!("../fonts/SpecialElite-Regular.ttf"),
+    include_bytes!("../fonts/StardosStencil-Bold.ttf"),
+    include_bytes!("../fonts/StardosStencil-Regular.ttf"),
+];
+
+static DATABASE: RwLock<Option<Arc<usvg::fontdb::Database>>> = RwLock::new(None);
+
+/// System fonts plus bundled ones, scanned once (it takes a noticeable
+/// time) and extended by `add_font_directory`.
 pub(crate) fn font_database() -> Arc<usvg::fontdb::Database> {
-    static DATABASE: OnceLock<Arc<usvg::fontdb::Database>> = OnceLock::new();
-    DATABASE
-        .get_or_init(|| {
-            let mut database = usvg::fontdb::Database::new();
-            database.load_system_fonts();
-            Arc::new(database)
-        })
-        .clone()
+    if let Some(database) = DATABASE.read().ok().and_then(|guard| guard.clone()) {
+        return database;
+    }
+    let mut database = usvg::fontdb::Database::new();
+    database.load_system_fonts();
+    for data in BUNDLED {
+        database.load_font_data(data.to_vec());
+    }
+    let database = Arc::new(database);
+    if let Ok(mut guard) = DATABASE.write() {
+        *guard = Some(database.clone());
+    }
+    database
+}
+
+/// Loads the fonts of a directory (the user font folder) in addition to
+/// the system and bundled fonts.
+pub fn add_font_directory(directory: &std::path::Path) {
+    let mut database = (*font_database()).clone();
+    database.load_fonts_dir(directory);
+    if let Ok(mut guard) = DATABASE.write() {
+        *guard = Some(Arc::new(database));
+    }
+}
+
+/// Families of the bundled fonts, to list them first.
+pub fn bundled_families() -> Vec<String> {
+    let mut database = usvg::fontdb::Database::new();
+    for data in BUNDLED {
+        database.load_font_data(data.to_vec());
+    }
+    let mut families: Vec<String> = database
+        .faces()
+        .filter_map(|face| face.families.first().map(|(name, _)| name.clone()))
+        .collect();
+    families.sort_unstable();
+    families.dedup();
+    families
 }
 
 pub fn font_families() -> Vec<String> {
@@ -125,6 +182,15 @@ mod tests {
         }
         let bounds = mml_core::geometry::bounds_of(&paths);
         assert!(bounds.max.y > 5.0 && bounds.max.y < 10.0);
+        assert!(bundled_families().iter().any(|family| family == "Pacifico"));
+        let script = text_to_paths(
+            "Ag",
+            &TextStyle {
+                family: "Pacifico".into(),
+                ..TextStyle::default()
+            },
+        );
+        assert!(!script.is_empty());
         assert!(bounds.min.y < 0.0, "descender of g goes below the baseline");
     }
 }

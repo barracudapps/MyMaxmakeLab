@@ -10,7 +10,7 @@ mod trace;
 pub use dxf_import::import_dxf;
 pub use raster::import_raster;
 pub use svg_import::import_svg;
-pub use text::{TextStyle, font_families, text_to_paths};
+pub use text::{TextStyle, add_font_directory, bundled_families, font_families, text_to_paths};
 pub use trace::trace_image;
 
 use mml_core::geometry::Path;
