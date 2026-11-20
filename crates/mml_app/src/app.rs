@@ -190,6 +190,7 @@ pub struct MyApp {
     pub active_tab: usize,
     pub closing_tab: Option<usize>,
     pub pairing: crate::pairing_dialog::PairingState,
+    pub camera: crate::camera_panel::CameraState,
 }
 
 impl MyApp {
@@ -277,6 +278,7 @@ impl MyApp {
             active_tab: 0,
             closing_tab: None,
             pairing: Default::default(),
+            camera: Default::default(),
         };
         if let Some(fonts) = crate::settings::fonts_dir().filter(|directory| directory.is_dir()) {
             mml_io::add_font_directory(&fonts);
@@ -1627,6 +1629,9 @@ impl MyApp {
                         self.canvas.request_fit();
                     }
                     ui.checkbox(&mut self.settings.show_travel, tr("menu.show_travel"));
+                    if ui.button(tr("camera.title")).clicked() {
+                        self.camera.open = true;
+                    }
                     ui.separator();
                     for (choice, key) in [
                         (ThemeChoice::System, "theme.system"),
@@ -1928,6 +1933,7 @@ impl eframe::App for MyApp {
         self.refresh_live_links();
         crate::workflow::process_finished(self);
         crate::pairing_dialog::poll(self);
+        crate::camera_panel::poll(self, &ctx);
         self.handle_dropped_files(&ctx);
         self.shortcuts(&ctx);
         self.maintain_job(&ctx);

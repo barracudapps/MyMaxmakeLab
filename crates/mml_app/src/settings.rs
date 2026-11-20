@@ -74,6 +74,11 @@ pub struct Settings {
     pub jog_proportional: bool,
     pub idle_rpm: f64,
     pub tutorial_done: bool,
+    /// Bed corners clicked on the camera picture (front-left, front-right,
+    /// back-right, back-left), kept while the camera does not move.
+    pub camera_corners: Option<[[f64; 2]; 4]>,
+    /// Snapshot address of a phone or IP camera.
+    pub camera_url: String,
 }
 
 impl Default for Settings {
@@ -112,6 +117,8 @@ impl Default for Settings {
             jog_proportional: true,
             idle_rpm: 8000.0,
             tutorial_done: false,
+            camera_corners: None,
+            camera_url: String::new(),
         }
     }
 }

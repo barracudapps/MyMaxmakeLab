@@ -2,6 +2,7 @@
 
 mod app;
 mod assist;
+mod camera_panel;
 mod canvas;
 mod i18n;
 mod icons;

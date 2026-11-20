@@ -1,6 +1,7 @@
 //! File import. Everything is returned in millimetres, machine axes
 //! (Y up), with the drawing's bottom-left corner at the origin.
 
+pub mod camera;
 mod dxf_import;
 mod hershey;
 mod raster;

@@ -226,7 +226,8 @@ body): `git log` is the technical changelog. See
 - [x] Live safety monitor, probe, surface following, rotary
 - [x] Assistant, tool library with Fusion import, G-code repair
 - [x] Pairing with a tablet or phone drawing on a shared canvas (local web page, QR code)
-- [ ] Camera overlay and movement consistency check (webcam, phone, Insta360, GoPro)
+- [x] Camera overlay: photo or live snapshots (phone, IP camera, GoPro, Insta360 pictures), 4-corner calibration
+- [ ] Automatic movement consistency check by computer vision on the live camera
 - [ ] Native protocols for non-GRBL machines (Makera Carvera, Smoothieware)
 - [ ] Firmware update per vendor protocol
 - [x] Single-line (Hershey) fonts for pen and V-bit

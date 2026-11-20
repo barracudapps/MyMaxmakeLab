@@ -62,6 +62,8 @@ pub struct Canvas {
     pub anchor_marker: Option<Point>,
     pub picking: bool,
     stroke: Vec<Point>,
+    /// Rectified camera picture of the bed and its opacity.
+    pub camera: Option<(TextureHandle, f32)>,
 }
 
 impl Default for Canvas {
@@ -83,6 +85,7 @@ impl Default for Canvas {
             anchor_marker: None,
             picking: false,
             stroke: Vec::new(),
+            camera: None,
         }
     }
 }
@@ -234,6 +237,19 @@ impl Canvas {
 
         let painter = painter.with_clip_rect(rect);
         self.paint_bed(&painter, &view, input.bed, input.grid, &palette);
+        if let Some((texture, opacity)) = &self.camera {
+            let screen = ScreenRect::from_two_pos(
+                view.to_screen(Point::new(0.0, input.bed.1)),
+                view.to_screen(Point::new(input.bed.0, 0.0)),
+            );
+            let uv = ScreenRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0));
+            painter.image(
+                texture.id(),
+                screen,
+                uv,
+                Color32::from_white_alpha((opacity * 255.0) as u8),
+            );
+        }
 
         if input.show_preview
             && let Some((texture, bounds)) = &self.preview_texture
