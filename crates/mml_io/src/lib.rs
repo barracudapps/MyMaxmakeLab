@@ -8,6 +8,7 @@ mod raster;
 mod svg_import;
 mod text;
 mod trace;
+pub mod vision;
 
 pub use dxf_import::import_dxf;
 pub use hershey::{hershey_families, hershey_text, is_hershey};
