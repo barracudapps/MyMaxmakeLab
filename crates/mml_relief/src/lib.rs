@@ -446,8 +446,11 @@ pub fn emit_field_at(
     let line_spacing = (params.tool_diameter * params.stepover.clamp(0.02, 0.9)).max(0.02);
     let step = field.step;
     let cutter = DropCutter::new(params.tool, radius, step);
+    // Rows in parallel on every core: each tip only reads the field.
+    use rayon::prelude::*;
     let tips: Vec<Option<f64>> = (0..field.rows)
-        .flat_map(|row| (0..field.columns).map(move |column| (column, row)))
+        .into_par_iter()
+        .flat_map_iter(|row| (0..field.columns).map(move |column| (column, row)))
         // Above the stock top something stands in the way (a table
         // edge in a tilted setup): the tool must not go there at all.
         .map(|(column, row)| cutter.tip(field, column, row).filter(|tip| *tip <= 1e-6))

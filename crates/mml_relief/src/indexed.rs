@@ -192,7 +192,9 @@ fn continuous_finish(writer: &mut GcodeWriter, setup: &Setup) {
     let cutter = DropCutter::new(params.tool, tool_radius, step);
     let band = (tool_radius / step).ceil() * step;
     // tips[angle][column]
+    use rayon::prelude::*;
     let tips: Vec<Vec<f64>> = (0..angles)
+        .into_par_iter()
         .map(|index| {
             let field = setup.field(360.0 * index as f64 / angles as f64, band);
             let centre = field.rows / 2;

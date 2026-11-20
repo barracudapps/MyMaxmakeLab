@@ -1763,6 +1763,7 @@ version = "0.1.0"
 dependencies = [
  "mml_core",
  "mml_gcode",
+ "rayon",
  "thiserror 2.0.21",
 ]
 

@@ -11,3 +11,4 @@ rust-version.workspace = true
 mml_core.workspace = true
 mml_gcode.workspace = true
 thiserror.workspace = true
+rayon = "1.12"
