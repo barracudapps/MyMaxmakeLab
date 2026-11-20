@@ -151,7 +151,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         .filter(|shape| {
             document
                 .layer(shape.layer)
-                .is_some_and(|layer| layer.output && layer.visible)
+                .is_some_and(|layer| layer.output && layer.visible && layer.obstacle.is_none())
         })
         .filter(|shape| {
             options
@@ -216,7 +216,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     for layer in document
         .layers
         .iter()
-        .filter(|layer| layer.output && layer.visible)
+        .filter(|layer| layer.output && layer.visible && layer.obstacle.is_none())
     {
         let shapes: Vec<&Shape> = output_shapes
             .iter()
@@ -519,6 +519,15 @@ mod tests {
         assert!(job.gcode.find("; Layer Mill").unwrap() < pause_at);
         assert!(pause_at < job.gcode.find("; Layer Cut").unwrap());
         let _ = laser_layer;
+    }
+
+    #[test]
+    fn fixtures_are_never_cut() {
+        let (mut document, _) = document_with_square(50.0);
+        document.layers[0].operation = Operation::CncProfile(CncProfileParams::default());
+        document.layers[0].obstacle = Some(12.0);
+        let job = build_job(&document, &MachineProfile::generic_cnc());
+        assert!(!job.gcode.contains("G1"), "{}", job.gcode);
     }
 
     #[test]

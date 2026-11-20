@@ -40,6 +40,41 @@ pub struct MachineProfile {
     pub tool_changer: bool,
     /// 5-axis table: A tilts the cradle, C turns the table on it.
     pub trunnion: Option<Trunnion>,
+    /// Collet nut or spindle nose diameter, for collision checks, mm.
+    pub holder_diameter: f64,
+    /// Tool setter used to measure the real stick-out of each tool.
+    pub tool_setter: ToolSetter,
+}
+
+/// Measures how far an installed tool really sticks out of the collet.
+/// Calibrated once with a gauge of known stick-out touching the setter;
+/// afterwards a longer tool touches with the spindle higher, by exactly
+/// the difference of length.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ToolSetter {
+    /// Stick-out of the calibration gauge, measured with calipers, mm.
+    pub gauge_length: f64,
+    /// Machine Z when the gauge touched the setter.
+    pub reference_z: Option<f64>,
+}
+
+impl Default for ToolSetter {
+    fn default() -> Self {
+        Self {
+            gauge_length: 30.0,
+            reference_z: None,
+        }
+    }
+}
+
+impl ToolSetter {
+    /// Real stick-out of a tool that touched the setter at machine Z
+    /// `touch_z`; `None` until calibrated.
+    pub fn stick_out(&self, touch_z: f64) -> Option<f64> {
+        self.reference_z
+            .map(|reference| self.gauge_length + (touch_z - reference))
+    }
 }
 
 /// Table-table 5-axis kinematics (cradle tilting around X by A, table
@@ -134,6 +169,8 @@ impl MachineProfile {
             relative_to_current: false,
             tool_changer: false,
             trunnion: None,
+            holder_diameter: 20.0,
+            tool_setter: ToolSetter::default(),
         }
     }
 
@@ -232,5 +269,18 @@ mod tests {
             ..trunnion
         };
         assert_eq!(limited.orient([1.0, 0.0, 0.0]), None);
+    }
+
+    #[test]
+    fn the_setter_gives_the_real_stick_out() {
+        let mut setter = ToolSetter {
+            gauge_length: 30.0,
+            reference_z: None,
+        };
+        assert_eq!(setter.stick_out(-40.0), None, "not calibrated");
+        setter.reference_z = Some(-45.0);
+        // A tool touching 6 mm higher than the gauge sticks out 6 mm more.
+        assert_eq!(setter.stick_out(-39.0), Some(36.0));
+        assert_eq!(setter.stick_out(-52.5), Some(22.5));
     }
 }

@@ -33,6 +33,10 @@ pub struct Layer {
     /// that have one; ignored otherwise.
     #[serde(default)]
     pub tool: Option<u32>,
+    /// A fixture (clamp, vice, jig) to keep clear of, not cut: the height
+    /// of its top above the stock top, mm.
+    #[serde(default)]
+    pub obstacle: Option<f64>,
     pub operation: Operation,
 }
 
@@ -46,6 +50,7 @@ impl Layer {
             output: true,
             pause_before: false,
             tool: None,
+            obstacle: None,
             operation,
         }
     }

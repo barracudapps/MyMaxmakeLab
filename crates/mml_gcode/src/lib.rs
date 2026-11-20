@@ -4,6 +4,7 @@
 //! back with [`parse`], so the preview can never drift from the program.
 
 mod analysis;
+pub mod clearance;
 mod gentle;
 mod optimize;
 mod parser;
