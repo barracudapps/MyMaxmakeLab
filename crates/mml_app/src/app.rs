@@ -166,6 +166,7 @@ pub struct MyApp {
     pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
     pub updater: crate::update::Updater,
     pub makers: Option<crate::makers_dialog::MakersDialog>,
+    pub fleet: crate::fleet::FleetState,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -262,6 +263,7 @@ impl MyApp {
             ornament: None,
             updater: Default::default(),
             makers: None,
+            fleet: Default::default(),
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,
@@ -1496,12 +1498,15 @@ impl MyApp {
         });
     }
 
-    fn title(&self) -> String {
-        let name = self
-            .project_path
+    pub fn document_name(&self) -> String {
+        self.project_path
             .as_deref()
             .map(Self::file_stem)
-            .unwrap_or_else(|| tr("file.untitled").to_owned());
+            .unwrap_or_else(|| tr("file.untitled").to_owned())
+    }
+
+    fn title(&self) -> String {
+        let name = self.document_name();
         format!(
             "{}{} — MyMaxmakeLab",
             if self.is_modified() { "● " } else { "" },
@@ -1641,6 +1646,13 @@ impl MyApp {
                     }
                     if ui.button(tr("tools.title")).clicked() {
                         self.tools_open = true;
+                    }
+                    if ui
+                        .button(tr("fleet.title"))
+                        .on_hover_text(tr("fleet.menu_hint"))
+                        .clicked()
+                    {
+                        self.fleet.open = true;
                     }
                     if self.settings.advanced && ui.button(tr("firmware.title")).clicked() {
                         self.firmware.open = true;
@@ -1999,6 +2011,10 @@ impl eframe::App for MyApp {
         crate::workflow::process_finished(self);
         crate::pairing_dialog::poll(self);
         crate::camera_panel::poll(self, &ctx);
+        crate::fleet::poll(self);
+        if crate::fleet::busy(self) {
+            ctx.request_repaint_after(std::time::Duration::from_millis(200));
+        }
         let asked = std::mem::take(&mut self.check_updates_now);
         self.manual_update_check |= asked;
         if let Some(outcome) = self.updater.poll(self.settings.auto_update, asked) {

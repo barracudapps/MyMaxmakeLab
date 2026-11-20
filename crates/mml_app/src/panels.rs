@@ -1283,6 +1283,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::sprue_dialog::show(app, ctx);
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);
+    crate::fleet::show(app, ctx);
     preset_dialog(app, ctx);
     machine_dialog(app, ctx);
     preferences(app, ctx);

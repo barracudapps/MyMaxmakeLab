@@ -5,6 +5,7 @@ mod assist;
 mod camera_panel;
 mod canvas;
 mod firmware;
+mod fleet;
 mod i18n;
 mod icons;
 mod machine_panel;
