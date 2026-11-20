@@ -1,9 +1,12 @@
 //! Material presets: a named set of layer parameters for a material and
 //! thickness, applied to a layer in one click.
 
+pub mod tools;
+
 use mml_core::layer::{DitherMode, FillParams, ImageParams, LineParams, Operation};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+pub use tools::{Tool, ToolKind, import_fusion};
 use uuid::Uuid;
 
 #[derive(Debug, thiserror::Error)]
@@ -56,6 +59,8 @@ impl Preset {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Library {
     pub presets: Vec<Preset>,
+    #[serde(default)]
+    pub tools: Vec<Tool>,
 }
 
 impl Library {
