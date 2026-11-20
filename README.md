@@ -8,7 +8,7 @@ Design · Prepare · Run — from a sketch, a photo, a font or a 3D model to a f
 
 ![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Linux%20%7C%20Windows-supported-6c63ff)
-![Tests](https://img.shields.io/badge/tests-84%20passing-34a870)
+![Tests](https://img.shields.io/badge/tests-95%20passing-34a870)
 ![GRBL](https://img.shields.io/badge/GRBL-1.1%20%7C%20grblHAL-informational)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -109,6 +109,10 @@ flowchart LR
   stroke width) and pictures engraved deeper where darker.
 - **3D model → G-code**: drop an STL or OBJ, choose the face, size, depth and
   tool, get roughing and finishing passes computed by drop-cutter (no gouge).
+- **4-axis**: wrap a relief around a cylinder, or machine the whole part
+  from 2 to 8 faces on round stock (indexed 3+1).
+- **Automatic tool changer** (Makera Carvera): each CNC layer picks its
+  slot, the machine changes and measures the tool by itself.
 - **Tool library**: quick or advanced tool creation, **Fusion 360 import**,
   tool picker filling feeds, speeds and stepover.
 </details>
@@ -145,6 +149,7 @@ flowchart TB
     M -->|head leaves the job area| P["Feed hold"]
     M -->|rotary turns unasked| P
     M -->|limit switch pressed| P
+    C["Camera sees the head<br/>away from its position"] --> P
     M -->|no answer 1.5 s| W["Warning"]
     H["Homing duration"] -->|40 % slower than usual| W2["Binding axis? Loose belt?"]
     P --> R["Operator: resume or stop<br/>(stop keeps the position)"]
@@ -154,7 +159,8 @@ flowchart TB
   using the live position; an open door blocks Start; laser jobs need an
   approved low-power **frame**, CNC jobs a **probed origin**; a short safety
   **checklist** (lid, glasses, clamping, fire watch).
-- **During the job**: automatic pause on anomalies, readable alarms with the
+- **During the job**: automatic pause on anomalies (including the camera
+  movement check, which catches lost steps and slipping belts), readable alarms with the
   action to take, Stop that keeps the position, emergency stop always visible.
 - **Advanced mode** shows the console, macros and controller settings (`$$`
   with explanations). Only there can the mandatory checks be lifted; the
@@ -176,7 +182,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 84 tests
+cargo test --workspace      # 95 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -228,14 +234,15 @@ body): `git log` is the technical changelog. See
 - [x] Assistant, tool library with Fusion import, G-code repair
 - [x] Pairing with a tablet or phone drawing on a shared canvas (local web page, QR code)
 - [x] Camera overlay: photo or live snapshots (phone, IP camera, GoPro, Insta360 pictures), 4-corner calibration
-- [ ] Automatic movement consistency check by computer vision on the live camera
+- [x] Movement consistency check by camera: laser dot or sticker followed, auto-pause on mismatch
 - [x] GRBL-like firmwares (Smoothieware, Makera Carvera): send-and-wait streaming, legacy status reports
-- [ ] Makera Carvera specifics (automatic tool changer, its Wi-Fi discovery), to validate on the machine
+- [x] Makera Carvera: Wi-Fi discovery, automatic tool changer (M6 per layer), halt reasons (to validate on the machine)
 - [x] Firmware update of open controllers (GRBL on Arduino via avrdude, grblHAL / FluidNC on ESP32 via esptool)
 - [ ] Vendor firmware update (HiMill): needs the vendor protocol
 - [x] Single-line (Hershey) fonts for pen and V-bit
 - [x] 4-axis reliefs wrapped on the A axis
-- [ ] True 4/5-axis machining with tool orientation and a kinematics model
+- [x] Indexed 4-axis machining (3+1): a whole part from 2 to 8 faces on round stock
+- [ ] Simultaneous 4/5-axis machining with tool orientation and a kinematics model
 
 ## 🇫🇷 En bref
 
@@ -245,7 +252,9 @@ Préparation → Machine**), aperçu fidèle du programme réellement envoyé,
 surveillance de la machine avec pause automatique, vérification des limites
 sur la position réelle, cadrage à blanc et palpage obligatoires, assistant de
 réglages, bibliothèque d'outils compatible Fusion 360, relief 3D depuis un STL,
-gravure en V, styles de gravure laser, polices intégrées, texte en arc, 4e axe,
+gravure en V, styles de gravure laser, polices intégrées, texte en arc, 4e axe
+(relief enroulé ou pièce complète usinée sur plusieurs faces), contrôle des
+mouvements par caméra, Makera Carvera (découverte Wi-Fi, changeur d'outils),
 réparation de G-code. Interface en français et en anglais, thèmes clair et
 sombre.
 
