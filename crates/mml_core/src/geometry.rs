@@ -364,6 +364,53 @@ impl Path {
     }
 }
 
+/// Douglas-Peucker simplification of an open polyline: keeps the
+/// vertices needed to stay within `tolerance` of the original.
+pub fn simplify_polyline(points: &[Point], tolerance: f64) -> Vec<Point> {
+    if points.len() < 3 {
+        return points.to_vec();
+    }
+    let (first, last) = (points[0], points[points.len() - 1]);
+    let (index, distance) = points[1..points.len() - 1]
+        .iter()
+        .enumerate()
+        .map(|(index, point)| (index + 1, distance_to_segment(*point, first, last)))
+        .fold(
+            (0, 0.0),
+            |best, item| if item.1 > best.1 { item } else { best },
+        );
+    if distance <= tolerance {
+        return vec![first, last];
+    }
+    let mut left = simplify_polyline(&points[..=index], tolerance);
+    let right = simplify_polyline(&points[index..], tolerance);
+    left.pop();
+    left.extend(right);
+    left
+}
+
+/// Moving-average smoothing that keeps both ends, used for hand drawn
+/// strokes whose mouse or stylus samples are jittery.
+pub fn smooth_polyline(points: &[Point], window: usize) -> Vec<Point> {
+    if points.len() < 3 || window < 2 {
+        return points.to_vec();
+    }
+    let half = window / 2;
+    (0..points.len())
+        .map(|index| {
+            if index == 0 || index == points.len() - 1 {
+                return points[index];
+            }
+            let from = index.saturating_sub(half);
+            let to = (index + half).min(points.len() - 1);
+            let sum = points[from..=to]
+                .iter()
+                .fold(Point::default(), |sum, point| sum + *point);
+            sum * (1.0 / (to - from + 1) as f64)
+        })
+        .collect()
+}
+
 pub fn distance_to_segment(point: Point, a: Point, b: Point) -> f64 {
     let ab = b - a;
     let length_squared = ab.dot(ab);
@@ -442,6 +489,23 @@ mod tests {
         let point = Point::new(3.0, 7.0);
         let back = transform.inverse().unwrap().apply(transform.apply(point));
         assert!(back.distance(point) < 1e-9);
+    }
+
+    #[test]
+    fn simplification_keeps_corners_and_drops_colinear_points() {
+        let points: Vec<Point> = (0..=10)
+            .map(|index| Point::new(index as f64, 0.0))
+            .chain((1..=10).map(|index| Point::new(10.0, index as f64)))
+            .collect();
+        let simplified = simplify_polyline(&points, 0.01);
+        assert_eq!(
+            simplified,
+            vec![
+                Point::new(0.0, 0.0),
+                Point::new(10.0, 0.0),
+                Point::new(10.0, 10.0)
+            ]
+        );
     }
 
     #[test]
