@@ -4,26 +4,48 @@ use std::sync::{Arc, RwLock};
 
 /// Open-licensed fonts shipped with the application (see
 /// fonts/LICENSES.md), so lettering is the same on every computer.
-const BUNDLED: [&[u8]; 19] = [
+const BUNDLED: [&[u8]; 41] = [
+    include_bytes!("../fonts/AbrilFatface-Regular.ttf"),
     include_bytes!("../fonts/AlfaSlabOne-Regular.ttf"),
     include_bytes!("../fonts/AllertaStencil-Regular.ttf"),
+    include_bytes!("../fonts/Allura-Regular.ttf"),
     include_bytes!("../fonts/AmaticSC-Bold.ttf"),
     include_bytes!("../fonts/AmaticSC-Regular.ttf"),
+    include_bytes!("../fonts/Anton-Regular.ttf"),
+    include_bytes!("../fonts/Audiowide-Regular.ttf"),
     include_bytes!("../fonts/BebasNeue-Regular.ttf"),
+    include_bytes!("../fonts/BigShouldersStencil[opsz,wght].ttf"),
     include_bytes!("../fonts/BlackOpsOne-Regular.ttf"),
+    include_bytes!("../fonts/Bungee-Regular.ttf"),
     include_bytes!("../fonts/Caveat[wght].ttf"),
     include_bytes!("../fonts/CinzelDecorative-Regular.ttf"),
+    include_bytes!("../fonts/Cinzel[wght].ttf"),
     include_bytes!("../fonts/DancingScript[wght].ttf"),
     include_bytes!("../fonts/GreatVibes-Regular.ttf"),
+    include_bytes!("../fonts/IndieFlower-Regular.ttf"),
+    include_bytes!("../fonts/KaushanScript-Regular.ttf"),
     include_bytes!("../fonts/Lobster-Regular.ttf"),
+    include_bytes!("../fonts/Lora[wght].ttf"),
+    include_bytes!("../fonts/MedievalSharp.ttf"),
+    include_bytes!("../fonts/Monoton-Regular.ttf"),
     include_bytes!("../fonts/Montserrat[wght].ttf"),
     include_bytes!("../fonts/Orbitron[wght].ttf"),
+    include_bytes!("../fonts/Oswald[wght].ttf"),
     include_bytes!("../fonts/Pacifico-Regular.ttf"),
+    include_bytes!("../fonts/Parisienne-Regular.ttf"),
     include_bytes!("../fonts/PermanentMarker-Regular.ttf"),
+    include_bytes!("../fonts/PirataOne-Regular.ttf"),
+    include_bytes!("../fonts/PlayfairDisplay[wght].ttf"),
+    include_bytes!("../fonts/Righteous-Regular.ttf"),
     include_bytes!("../fonts/Sacramento-Regular.ttf"),
+    include_bytes!("../fonts/SairaStencilOne-Regular.ttf"),
+    include_bytes!("../fonts/ShadowsIntoLight.ttf"),
+    include_bytes!("../fonts/SpaceMono-Regular.ttf"),
     include_bytes!("../fonts/SpecialElite-Regular.ttf"),
     include_bytes!("../fonts/StardosStencil-Bold.ttf"),
     include_bytes!("../fonts/StardosStencil-Regular.ttf"),
+    include_bytes!("../fonts/UncialAntiqua-Regular.ttf"),
+    include_bytes!("../fonts/UnifrakturMaguntia-Book.ttf"),
 ];
 
 static DATABASE: RwLock<Option<Arc<usvg::fontdb::Database>>> = RwLock::new(None);
@@ -218,5 +240,22 @@ mod tests {
         );
         assert!(!script.is_empty());
         assert!(bounds.min.y < 0.0, "descender of g goes below the baseline");
+    }
+
+    #[test]
+    fn every_bundled_font_draws_text() {
+        let families = bundled_families();
+        assert!(families.len() >= 38, "{families:?}");
+        for family in families {
+            let paths = text_to_paths(
+                "Ag",
+                &TextStyle {
+                    family: family.clone(),
+                    size: 10.0,
+                    ..TextStyle::default()
+                },
+            );
+            assert!(!paths.is_empty(), "{family} draws nothing");
+        }
     }
 }
