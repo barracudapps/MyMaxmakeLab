@@ -1,4 +1,5 @@
 use crate::realtime;
+use crate::safety::{Anomaly, JobGuard, SafetyMonitor};
 use crate::status::{MachineState, MachineStatus, parse_status};
 use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
@@ -11,6 +12,7 @@ use std::time::{Duration, Instant};
 const RX_BUFFER: usize = 127;
 const STATUS_PERIOD: Duration = Duration::from_millis(200);
 const STOP_TIMEOUT: Duration = Duration::from_secs(3);
+const STATUS_TIMEOUT: Duration = Duration::from_millis(1500);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Connection {
@@ -40,7 +42,14 @@ pub enum Command {
     /// One line through the planner buffer (G-code or `$` command).
     Line(String),
     Realtime(u8),
-    StartJob(Vec<String>),
+    StartJob {
+        lines: Vec<String>,
+        guard: Option<JobGuard>,
+    },
+    /// Feed hold and immediate reset. The position may be lost (alarm 3
+    /// when moving) but everything stops at once. Software only: a
+    /// physical emergency stop that cuts power remains mandatory.
+    EmergencyStop,
     Pause,
     Resume,
     /// Feed hold, wait for the head to stop, then reset: the position is
@@ -88,6 +97,17 @@ pub enum Event {
     JobFinished {
         outcome: JobOutcome,
         elapsed: Duration,
+    },
+    /// `paused` tells whether the job was put on feed hold for it.
+    Anomaly {
+        anomaly: Anomaly,
+        paused: bool,
+    },
+    /// A homing cycle ended; a duration much longer than usual hints at
+    /// mechanical resistance (dirty rail, loose belt, binding axis).
+    HomingFinished {
+        duration: Duration,
+        success: bool,
     },
 }
 
@@ -226,6 +246,9 @@ struct Worker {
     status: MachineStatus,
     incoming: Vec<u8>,
     last_poll: Instant,
+    last_status: Instant,
+    monitor: SafetyMonitor,
+    homing_since: Option<Instant>,
 }
 
 impl Worker {
@@ -246,6 +269,9 @@ impl Worker {
             status: MachineStatus::default(),
             incoming: Vec::with_capacity(256),
             last_poll: Instant::now() - STATUS_PERIOD,
+            last_status: Instant::now(),
+            monitor: SafetyMonitor::default(),
+            homing_since: None,
         }
     }
 
@@ -295,8 +321,17 @@ impl Worker {
                 }
                 self.realtime(byte)?;
             }
-            Command::StartJob(lines) => {
+            Command::EmergencyStop => {
+                self.realtime(realtime::FEED_HOLD)?;
+                self.realtime(realtime::SOFT_RESET)?;
+                self.stopping = None;
+                self.clear_buffers();
+                self.finish_job(JobOutcome::Stopped);
+            }
+            Command::StartJob { lines, guard } => {
                 if self.job.is_none() {
+                    self.monitor
+                        .start_job(guard.unwrap_or_default(), Some(&self.status));
                     let lines: Vec<String> = lines
                         .into_iter()
                         .map(|line| strip_comment(&line))
@@ -334,6 +369,7 @@ impl Worker {
     }
 
     fn finish_job(&mut self, outcome: JobOutcome) {
+        self.monitor.end_job();
         if let Some(job) = self.job.take() {
             self.emit(Event::JobFinished {
                 outcome,
@@ -347,6 +383,15 @@ impl Worker {
         if self.last_poll.elapsed() >= STATUS_PERIOD {
             self.realtime(realtime::STATUS)?;
             self.last_poll = Instant::now();
+        }
+        if self.job.is_some() && self.last_status.elapsed() > STATUS_TIMEOUT {
+            let seconds = self.last_status.elapsed().as_secs_f64();
+            if let Some(anomaly) = self.monitor.report(Anomaly::StatusTimeout { seconds }) {
+                self.emit(Event::Anomaly {
+                    anomaly,
+                    paused: false,
+                });
+            }
         }
         if let Some(since) = self.stopping {
             let stopped = matches!(
@@ -385,6 +430,21 @@ impl Worker {
         Ok(())
     }
 
+    fn track_homing(&mut self, status: &MachineStatus) {
+        match (status.state == MachineState::Home, self.homing_since) {
+            (true, None) => self.homing_since = Some(Instant::now()),
+            (false, Some(since)) => {
+                self.homing_since = None;
+                let success = status.state == MachineState::Idle;
+                self.emit(Event::HomingFinished {
+                    duration: since.elapsed(),
+                    success,
+                });
+            }
+            _ => {}
+        }
+    }
+
     fn fill_buffer(&mut self) -> std::io::Result<()> {
         if self.stopping.is_none()
             && self.queue.is_empty()
@@ -418,6 +478,24 @@ impl Worker {
     fn on_line(&mut self, line: &str) -> std::io::Result<()> {
         if line.starts_with('<') {
             if let Some(status) = parse_status(line, &self.status) {
+                self.last_status = Instant::now();
+                self.track_homing(&status);
+                let pending = !self.in_flight.is_empty() || !self.queue.is_empty();
+                for anomaly in self.monitor.observe(&status, pending) {
+                    let Some(anomaly) = self.monitor.report(anomaly) else {
+                        continue;
+                    };
+                    let pause = anomaly.is_critical()
+                        && self.job.is_some()
+                        && self.monitor.guard().is_some_and(|guard| guard.auto_pause);
+                    if pause {
+                        self.realtime(realtime::FEED_HOLD)?;
+                    }
+                    self.emit(Event::Anomaly {
+                        anomaly,
+                        paused: pause,
+                    });
+                }
                 self.status = status.clone();
                 self.emit(Event::Status(status));
                 let drained = self.job.as_ref().is_some_and(|job| {
@@ -612,7 +690,7 @@ mod tests {
         let lines: Vec<String> = (0..500)
             .map(|index| format!("G1 X{index} F1000 ; move"))
             .collect();
-        controller.send(Command::StartJob(lines));
+        controller.send(Command::StartJob { lines, guard: None });
         let events = wait_for(&controller, |event| {
             matches!(event, Event::JobFinished { .. })
         });
@@ -632,11 +710,10 @@ mod tests {
     fn rejected_line_stops_the_job_and_reports_its_number() {
         let grbl = FakeGrbl::default();
         let controller = Controller::spawn(move || Ok(Box::new(grbl) as Box<dyn Transport>));
-        controller.send(Command::StartJob(vec![
-            "G0 X1".into(),
-            "BAD".into(),
-            "G0 X2".into(),
-        ]));
+        controller.send(Command::StartJob {
+            lines: vec!["G0 X1".into(), "BAD".into(), "G0 X2".into()],
+            guard: None,
+        });
         let events = wait_for(&controller, |event| {
             matches!(event, Event::JobFinished { .. })
         });

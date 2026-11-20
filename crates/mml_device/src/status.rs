@@ -51,6 +51,19 @@ pub struct MachineStatus {
     pub overrides: [u32; 3],
     /// Active input pins, e.g. "XZP".
     pub pins: String,
+    /// Machine position of the 4th (rotary) axis when the controller
+    /// reports one.
+    pub rotary: Option<f64>,
+}
+
+impl MachineStatus {
+    /// Limit switches currently pressed (X, Y, Z or A pins).
+    pub fn active_limits(&self) -> String {
+        self.pins
+            .chars()
+            .filter(|pin| matches!(pin, 'X' | 'Y' | 'Z' | 'A'))
+            .collect()
+    }
 }
 
 /// Parses `<Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:...>`. GRBL sends the
@@ -85,6 +98,11 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
             values.next().flatten().unwrap_or(0.0),
         ])
     };
+    let fourth = |text: &str| {
+        text.split(',')
+            .nth(3)
+            .and_then(|value| value.parse::<f64>().ok())
+    };
     let mut machine = None;
     let mut work = None;
     for field in fields {
@@ -92,8 +110,14 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
             continue;
         };
         match key {
-            "MPos" => machine = triple(value),
-            "WPos" => work = triple(value),
+            "MPos" => {
+                machine = triple(value);
+                status.rotary = fourth(value);
+            }
+            "WPos" => {
+                work = triple(value);
+                status.rotary = fourth(value);
+            }
             "WCO" => status.work_offset = triple(value).unwrap_or(status.work_offset),
             "FS" | "F" => {
                 let mut values = value
@@ -148,5 +172,17 @@ mod tests {
         assert_eq!(second.work_position, [6.0, 15.0, 0.0]);
         assert_eq!((second.feed, second.spindle), (1200.0, 800.0));
         assert_eq!(second.pins, "X");
+        assert_eq!(second.active_limits(), "X");
+    }
+
+    #[test]
+    fn fourth_axis_is_read() {
+        let status = parse_status(
+            "<Idle|MPos:1.000,2.000,3.000,45.000|FS:0,0>",
+            &MachineStatus::default(),
+        )
+        .unwrap();
+        assert_eq!(status.rotary, Some(45.0));
+        assert_eq!(status.machine_position, [1.0, 2.0, 3.0]);
     }
 }
