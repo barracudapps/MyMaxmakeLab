@@ -17,7 +17,7 @@ mml_cnc = { path = "crates/mml_cnc" }
 mml_io = { path = "crates/mml_io" }
 mml_materials = { path = "crates/mml_materials" }
 mml_device = { path = "crates/mml_device" }
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 thiserror = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
