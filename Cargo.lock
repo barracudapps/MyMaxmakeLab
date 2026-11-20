@@ -1735,6 +1735,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mml_mcp"
+version = "0.1.0"
+dependencies = [
+ "mml_core",
+ "mml_gcode",
+ "mml_io",
+ "mml_job",
+ "mml_relief",
+ "serde_json",
+]
+
+[[package]]
 name = "mml_probe"
 version = "0.1.0"
 dependencies = [
