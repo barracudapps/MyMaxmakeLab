@@ -23,6 +23,8 @@ pub struct ReliefDialog {
     pub positional: Option<PositionalParams>,
     /// Imprint of the model in the stock instead of a relief.
     pub mold: Option<MoldParams>,
+    /// Sheet thickness for stacked slices.
+    pub slice_thickness: f64,
 }
 
 impl ReliefDialog {
@@ -42,6 +44,7 @@ impl ReliefDialog {
             indexed: None,
             positional: None,
             mold: None,
+            slice_thickness: 3.0,
         }
     }
 
@@ -88,6 +91,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     }
     let mut open = true;
     let mut generate = false;
+    let mut make_slices = false;
     let (width, height) = dialog.model_size();
     let trunnion = app.machine.trunnion;
     let has_trunnion = trunnion.is_some();
@@ -437,6 +441,18 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     );
                 }
             }
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label(tr("relief.slices"))
+                    .on_hover_text(tr("relief.slices_hint"));
+                ui.add(
+                    DragValue::new(&mut dialog.slice_thickness)
+                        .range(0.5..=30.0)
+                        .suffix(" mm")
+                        .speed(0.1),
+                );
+                make_slices = ui.button(tr("relief.make_slices")).clicked();
+            });
             ui.label(RichText::new(tr("relief.hint")).weak().small());
             if dialog.computing.is_some() {
                 ui.horizontal(|ui| {
@@ -449,6 +465,10 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     .clicked();
             }
         });
+    if make_slices && let Some(dialog) = app.relief.take() {
+        create_slices(app, &dialog);
+        return;
+    }
     if generate && let Some(dialog) = &mut app.relief {
         let (sender, receiver) = channel();
         let triangles = dialog.triangles.clone();
@@ -505,4 +525,138 @@ fn side_key(side: Side) -> &'static str {
         Side::Left => "relief.side_left",
         Side::Right => "relief.side_right",
     }
+}
+
+/// Lays the stacked slices of the model out flat, numbered in the order
+/// they are glued, the numbers engraved on their own layer.
+fn create_slices(app: &mut MyApp, dialog: &ReliefDialog) {
+    use mml_core::document::{Shape, ShapeKind};
+    use mml_core::geometry::{Path, Point};
+    use mml_core::layer::{Layer, LineParams, Operation};
+    let layers = mml_relief::slice_mesh(
+        &dialog.triangles,
+        dialog.params.width,
+        dialog.slice_thickness,
+    );
+    let parts: Vec<Vec<Path>> = layers
+        .into_iter()
+        .map(|loops| {
+            loops
+                .into_iter()
+                .map(|points| {
+                    Path::new(
+                        points.into_iter().map(|[x, y]| Point::new(x, y)).collect(),
+                        true,
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .filter(|paths| !paths.is_empty())
+        .collect();
+    if parts.is_empty() {
+        app.notify(tr("relief.no_slices"), Level::Error);
+        return;
+    }
+    let bounds: Vec<_> = parts
+        .iter()
+        .map(|paths| {
+            paths
+                .iter()
+                .fold(mml_core::geometry::Rect::EMPTY, |rect, path| {
+                    rect.union(path.bounds())
+                })
+        })
+        .collect();
+    let sizes: Vec<(f64, f64)> = bounds
+        .iter()
+        .map(|rect| (rect.width(), rect.height()))
+        .collect();
+    let (corners, _) = mml_core::attach::shelf_pack(&sizes, app.machine.width.max(100.0), 3.0);
+    app.begin_edit("history.add");
+    let cut_layer = app.layer_for(false);
+    let labels = Layer::new(
+        tr("relief.slice_labels"),
+        app.document.next_layer_color(),
+        Operation::LaserLine(LineParams {
+            power: 20.0,
+            speed: 1500.0,
+            ..LineParams::default()
+        }),
+    );
+    let label_layer = labels.id;
+    // Numbers are engraved before the parts are cut free.
+    let position = app
+        .document
+        .layers
+        .iter()
+        .position(|layer| layer.id == cut_layer)
+        .unwrap_or(0);
+    app.document.layers.insert(position, labels);
+    let family = mml_io::hershey_families()
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    let count = parts.len();
+    app.selection.clear();
+    for (index, ((mut paths, rect), corner)) in
+        parts.into_iter().zip(&bounds).zip(&corners).enumerate()
+    {
+        let (dx, dy) = (corner.x - rect.min.x, corner.y - rect.min.y);
+        for point in paths.iter_mut().flat_map(|path| path.points.iter_mut()) {
+            point.x += dx;
+            point.y += dy;
+        }
+        let number = format!("{}", index + 1);
+        let size = (rect.width().min(rect.height()) * 0.3).clamp(2.0, 8.0);
+        let centre = Point::new(
+            rect.min.x + dx + rect.width() / 2.0,
+            rect.min.y + dy + rect.height() / 2.0,
+        );
+        if inside(&paths, centre) {
+            let mut text = mml_io::hershey_text(&number, &family, size, 1.2);
+            let text_bounds = text
+                .iter()
+                .fold(mml_core::geometry::Rect::EMPTY, |rect, path| {
+                    rect.union(path.bounds())
+                });
+            for point in text.iter_mut().flat_map(|path| path.points.iter_mut()) {
+                point.x += centre.x - (text_bounds.min.x + text_bounds.max.x) / 2.0;
+                point.y += centre.y - (text_bounds.min.y + text_bounds.max.y) / 2.0;
+            }
+            let label = Shape::new(
+                number.clone(),
+                label_layer,
+                ShapeKind::Paths { paths: text },
+            );
+            app.selection.push(label.id);
+            app.document.shapes.push(label);
+        }
+        let shape = Shape::new(
+            trf("relief.slice_name", &[&(index + 1), &count]),
+            cut_layer,
+            ShapeKind::Paths { paths },
+        );
+        app.selection.push(shape.id);
+        app.document.shapes.push(shape);
+    }
+    app.end_edit();
+    app.mode = Mode::Design;
+    app.canvas.request_fit();
+    app.notify(trf("relief.slices_done", &[&count]), Level::Info);
+}
+
+fn inside(paths: &[mml_core::geometry::Path], point: mml_core::geometry::Point) -> bool {
+    let mut inside = false;
+    for path in paths {
+        let count = path.points.len();
+        for index in 0..count {
+            let (a, b) = (path.points[index], path.points[(index + 1) % count]);
+            if (a.y > point.y) != (b.y > point.y)
+                && point.x < a.x + (point.y - a.y) / (b.y - a.y) * (b.x - a.x)
+            {
+                inside = !inside;
+            }
+        }
+    }
+    inside
 }

@@ -165,6 +165,7 @@ pub struct MyApp {
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
     pub updater: crate::update::Updater,
+    pub makers: Option<crate::makers_dialog::MakersDialog>,
     check_updates_now: bool,
     manual_update_check: bool,
     pub preset_dialog: Option<PresetDialog>,
@@ -260,6 +261,7 @@ impl MyApp {
             sprue: None,
             ornament: None,
             updater: Default::default(),
+            makers: None,
             check_updates_now: false,
             manual_update_check: false,
             preset_dialog: None,
@@ -1602,6 +1604,13 @@ impl MyApp {
                     ui.separator();
                     if ui.button(tr("svgcode.title")).clicked() {
                         self.svg_code = Some(Default::default());
+                    }
+                    if ui
+                        .button(tr("makers.title"))
+                        .on_hover_text(tr("makers.menu_hint"))
+                        .clicked()
+                    {
+                        self.makers = Some(Default::default());
                     }
                     if ui
                         .button(tr("ornament.title"))
