@@ -81,6 +81,13 @@ pub struct DeviceState {
     /// Continuous jog in progress: direction and whether the long jog
     /// was sent (held longer than a click).
     pub hold: Option<([f64; 3], Instant, bool)>,
+    /// Direction held this frame on the jog pad or the keyboard, read
+    /// once per frame by `drive_jog`.
+    pub jog_pad: Option<[f64; 3]>,
+    pub jog_keys: Option<[f64; 3]>,
+    /// Precision change held on the keyboard: +1 coarser (Shift), -1
+    /// finer (Alt).
+    pub jog_shift: i32,
     /// Network search for Carvera machines in progress.
     discovery: Option<std::sync::mpsc::Receiver<Vec<Found>>>,
     pub discovered: Option<Vec<Found>>,
@@ -135,6 +142,9 @@ impl DeviceState {
             tool_maybe_changed: false,
             z_probed: false,
             hold: None,
+            jog_pad: None,
+            jog_keys: None,
+            jog_shift: 0,
             discovery: None,
             discovered: None,
             detect_usb: true,
@@ -788,18 +798,51 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
     gentle_homing_advice(device, ui);
 }
 
+/// Precision levels of the jog, finest first: step in mm and name.
+pub const JOG_LEVELS: [(f64, &str); 5] = [
+    (0.01, "jog.level_micro"),
+    (0.1, "jog.level_fine"),
+    (1.0, "jog.level_normal"),
+    (10.0, "jog.level_fast"),
+    (50.0, "jog.level_rapid"),
+];
+
+/// Index of the level nearest to `step`.
+pub fn jog_level(step: f64) -> usize {
+    JOG_LEVELS
+        .iter()
+        .enumerate()
+        .min_by(|a, b| {
+            (a.1.0.ln() - step.max(1e-6).ln())
+                .abs()
+                .total_cmp(&(b.1.0.ln() - step.max(1e-6).ln()).abs())
+        })
+        .map_or(2, |(index, _)| index)
+}
+
+/// Step in use: the chosen level, one coarser while Shift is held, one
+/// finer while Alt is held.
+fn effective_step(app: &MyApp) -> f64 {
+    let level = jog_level(app.settings.jog_step) as i32 + app.device.jog_shift;
+    JOG_LEVELS[level.clamp(0, JOG_LEVELS.len() as i32 - 1) as usize].0
+}
+
+fn step_feed(app: &MyApp, step: f64) -> f64 {
+    if app.settings.jog_proportional {
+        (step * 300.0).clamp(30.0, app.settings.jog_feed)
+    } else {
+        app.settings.jog_feed
+    }
+}
+
 /// Jog pad: a click moves one step, holding a button moves until it is
 /// released (long jog cancelled with the GRBL jog-cancel command), so
 /// the head can be brought quickly and then precisely into place.
 fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
     section(ui, tr("jog.title"));
     let busy = app.device.job_running();
-    let step = app.settings.jog_step;
-    let step_feed = if app.settings.jog_proportional {
-        (step * 300.0).clamp(30.0, app.settings.jog_feed)
-    } else {
-        app.settings.jog_feed
-    };
+    let step = effective_step(app);
+    let feed = step_feed(app, step);
     let size = egui::vec2(44.0, 38.0);
     let mut pressed: Option<[f64; 3]> = None;
     let mut go_zero = false;
@@ -844,10 +887,24 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
             });
         });
-        ui.horizontal(|ui| {
-            ui.label(tr("jog.step"));
-            for value in [0.01, 0.1, 1.0, 10.0, 50.0] {
-                ui.selectable_value(&mut app.settings.jog_step, value, format!("{value}"));
+        ui.label(tr("jog.precision"));
+        let current = jog_level(app.settings.jog_step);
+        let active = jog_level(step);
+        ui.horizontal_wrapped(|ui| {
+            for (index, (value, key)) in JOG_LEVELS.iter().enumerate() {
+                let text = format!("{}\n{value} mm", tr(key));
+                let mut label = RichText::new(text).small();
+                if index == active && active != current {
+                    // Held modifier: show the level really used.
+                    label = label.color(ui.visuals().warn_fg_color);
+                }
+                if ui
+                    .selectable_label(index == current, label)
+                    .on_hover_text(tr("jog.precision_hint"))
+                    .clicked()
+                {
+                    app.settings.jog_step = *value;
+                }
             }
         });
         ui.horizontal(|ui| {
@@ -860,16 +917,106 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
             );
             if app.settings.jog_proportional {
                 ui.label(
-                    RichText::new(trf("jog.step_feed", &[&format!("{step_feed:.0}")]))
+                    RichText::new(trf("jog.step_feed", &[&format!("{feed:.0}")]))
                         .weak()
                         .small(),
                 );
             }
         });
-        ui.label(RichText::new(tr("jog.keyboard_hint")).weak().small());
+        ui.collapsing(tr("jog.keys_title"), |ui| {
+            egui::Grid::new("jog-keys").num_columns(2).show(ui, |ui| {
+                for (keys, action) in [
+                    ("← → ↑ ↓", "jog.keys_xy"),
+                    ("Page ↑ / Page ↓", "jog.keys_z"),
+                    ("1 … 5", "jog.keys_levels"),
+                    ("+ / −", "jog.keys_plus_minus"),
+                    ("Maj / Alt", "jog.keys_modifiers"),
+                ] {
+                    ui.label(RichText::new(keys).monospace());
+                    ui.label(tr(action));
+                    ui.end_row();
+                }
+            });
+            ui.label(RichText::new(tr("jog.keys_hold")).weak().small());
+        });
     });
     if go_zero {
         app.device.line("G90 G0 X0 Y0");
+    }
+    if !busy {
+        app.device.jog_pad = pressed;
+    }
+}
+
+/// Keyboard part of the jog, called with the input of the frame while
+/// the Run step is shown and nothing is being typed.
+pub fn jog_keyboard(app: &mut MyApp, ctx: &egui::Context) {
+    use egui::Key;
+    let (direction, shift, levels, finer, coarser) = ctx.input(|input| {
+        let down = |key| input.key_down(key);
+        let axis = |plus, minus| f64::from(down(plus) as i8 - down(minus) as i8);
+        let direction = [
+            axis(Key::ArrowRight, Key::ArrowLeft),
+            axis(Key::ArrowUp, Key::ArrowDown),
+            axis(Key::PageUp, Key::PageDown),
+        ];
+        let shift = if input.modifiers.shift {
+            1
+        } else if input.modifiers.alt {
+            -1
+        } else {
+            0
+        };
+        let plain = !input.modifiers.command && !input.modifiers.ctrl;
+        let levels = [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5]
+            .iter()
+            .position(|key| plain && input.key_pressed(*key));
+        (
+            direction,
+            shift,
+            levels,
+            plain && input.key_pressed(Key::Minus),
+            plain && (input.key_pressed(Key::Plus) || input.key_pressed(Key::Equals)),
+        )
+    });
+    // Z alone: a diagonal with Z is never what was meant.
+    let direction = if direction[2] != 0.0 {
+        Some([0.0, 0.0, direction[2]])
+    } else if direction[0] != 0.0 || direction[1] != 0.0 {
+        Some(direction)
+    } else {
+        None
+    };
+    app.device.jog_keys = direction;
+    app.device.jog_shift = shift;
+    let mut level = jog_level(app.settings.jog_step);
+    if let Some(chosen) = levels {
+        level = chosen;
+    }
+    if finer {
+        level = level.saturating_sub(1);
+    }
+    if coarser {
+        level = (level + 1).min(JOG_LEVELS.len() - 1);
+    }
+    app.settings.jog_step = JOG_LEVELS[level].0;
+}
+
+/// Runs the jog from what is held this frame: a short press moves one
+/// step on release, a press longer than 300 ms moves until released.
+/// Called every frame whatever is shown, so letting go always stops.
+pub fn drive_jog(app: &mut MyApp) {
+    let pad = app.device.jog_pad.take();
+    let keys = app.device.jog_keys.take();
+    let pressed = if app.device.job_running() || !app.device.is_connected() {
+        None
+    } else {
+        pad.or(keys)
+    };
+    let step = effective_step(app);
+    let feed = step_feed(app, step);
+    if pad.is_none() && keys.is_none() {
+        app.device.jog_shift = 0;
     }
     let held = app.device.hold;
     match (pressed, held) {
@@ -880,14 +1027,23 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
             // Long jog towards the travel end; jog() clamps it to the work area.
             let [dx, dy, dz] = direction;
             let z_reach = app.machine.z_travel.max(10.0);
+            // Held, the head moves at the speed of the level: slow when
+            // fine, so it can be stopped right on the spot.
             app.device.jog(
                 dx * 10_000.0,
                 dy * 10_000.0,
                 dz * z_reach,
-                app.settings.jog_feed,
+                feed,
                 &app.machine,
             );
             app.device.hold = Some((direction, since, true));
+        }
+        (Some(direction), Some((current, _, continuous))) if direction != current => {
+            // Direction changed while held: stop, then start again.
+            if continuous {
+                app.device.send(Command::Realtime(realtime::JOG_CANCEL));
+            }
+            app.device.hold = Some((direction, Instant::now(), false));
         }
         (None, Some((direction, _, continuous))) => {
             app.device.hold = None;
@@ -899,15 +1055,12 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                     dx * step,
                     dy * step,
                     dz * step.min(10.0),
-                    step_feed,
+                    feed,
                     &app.machine,
                 );
             }
         }
         _ => {}
-    }
-    if app.device.hold.is_some() {
-        ui.ctx().request_repaint_after(Duration::from_millis(30));
     }
 }
 

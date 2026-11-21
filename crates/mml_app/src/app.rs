@@ -1445,15 +1445,8 @@ impl MyApp {
         if tools[5] {
             self.canvas.request_fit();
         }
-        if self.mode == Mode::Run && !self.device.job_running() {
-            let step = self.settings.jog_step;
-            let jogs = [(-step, 0.0), (step, 0.0), (0.0, step), (0.0, -step)];
-            for (pressed, (dx, dy)) in arrows.iter().zip(jogs) {
-                if *pressed {
-                    self.device
-                        .jog(dx, dy, 0.0, self.settings.jog_feed, &self.machine);
-                }
-            }
+        if self.mode == Mode::Run {
+            crate::machine_panel::jog_keyboard(self, ctx);
         }
     }
 
@@ -2333,6 +2326,10 @@ impl eframe::App for MyApp {
         self.central(ui);
         crate::panels::dialogs(self, &ctx);
         self.notices(&ctx);
+        crate::machine_panel::drive_jog(self);
+        if self.device.hold.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(30));
+        }
         if self.device.is_connected()
             || self.job.building.is_some()
             || self.job.simulating
