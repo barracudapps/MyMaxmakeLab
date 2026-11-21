@@ -2098,6 +2098,7 @@ impl MyApp {
                     travel: &travel,
                     home: self.machine.origin,
                     labels: [tr("bed.front"), tr("bed.back"), tr("bed.home")],
+                    lock_ratio: self.lock_ratio,
                 };
                 match self.canvas.show(ui, input) {
                     CanvasAction::None => {}

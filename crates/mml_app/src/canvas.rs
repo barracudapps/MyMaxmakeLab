@@ -22,14 +22,36 @@ pub enum Tool {
     Pen,
 }
 
+/// Which sizes a resize handle changes: a corner both, the middle of a
+/// side only the width or the height.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Axes {
+    Both,
+    X,
+    Y,
+}
+
 #[derive(Debug, Clone, Copy)]
 enum Drag {
     None,
-    Move { start: Point },
-    Scale { pivot: Point, start: Point },
-    Rotate { center: Point, start_angle: f64 },
-    Marquee { start: Point },
-    Create { start: Point },
+    Move {
+        start: Point,
+    },
+    Scale {
+        pivot: Point,
+        start: Point,
+        axes: Axes,
+    },
+    Rotate {
+        center: Point,
+        start_angle: f64,
+    },
+    Marquee {
+        start: Point,
+    },
+    Create {
+        start: Point,
+    },
     Freehand,
 }
 
@@ -134,6 +156,8 @@ pub struct CanvasInput<'a> {
     pub home: mml_core::machine::Origin,
     /// Translated "front", "back" and "home" labels.
     pub labels: [&'a str; 3],
+    /// Corner handles keep the proportions (Shift inverts it).
+    pub lock_ratio: bool,
 }
 
 const HANDLE: f32 = 7.0;
@@ -620,6 +644,10 @@ impl Canvas {
                         palette.background,
                     );
                 }
+                for (edge, ..) in screen_edges(screen) {
+                    painter.circle_filled(edge, HANDLE - 1.0, palette.selection);
+                    painter.circle_filled(edge, HANDLE - 2.5, palette.background);
+                }
                 let rotate = rotate_handle(screen);
                 painter.line_segment(
                     [Pos2::new(screen.center().x, screen.top()), rotate],
@@ -713,11 +741,26 @@ impl Canvas {
         {
             if hover.distance(rotate_handle(screen)) <= HANDLE + 2.0 {
                 ui.ctx().set_cursor_icon(CursorIcon::Alias);
-            } else if screen_corners(screen)
+            } else if let Some(index) = screen_corners(screen)
                 .iter()
-                .any(|corner| hover.distance(*corner) <= HANDLE + 2.0)
+                .position(|corner| hover.distance(*corner) <= HANDLE + 2.0)
             {
-                ui.ctx().set_cursor_icon(CursorIcon::ResizeNwSe);
+                // Bottom-left and top-right corners resize along the
+                // other diagonal than bottom-right and top-left.
+                ui.ctx().set_cursor_icon(if index % 2 == 0 {
+                    CursorIcon::ResizeNeSw
+                } else {
+                    CursorIcon::ResizeNwSe
+                });
+            } else if let Some((.., axes)) = screen_edges(screen)
+                .into_iter()
+                .find(|(edge, ..)| hover.distance(*edge) <= HANDLE + 2.0)
+            {
+                ui.ctx().set_cursor_icon(if axes == Axes::X {
+                    CursorIcon::ResizeHorizontal
+                } else {
+                    CursorIcon::ResizeVertical
+                });
             } else if screen.contains(hover) {
                 ui.ctx().set_cursor_icon(CursorIcon::Move);
             }
@@ -748,6 +791,16 @@ impl Canvas {
                             Drag::Scale {
                                 pivot: view.to_world(opposite),
                                 start: world,
+                                axes: Axes::Both,
+                            }
+                        } else if let Some((_, opposite, axes)) = screen_edges(screen)
+                            .into_iter()
+                            .find(|(edge, ..)| press.distance(*edge) <= HANDLE + 2.0)
+                        {
+                            Drag::Scale {
+                                pivot: view.to_world(opposite),
+                                start: world,
+                                axes,
                             }
                         } else if screen.contains(press) {
                             Drag::Move { start: world }
@@ -790,18 +843,12 @@ impl Canvas {
                     };
                     self.pending = Transform::translate(delta.x, delta.y);
                 }
-                Drag::Scale { pivot, start } => {
-                    let (dx0, dy0) = (start.x - pivot.x, start.y - pivot.y);
-                    let (dx1, dy1) = (world.x - pivot.x, world.y - pivot.y);
-                    let (sx, sy) = if shift {
-                        (safe_ratio(dx1, dx0), safe_ratio(dy1, dy0))
-                    } else {
-                        let ratio = safe_ratio(
-                            (dx1 * dx1 + dy1 * dy1).sqrt(),
-                            (dx0 * dx0 + dy0 * dy0).sqrt(),
-                        );
-                        (ratio, ratio)
+                Drag::Scale { pivot, start, axes } => {
+                    let keep = match axes {
+                        Axes::Both => input.lock_ratio != shift,
+                        Axes::X | Axes::Y => shift,
                     };
+                    let (sx, sy) = scale_factors(pivot, start, world, axes, keep);
                     self.pending = Transform::scale(sx, sy).around(pivot);
                 }
                 Drag::Rotate {
@@ -1008,6 +1055,50 @@ fn safe_ratio(value: f64, base: f64) -> f64 {
     }
 }
 
+/// Scale factors of a resize drag from `start` to `now` around `pivot`.
+/// Free factors keep their sign (dragging past the pivot mirrors) but
+/// never collapse the shape to nothing.
+fn scale_factors(pivot: Point, start: Point, now: Point, axes: Axes, keep: bool) -> (f64, f64) {
+    let (dx0, dy0) = (start.x - pivot.x, start.y - pivot.y);
+    let (dx1, dy1) = (now.x - pivot.x, now.y - pivot.y);
+    let floor = |factor: f64| {
+        if factor.abs() < 0.01 {
+            0.01f64.copysign(factor)
+        } else {
+            factor
+        }
+    };
+    let (fx, fy) = (floor(safe_ratio(dx1, dx0)), floor(safe_ratio(dy1, dy0)));
+    match (axes, keep) {
+        (Axes::Both, false) => (fx, fy),
+        (Axes::Both, true) => {
+            let ratio = floor(safe_ratio(dx1.hypot(dy1), dx0.hypot(dy0)));
+            (ratio, ratio)
+        }
+        (Axes::X, false) => (fx, 1.0),
+        (Axes::Y, false) => (1.0, fy),
+        (Axes::X, true) => (fx, fx.abs()),
+        (Axes::Y, true) => (fy.abs(), fy),
+    }
+}
+
+/// Middle of each side, the middle of the opposite side (the pivot) and
+/// the size it changes. Hidden on sides too short to keep them apart
+/// from the corners.
+fn screen_edges(rect: ScreenRect) -> Vec<(Pos2, Pos2, Axes)> {
+    let room = HANDLE * 5.0;
+    let mut edges = Vec::with_capacity(4);
+    if rect.height() >= room {
+        edges.push((rect.left_center(), rect.right_center(), Axes::X));
+        edges.push((rect.right_center(), rect.left_center(), Axes::X));
+    }
+    if rect.width() >= room {
+        edges.push((rect.center_bottom(), rect.center_top(), Axes::Y));
+        edges.push((rect.center_top(), rect.center_bottom(), Axes::Y));
+    }
+    edges
+}
+
 fn screen_corners(rect: ScreenRect) -> [Pos2; 4] {
     [
         rect.left_bottom(),
@@ -1063,5 +1154,59 @@ impl Palette {
                 head: Color32::from_rgb(220, 70, 40),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn side_handles_stretch_one_axis_and_corners_follow_the_lock() {
+        let pivot = Point::new(0.0, 0.0);
+        // Dragging the right side from x=10 to x=25: width × 2.5 only.
+        let stretched = scale_factors(
+            pivot,
+            Point::new(10.0, 5.0),
+            Point::new(25.0, 9.0),
+            Axes::X,
+            false,
+        );
+        assert_eq!(stretched, (2.5, 1.0));
+        // With Shift the height follows.
+        let kept = scale_factors(
+            pivot,
+            Point::new(10.0, 5.0),
+            Point::new(25.0, 9.0),
+            Axes::X,
+            true,
+        );
+        assert_eq!(kept, (2.5, 2.5));
+        // A free corner changes width and height independently.
+        let free = scale_factors(
+            pivot,
+            Point::new(10.0, 10.0),
+            Point::new(20.0, 15.0),
+            Axes::Both,
+            false,
+        );
+        assert_eq!(free, (2.0, 1.5));
+        let locked = scale_factors(
+            pivot,
+            Point::new(10.0, 10.0),
+            Point::new(20.0, 20.0),
+            Axes::Both,
+            true,
+        );
+        assert!((locked.0 - 2.0).abs() < 1e-9 && locked.0 == locked.1);
+        // Dragging onto the pivot never collapses the shape.
+        let flat = scale_factors(
+            pivot,
+            Point::new(10.0, 10.0),
+            Point::new(0.0, 10.0),
+            Axes::X,
+            false,
+        );
+        assert_eq!(flat, (0.01, 1.0));
     }
 }
