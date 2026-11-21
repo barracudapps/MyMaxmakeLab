@@ -38,6 +38,10 @@ installé**, mesurée sur la machine, et non sur une valeur théorique.
 2. **Mesure de chaque outil installé** : *Mesurer l'outil installé*. La
    longueur réelle vaut la longueur de la pige plus l'écart de hauteur au
    contact.
+   *Sans capteur d'outil* : **Relever à la main**. Descendez l'outil jusqu'au
+   contact d'une référence fixe (cale vissée au plateau), avec la même
+   feuille de papier pour la pige et pour chaque outil : son épaisseur
+   s'annule.
 3. La mesure est **oubliée à chaque pause du programme** (là où l'on change
    d'outil ou de tête) : elle est redemandée avant de repartir.
 
@@ -56,6 +60,26 @@ profondeur permise est calculée **en chaque point** :
   collision subsiste.
 
 ![Carte Longueur d'outil et collisions](images/machine-cnc.png)
+
+## Homing doux et surveillé
+
+Les moteurs pas à pas ne sentent rien : pendant le homing, rien dans le
+contrôleur ne détecte une main ou un objet sur le trajet. Le logiciel
+limite donc ce qu'un obstacle subit :
+
+- **bouton maintenu** : le homing ne continue que tant que vous maintenez
+  le bouton en surveillant la machine. Le relâcher (ou appuyer sur Échap)
+  réinitialise le contrôleur à l'instant. Désactivable en mode avancé
+  seulement ;
+- **durée limitée** : un homing qui dure un quart de plus que le plus lent
+  des derniers est coupé, bien avant la limite de GRBL (1,5 fois la course) ;
+- **vitesse** : une recherche rapide est signalée ; **Ralentir le homing**
+  écrit 500 mm/min pour la recherche (`$25`) et 50 mm/min pour l'approche
+  (`$24`), ce qui réduit fortement le choc.
+
+La **force** de poussée, elle, dépend du courant des moteurs : elle se règle
+sur les drivers (potentiomètre, ou courant de homing des drivers Trinamic
+sous grblHAL), pas depuis le logiciel.
 
 ## Pendant le travail
 
