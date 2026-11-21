@@ -4,6 +4,8 @@
 //! that must exist, and G38.3 (no alarm) for surface mapping, so that
 //! a grid larger than the piece also tells where the piece is.
 
+pub mod manual;
+
 use mml_core::geometry::{Point, Rect};
 use mml_gcode::{MoveKind, Program};
 use serde::{Deserialize, Serialize};
