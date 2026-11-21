@@ -153,6 +153,11 @@ fn config_dir() -> Option<PathBuf> {
         .map(|dirs| dirs.config_dir().to_path_buf())
 }
 
+/// Drawings added by the user to the shape library.
+pub fn library_dir() -> Option<PathBuf> {
+    config_dir().map(|dir| dir.join("library"))
+}
+
 /// Fonts added by the user, loaded next to the system and bundled ones.
 pub fn fonts_dir() -> Option<PathBuf> {
     config_dir().map(|dir| dir.join("fonts"))

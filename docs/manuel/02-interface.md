@@ -25,6 +25,7 @@ flowchart LR
 | Outils à gauche | Sélection, rectangle, ellipse, polygone, texte, dessin à main levée, import, zoom |
 | Plateau au centre | Le plateau de la machine à l'échelle, vos formes, l'aperçu du programme |
 | Panneau à droite | Sélection, calques, réglages de l'opération, puis travail et machine selon l'étape |
+| Bas du plateau | Pastilles des calques à gauche ; à droite, le bouton de l'étape suivante (*Préparer le travail ›*, *Aller à la machine ›*) |
 
 ## Repères du plateau
 

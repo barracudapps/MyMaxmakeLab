@@ -6,7 +6,7 @@ use crate::i18n::{tr, tr_key};
 use eframe::egui::{self, DragValue, RichText};
 use mml_core::document::{Shape, ShapeKind};
 use mml_core::geometry::Path;
-use mml_core::makers::{boxes, jigsaw, maze, test_grid};
+use mml_core::makers::{boxes, codes, gear, jigsaw, maze, test_grid};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -14,6 +14,8 @@ enum Kind {
     Maze,
     Jigsaw,
     TestGrid,
+    Gear,
+    Code,
 }
 
 pub struct MakersDialog {
@@ -23,6 +25,8 @@ pub struct MakersDialog {
     solution: bool,
     jigsaw: jigsaw::JigsawParams,
     grid: test_grid::TestGridParams,
+    gear: gear::GearParams,
+    code: codes::CodeParams,
 }
 
 impl MakersDialog {
@@ -45,6 +49,8 @@ impl Default for MakersDialog {
             solution: false,
             jigsaw: jigsaw::JigsawParams::default(),
             grid: test_grid::TestGridParams::default(),
+            gear: gear::GearParams::default(),
+            code: codes::CodeParams::default(),
         }
     }
 }
@@ -70,12 +76,14 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         .collapsible(false)
         .resizable(false)
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.selectable_value(&mut dialog.kind, Kind::Box, tr("makers.box"));
                 ui.selectable_value(&mut dialog.kind, Kind::Maze, tr("makers.maze"));
                 ui.selectable_value(&mut dialog.kind, Kind::Jigsaw, tr("makers.jigsaw"));
                 ui.selectable_value(&mut dialog.kind, Kind::TestGrid, tr("makers.test_grid"))
                     .on_hover_text(tr("makers.test_grid_hint"));
+                ui.selectable_value(&mut dialog.kind, Kind::Gear, tr("makers.gear"));
+                ui.selectable_value(&mut dialog.kind, Kind::Code, tr("makers.code"));
             });
             ui.separator();
             egui::Grid::new("makers-grid")
@@ -192,6 +200,92 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                         millimetres(ui, &mut params.cell, 2.0..=50.0);
                         ui.end_row();
                     }
+                    Kind::Gear => {
+                        let params = &mut dialog.gear;
+                        ui.label(tr("makers.teeth"));
+                        ui.add(DragValue::new(&mut params.teeth).range(6..=300));
+                        ui.end_row();
+                        ui.label(tr("makers.module"))
+                            .on_hover_text(tr("makers.module_hint"));
+                        ui.add(
+                            DragValue::new(&mut params.module)
+                                .range(0.3..=20.0)
+                                .suffix(" mm")
+                                .speed(0.05),
+                        );
+                        ui.end_row();
+                        ui.label(tr("makers.pressure_angle"));
+                        ui.horizontal(|ui| {
+                            for angle in [14.5, 20.0, 25.0] {
+                                ui.selectable_value(
+                                    &mut params.pressure_angle,
+                                    angle,
+                                    format!("{angle}°"),
+                                );
+                            }
+                        });
+                        ui.end_row();
+                        ui.label(tr("makers.bore"));
+                        millimetres(ui, &mut params.bore, 0.0..=500.0);
+                        ui.end_row();
+                        ui.label(tr("makers.backlash"))
+                            .on_hover_text(tr("makers.backlash_hint"));
+                        ui.add(
+                            DragValue::new(&mut params.backlash)
+                                .range(0.0..=1.0)
+                                .suffix(" mm")
+                                .speed(0.01),
+                        );
+                        ui.end_row();
+                        ui.label("");
+                        ui.label(
+                            RichText::new(crate::i18n::trf(
+                                "makers.gear_size",
+                                &[
+                                    &format!("{:.1}", params.pitch_diameter()),
+                                    &format!("{:.1}", params.outside_diameter()),
+                                ],
+                            ))
+                            .weak(),
+                        );
+                        ui.end_row();
+                    }
+                    Kind::Code => {
+                        let params = &mut dialog.code;
+                        ui.label(tr("makers.code_kind"));
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(&mut params.kind, codes::CodeKind::Qr, "QR code");
+                            ui.selectable_value(
+                                &mut params.kind,
+                                codes::CodeKind::Code128,
+                                "Code 128",
+                            );
+                        });
+                        ui.end_row();
+                        ui.label(tr("makers.code_text"));
+                        ui.text_edit_singleline(&mut params.text);
+                        ui.end_row();
+                        ui.label(tr("makers.code_size"));
+                        millimetres(ui, &mut params.size, 5.0..=500.0);
+                        ui.end_row();
+                        if params.kind == codes::CodeKind::Code128 {
+                            ui.label(tr("makers.code_height"));
+                            millimetres(ui, &mut params.height, 2.0..=200.0);
+                            ui.end_row();
+                        }
+                        ui.label(tr("makers.code_inverted"))
+                            .on_hover_text(tr("makers.code_inverted_hint"));
+                        ui.checkbox(&mut params.inverted, "");
+                        ui.end_row();
+                        if codes::generate(params).is_none() {
+                            ui.label("");
+                            ui.label(
+                                RichText::new(tr("makers.code_invalid"))
+                                    .color(crate::theme::WARNING),
+                            );
+                            ui.end_row();
+                        }
+                    }
                     Kind::Jigsaw => {
                         let params = &mut dialog.jigsaw;
                         ui.label(tr("makers.size"));
@@ -248,6 +342,22 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 create_test_grid(app, &dialog.grid);
                 return;
             }
+            Kind::Gear => shapes.push((tr("makers.gear").to_owned(), gear::generate(&dialog.gear))),
+            Kind::Code => {
+                let Some(paths) = codes::generate(&dialog.code) else {
+                    app.makers = Some(dialog);
+                    return;
+                };
+                // Squares and bars are areas: a fill layer engraves them.
+                let fill = fill_layer(app);
+                app.begin_edit("history.add");
+                let shape = Shape::new(dialog.code.text.clone(), fill, ShapeKind::Paths { paths });
+                app.selection = vec![shape.id];
+                app.document.shapes.push(shape);
+                app.end_edit();
+                app.canvas.request_fit();
+                return;
+            }
         }
         app.begin_edit("history.add");
         app.selection.clear();
@@ -261,6 +371,40 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     } else if !open {
         app.makers = None;
     }
+}
+
+/// A layer that fills areas: the current one if it does, else a new one.
+fn fill_layer(app: &mut MyApp) -> mml_core::LayerId {
+    use mml_core::layer::{Layer, Operation};
+    let fills = |operation: &Operation| {
+        matches!(
+            operation,
+            Operation::LaserFill(_) | Operation::CncPocket(_) | Operation::CncVCarve(_)
+        )
+    };
+    if let Some(layer) = app
+        .document
+        .layer(app.current_layer)
+        .filter(|layer| fills(&layer.operation))
+    {
+        return layer.id;
+    }
+    if let Some(layer) = app
+        .document
+        .layers
+        .iter()
+        .find(|layer| fills(&layer.operation))
+    {
+        return layer.id;
+    }
+    let operation = match app.machine.kind {
+        mml_core::machine::MachineKind::Laser => Operation::LaserFill(Default::default()),
+        mml_core::machine::MachineKind::Cnc => Operation::CncVCarve(Default::default()),
+    };
+    let layer = Layer::new(tr("layer.fill"), app.document.next_layer_color(), operation);
+    let id = layer.id;
+    app.document.layers.push(layer);
+    id
 }
 
 /// One fill layer per square with its own power and speed, labels

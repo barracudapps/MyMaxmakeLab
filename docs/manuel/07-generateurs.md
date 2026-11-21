@@ -11,6 +11,15 @@
 | **Boîte à encoches** | dimensions intérieures (l'objet + 1 à 2 mm de jeu), épaisseur de planche, largeur des encoches, trait de coupe, couvercle |
 | **Labyrinthe** | cases, taille d'une case, *murs* (à graver ou découper) ou *couloirs* (à fraiser pour un labyrinthe à bille), solution |
 | **Puzzle** | taille, nombre de pièces, taille des tenons, nouvelle variante |
+| **Grille de test laser** | plages de puissance et de vitesse, nombre de cases |
+| **Engrenage** | nombre de dents, module, angle de pression (14,5°, 20° ou 25°), alésage, jeu |
+| **QR / code-barres** | QR code ou Code 128, contenu, largeur, hauteur des barres, mode inversé |
+
+Deux engrenages de même module s'engrènent : leur entraxe vaut la somme de
+leurs diamètres primitifs divisée par deux (affichés sous les réglages). Le
+QR code et le code-barres arrivent sur un calque de **remplissage** ; le mode
+*inversé* grave les parties claires, pour les matériaux sombres qui
+blanchissent au laser (aluminium anodisé, ardoise).
 
 Les encoches de la boîte sont toujours en nombre impair, ce qui rend tous
 les angles cohérents ; les panneaux sont agrandis de la moitié du trait de

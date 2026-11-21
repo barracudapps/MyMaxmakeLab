@@ -104,6 +104,31 @@ pub struct ArrayDialog {
     pub rows: u32,
     pub gap_x: f64,
     pub gap_y: f64,
+    /// Copies around a circle instead of a grid.
+    pub circular: bool,
+    pub count: u32,
+    /// Distance from the selection centre to the circle centre, below it.
+    pub radius: f64,
+    /// Angle covered, degrees: 360 spreads the copies all around.
+    pub sweep: f64,
+    /// Copies turn with the circle (like spokes) or keep their angle.
+    pub rotate: bool,
+}
+
+impl Default for ArrayDialog {
+    fn default() -> Self {
+        Self {
+            columns: 3,
+            rows: 2,
+            gap_x: 5.0,
+            gap_y: 5.0,
+            circular: false,
+            count: 6,
+            radius: 30.0,
+            sweep: 360.0,
+            rotate: true,
+        }
+    }
 }
 
 pub struct PresetDialog {
@@ -162,8 +187,11 @@ pub struct MyApp {
     pub notices: Vec<(String, Level, Instant)>,
     pub text_dialog: Option<TextDialog>,
     pub array_dialog: Option<ArrayDialog>,
+    /// Distance of the last contour offset, mm.
+    pub offset_distance: f64,
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub paper: Option<crate::paper_dialog::PaperDialog>,
+    pub shapes_library: crate::library::LibraryState,
     pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
     pub updater: crate::update::Updater,
     pub makers: Option<crate::makers_dialog::MakersDialog>,
@@ -274,8 +302,10 @@ impl MyApp {
             notices: Vec::new(),
             text_dialog: None,
             array_dialog: None,
+            offset_distance: 2.0,
             sprue: None,
             paper: None,
+            shapes_library: Default::default(),
             ornament: None,
             updater: Default::default(),
             makers: None,
@@ -375,6 +405,7 @@ impl MyApp {
                     Some("pairing") => self.pairing.open = true,
                     Some("firmware") => self.firmware.open = true,
                     Some("palette") => self.palette.open = true,
+                    Some("library") => self.shapes_library.open = true,
                     Some("paper") => self.paper = Some(crate::paper_dialog::PaperDialog::new(self)),
                     _ => {}
                 },
@@ -1760,12 +1791,7 @@ impl MyApp {
                         self.sprue = Some(Default::default());
                     }
                     if ui.button(tr("menu.array")).clicked() {
-                        self.array_dialog = Some(ArrayDialog {
-                            columns: 3,
-                            rows: 2,
-                            gap_x: 5.0,
-                            gap_y: 5.0,
-                        });
+                        self.array_dialog = Some(ArrayDialog::default());
                     }
                 });
                 ui.menu_button(tr("menu.machine"), |ui| {
@@ -2029,6 +2055,7 @@ impl MyApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ui, |ui| {
+                let canvas_rect = ui.max_rect();
                 if self.mode != Mode::Design {
                     let mut toggle = self.view3d.enabled;
                     egui::Frame::new().inner_margin(6.0).show(ui, |ui| {
@@ -2131,6 +2158,7 @@ impl MyApp {
                         self.text_dialog = Some(TextDialog::new(position));
                     }
                 }
+                crate::flow::overlays(self, ui, canvas_rect);
             });
     }
 

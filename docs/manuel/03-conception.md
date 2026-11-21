@@ -14,6 +14,15 @@
 
 Glissez-déposez les fichiers sur la fenêtre ou utilisez `Ctrl/⌘ I`.
 
+Sur un dessin vide, le panneau **Que voulez-vous faire ?** propose tous les
+points de départ : importer, bibliothèque de formes, texte, générateurs,
+tablette, laser sur papier, ouvrir un projet, et les derniers fichiers.
+
+**Bibliothèque de formes** : des dessins prêts à graver, classés par thème,
+insérés d'un clic au centre du plateau. Elle montre vos propres SVG et DXF
+(*Mon dossier…*, un sous-dossier par thème) et, si MaxmakeLAB est installé
+sur l'ordinateur, ses quelque 980 dessins, lus sur place sans copie.
+
 **Lien dynamique** : un fichier importé se recharge tout seul quand votre
 logiciel de dessin l'enregistre (Inkscape, Affinity, Krita, Procreate via un
 dossier synchronisé).
@@ -54,8 +63,20 @@ dossier synchronisé).
 ## Organiser
 
 Poignées de déplacement, redimensionnement et rotation, magnétisme sur la
-grille, alignements, duplication, **répétitions** (grille de copies),
-**grappes** (voir [Générateurs](07-generateurs.md)).
+grille, alignements, duplication, **répétitions** (grille de copies, ou
+copies **en cercle** avec un nombre, un rayon et un angle, tournées ou non),
+**décalage** de contour vers l'extérieur ou l'intérieur (coins arrondis ; un
+trait ouvert reçoit le contour qui l'entoure), **grappes** (voir
+[Générateurs](07-generateurs.md)).
+
+Les poignées des coins suivent la case *Garder les proportions* (`Maj`
+l'inverse) ; celles du milieu des côtés changent seulement la largeur ou la
+hauteur.
+
+**Barre des calques** : en bas à gauche du plateau, une pastille par calque.
+Avec des formes sélectionnées, un clic les met sur ce calque ; sans
+sélection, il en fait le calque courant ; **+** crée un calque (et y met la
+sélection).
 
 ## Calques et opérations
 

@@ -2,7 +2,7 @@ use crate::app::{ArrayDialog, Level, Mode, MyApp, PresetDialog};
 use crate::i18n::{tr, trf};
 use eframe::egui::{self, Color32, DragValue, RichText};
 use mml_core::document::{Shape, ShapeKind};
-use mml_core::geometry::{Point, Transform};
+use mml_core::geometry::{Path, Point, Rect, Transform};
 use mml_core::layer::{
     CncPocketParams, CncProfileParams, DitherMode, FillParams, FillPattern, ImageParams,
     ImagePattern, Layer, LineParams, Operation, ProfileSide,
@@ -189,13 +189,27 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
             app.duplicate_selection();
         }
         if ui.button(tr("menu.array")).clicked() {
-            app.array_dialog = Some(ArrayDialog {
-                columns: 3,
-                rows: 2,
-                gap_x: 5.0,
-                gap_y: 5.0,
-            });
+            app.array_dialog = Some(ArrayDialog::default());
         }
+        ui.menu_button(tr("offset.title"), |ui| {
+            ui.label(RichText::new(tr("offset.hint")).weak());
+            ui.add(
+                DragValue::new(&mut app.offset_distance)
+                    .range(0.01..=500.0)
+                    .suffix(" mm")
+                    .speed(0.05),
+            );
+            ui.horizontal(|ui| {
+                if ui.button(tr("offset.outward")).clicked() {
+                    offset_selection(app, app.offset_distance);
+                    ui.close();
+                }
+                if ui.button(tr("offset.inward")).clicked() {
+                    offset_selection(app, -app.offset_distance);
+                    ui.close();
+                }
+            });
+        });
         if ui
             .button(RichText::new(tr("menu.delete")).color(crate::theme::DANGER))
             .clicked()
@@ -1550,6 +1564,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     array_dialog(app, ctx);
     crate::sprue_dialog::show(app, ctx);
     crate::paper_dialog::show(app, ctx);
+    crate::library::show(app, ctx);
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);
     crate::fleet::show(app, ctx);
@@ -1560,6 +1575,56 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     about(app, ctx);
     close_confirmation(app, ctx);
     library_offer(app, ctx);
+}
+
+/// Adds, for each selected shape, the contour at `distance` from it
+/// (outside when positive): closed shapes grow or shrink with round
+/// corners, open lines get the outline around them.
+fn offset_selection(app: &mut MyApp, distance: f64) {
+    let shapes: Vec<Shape> = app
+        .document
+        .shapes
+        .iter()
+        .filter(|shape| app.selection.contains(&shape.id))
+        .cloned()
+        .collect();
+    let mut created = Vec::new();
+    for shape in &shapes {
+        let rings = mml_core::region::offset_paths(&shape.world_paths(), distance);
+        if rings.is_empty() {
+            continue;
+        }
+        let mut bounds = Rect::EMPTY;
+        rings
+            .iter()
+            .flat_map(|path| &path.points)
+            .for_each(|point| bounds.include(*point));
+        let center = bounds.center();
+        let local = rings
+            .iter()
+            .map(|path| {
+                Path::new(
+                    path.points.iter().map(|point| *point - center).collect(),
+                    true,
+                )
+            })
+            .collect();
+        let mut copy = Shape::new(
+            trf("offset.name", &[&shape.name]),
+            shape.layer,
+            ShapeKind::Paths { paths: local },
+        );
+        copy.transform = Transform::translate(center.x, center.y);
+        created.push(copy);
+    }
+    if created.is_empty() {
+        app.notify(tr("offset.nothing"), crate::app::Level::Warning);
+        return;
+    }
+    app.begin_edit("history.offset");
+    app.selection = created.iter().map(|shape| shape.id).collect();
+    app.document.shapes.extend(created);
+    app.end_edit();
 }
 
 fn array_dialog(app: &mut MyApp, ctx: &egui::Context) {
@@ -1573,30 +1638,63 @@ fn array_dialog(app: &mut MyApp, ctx: &egui::Context) {
         .collapsible(false)
         .resizable(false)
         .show(ctx, |ui| {
-            egui::Grid::new("array-grid").num_columns(2).show(ui, |ui| {
-                ui.label(tr("array.columns"));
-                ui.add(DragValue::new(&mut dialog.columns).range(1..=100));
-                ui.end_row();
-                ui.label(tr("array.rows"));
-                ui.add(DragValue::new(&mut dialog.rows).range(1..=100));
-                ui.end_row();
-                ui.label(tr("array.gap_x"));
-                ui.add(
-                    DragValue::new(&mut dialog.gap_x)
-                        .range(-1000.0..=1000.0)
-                        .suffix(" mm")
-                        .speed(0.1),
-                );
-                ui.end_row();
-                ui.label(tr("array.gap_y"));
-                ui.add(
-                    DragValue::new(&mut dialog.gap_y)
-                        .range(-1000.0..=1000.0)
-                        .suffix(" mm")
-                        .speed(0.1),
-                );
-                ui.end_row();
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut dialog.circular, false, tr("array.grid"));
+                ui.selectable_value(&mut dialog.circular, true, tr("array.circular"));
             });
+            if dialog.circular {
+                egui::Grid::new("array-circle")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        ui.label(tr("array.count"));
+                        ui.add(DragValue::new(&mut dialog.count).range(2..=360));
+                        ui.end_row();
+                        ui.label(tr("array.radius"))
+                            .on_hover_text(tr("array.radius_hint"));
+                        ui.add(
+                            DragValue::new(&mut dialog.radius)
+                                .range(0.0..=5000.0)
+                                .suffix(" mm")
+                                .speed(0.5),
+                        );
+                        ui.end_row();
+                        ui.label(tr("array.sweep"));
+                        ui.add(
+                            DragValue::new(&mut dialog.sweep)
+                                .range(1.0..=360.0)
+                                .suffix(" °"),
+                        );
+                        ui.end_row();
+                        ui.label(tr("array.rotate"));
+                        ui.checkbox(&mut dialog.rotate, "");
+                        ui.end_row();
+                    });
+            } else {
+                egui::Grid::new("array-grid").num_columns(2).show(ui, |ui| {
+                    ui.label(tr("array.columns"));
+                    ui.add(DragValue::new(&mut dialog.columns).range(1..=100));
+                    ui.end_row();
+                    ui.label(tr("array.rows"));
+                    ui.add(DragValue::new(&mut dialog.rows).range(1..=100));
+                    ui.end_row();
+                    ui.label(tr("array.gap_x"));
+                    ui.add(
+                        DragValue::new(&mut dialog.gap_x)
+                            .range(-1000.0..=1000.0)
+                            .suffix(" mm")
+                            .speed(0.1),
+                    );
+                    ui.end_row();
+                    ui.label(tr("array.gap_y"));
+                    ui.add(
+                        DragValue::new(&mut dialog.gap_y)
+                            .range(-1000.0..=1000.0)
+                            .suffix(" mm")
+                            .speed(0.1),
+                    );
+                    ui.end_row();
+                });
+            }
             apply = ui.button(tr("array.apply")).clicked();
         });
     if apply {
@@ -1614,6 +1712,38 @@ fn array_dialog(app: &mut MyApp, ctx: &egui::Context) {
             .cloned()
             .collect();
         let mut ids: Vec<_> = app.selection.clone();
+        if dialog.circular {
+            let center = Point::new(bounds.center().x, bounds.center().y - dialog.radius);
+            let full = dialog.sweep >= 359.999;
+            let steps = if full {
+                dialog.count
+            } else {
+                dialog.count.saturating_sub(1).max(1)
+            };
+            let step = dialog.sweep / steps as f64;
+            for index in 1..dialog.count {
+                // Clockwise, like a clock face seen from above.
+                let angle = -step * index as f64;
+                let placement = if dialog.rotate {
+                    Transform::rotate_degrees(angle).around(center)
+                } else {
+                    let turned = Transform::rotate_degrees(angle)
+                        .around(center)
+                        .apply(bounds.center());
+                    Transform::translate(turned.x - bounds.center().x, turned.y - bounds.center().y)
+                };
+                for original in &originals {
+                    let mut copy = original.clone();
+                    copy.id = mml_core::ShapeId::new();
+                    copy.transform = copy.transform.then(placement);
+                    ids.push(copy.id);
+                    app.document.shapes.push(copy);
+                }
+            }
+            app.selection = ids;
+            app.end_edit();
+            return;
+        }
         for row in 0..dialog.rows {
             for column in 0..dialog.columns {
                 if row == 0 && column == 0 {
