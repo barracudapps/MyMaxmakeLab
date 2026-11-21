@@ -278,7 +278,11 @@ fn next_step(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
         Mode::Design if !app.document.shapes.is_empty() => (tr("flow.to_prepare"), Mode::Prepare),
         Mode::Prepare if app.job.built.is_some() => (tr("flow.to_machine"), Mode::Run),
         Mode::Run
-            if app.job.built.is_some()
+            if app
+                .job
+                .built
+                .as_ref()
+                .is_some_and(|built| built.stats.cut_length > 0.0)
                 && app.device.is_connected()
                 && !app.device.job_running() =>
         {

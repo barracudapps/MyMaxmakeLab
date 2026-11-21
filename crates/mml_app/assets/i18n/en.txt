@@ -1284,3 +1284,6 @@ makers.jigsaw_select_shape = Select a closed shape in the design first.
 makers.puzzle_button = Puzzle…
 history.puzzle = Puzzle in a shape
 homing.automatic = Double click: automatic homing to the end. Escape or Reset stop it.
+machine.himill_detected = This machine is a HiMill.
+machine.himill_use = Use the HiMill D1S profile
+machine.himill_use_hint = Bed 280 × 200 mm, origin at the rear left, spindle at 13000 and programs framed like in MaxmakeLAB. Replaces the current profile.

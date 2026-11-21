@@ -1354,3 +1354,6 @@ makers.jigsaw_select_shape = Zuerst eine geschlossene Form im Entwurf auswählen
 makers.puzzle_button = Puzzle…
 history.puzzle = Puzzle in einer Form
 homing.automatic = Doppelklick: automatische Referenzfahrt bis zum Ende. Esc oder Reset stoppen sie.
+machine.himill_detected = Diese Maschine ist eine HiMill.
+machine.himill_use = HiMill-D1S-Profil verwenden
+machine.himill_use_hint = Fläche 280 × 200 mm, Ursprung hinten links, Spindel 13000 und Programme wie in MaxmakeLAB eingerahmt. Ersetzt das aktuelle Profil.

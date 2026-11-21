@@ -1461,6 +1461,19 @@ impl MyApp {
         }
     }
 
+    /// Switches to a machine profile; the bed then takes the travel of
+    /// the connected controller again.
+    pub fn use_profile(&mut self, preset: MachineProfile) {
+        if preset.name == MachineProfile::makera_carvera().name {
+            // Smoothieware acknowledges each line; Wi-Fi on 2222.
+            self.device.protocol = mml_device::Protocol::SendAndWait;
+            self.device.tcp_port = 2222;
+        }
+        self.machine = preset;
+        self.travel_applied = None;
+        self.revision += 1;
+    }
+
     /// The bed and Z travel follow what the connected controller reports
     /// ($130 to $132), once per new reading, so the grid is the real
     /// working area of the machine in use.
@@ -1894,13 +1907,7 @@ impl MyApp {
                     ui.separator();
                     for preset in MachineProfile::presets() {
                         if ui.button(preset.name.clone()).clicked() {
-                            if preset.name == MachineProfile::makera_carvera().name {
-                                // Smoothieware acknowledges each line; Wi-Fi on 2222.
-                                self.device.protocol = mml_device::Protocol::SendAndWait;
-                                self.device.tcp_port = 2222;
-                            }
-                            self.machine = preset;
-                            self.revision += 1;
+                            self.use_profile(preset);
                         }
                     }
                 });

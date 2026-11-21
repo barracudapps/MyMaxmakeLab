@@ -642,6 +642,24 @@ fn connection(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
             });
         });
+        // A HiMill introduces itself as GCARVIN: offer its profile.
+        let himill = mml_core::machine::MachineProfile::maxmake_himill_d1s();
+        let is_himill = device
+            .banner
+            .as_deref()
+            .is_some_and(|banner| banner.to_ascii_lowercase().contains("gcarvin"));
+        if is_himill && app.machine.name != himill.name {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(tr("machine.himill_detected")).color(crate::theme::WARNING));
+                if ui
+                    .button(tr("machine.himill_use"))
+                    .on_hover_text(tr("machine.himill_use_hint"))
+                    .clicked()
+                {
+                    app.use_profile(himill);
+                }
+            });
+        }
         return;
     }
     ui.horizontal(|ui| {

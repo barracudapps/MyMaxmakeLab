@@ -1352,3 +1352,6 @@ makers.jigsaw_select_shape = Sélectionnez d'abord une forme fermée dans la con
 makers.puzzle_button = Puzzle…
 history.puzzle = Puzzle dans une forme
 homing.automatic = Double-clic : homing automatique jusqu'au bout. Échap ou Réinitialiser l'arrêtent.
+machine.himill_detected = Cette machine est une HiMill.
+machine.himill_use = Utiliser le profil HiMill D1S
+machine.himill_use_hint = Plateau 280 × 200 mm, origine à l'arrière gauche, broche à 13 000 et programmes encadrés comme dans MaxmakeLAB. Remplace le profil actuel.
