@@ -60,6 +60,42 @@ pub fn offset_paths(paths: &[Path], distance: f64) -> Vec<Path> {
         .collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Boolean {
+    /// Everything covered by any shape.
+    Union,
+    /// The first shape minus all the others.
+    Difference,
+    /// What all the shapes cover together.
+    Intersection,
+    /// What exactly one of two shapes covers.
+    Exclusion,
+}
+
+/// Combines the areas of several shapes (each a list of closed paths,
+/// holes by even-odd); `None` when nothing is left.
+pub fn combine(shapes: &[Vec<Path>], operation: Boolean) -> Option<Vec<Path>> {
+    let mut regions = shapes
+        .iter()
+        .map(|paths| region_of(paths))
+        .filter(|r| !r.0.is_empty());
+    let first = regions.next()?;
+    let result = regions.fold(first, |acc, next| match operation {
+        Boolean::Union => acc.union(&next),
+        Boolean::Difference => acc.difference(&next),
+        Boolean::Intersection => acc.intersection(&next),
+        Boolean::Exclusion => acc.xor(&next),
+    });
+    let rings: Vec<Path> = result
+        .0
+        .iter()
+        .flat_map(|polygon| std::iter::once(polygon.exterior()).chain(polygon.interiors()))
+        .map(to_path)
+        .filter(|path| path.points.len() > 2)
+        .collect();
+    (!rings.is_empty()).then_some(rings)
+}
+
 pub fn to_line_string(path: &Path) -> LineString<f64> {
     let mut coords: Vec<Coord<f64>> = path
         .points
@@ -92,6 +128,34 @@ pub fn to_path(ring: &LineString<f64>) -> Path {
 mod tests {
     use super::*;
     use geo::Area;
+
+    fn square(x: f64, y: f64, size: f64) -> Vec<Path> {
+        vec![Path::new(
+            vec![
+                Point::new(x, y),
+                Point::new(x + size, y),
+                Point::new(x + size, y + size),
+                Point::new(x, y + size),
+            ],
+            true,
+        )]
+    }
+
+    #[test]
+    fn booleans_combine_areas() {
+        let a = square(0.0, 0.0, 10.0);
+        let b = square(5.0, 0.0, 10.0);
+        let area = |op| region_of(&combine(&[a.clone(), b.clone()], op).unwrap()).unsigned_area();
+        assert!((area(Boolean::Union) - 150.0).abs() < 1e-6);
+        assert!((area(Boolean::Difference) - 50.0).abs() < 1e-6);
+        assert!((area(Boolean::Intersection) - 50.0).abs() < 1e-6);
+        assert!((area(Boolean::Exclusion) - 100.0).abs() < 1e-6);
+        let far = square(50.0, 0.0, 5.0);
+        assert!(combine(&[a.clone(), far], Boolean::Intersection).is_none());
+        // A hole punched through stays a hole.
+        let hole = combine(&[a, square(4.0, 4.0, 2.0)], Boolean::Difference).unwrap();
+        assert_eq!(hole.len(), 2);
+    }
 
     #[test]
     fn offsets_grow_squares_and_surround_lines() {

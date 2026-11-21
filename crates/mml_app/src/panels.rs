@@ -191,6 +191,34 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
         if ui.button(tr("menu.array")).clicked() {
             app.array_dialog = Some(ArrayDialog::default());
         }
+        if app.selection.len() >= 2 {
+            ui.menu_button(tr("boolean.title"), |ui| {
+                use mml_core::region::Boolean;
+                for (operation, key, hint) in [
+                    (Boolean::Union, "boolean.union", "boolean.union_hint"),
+                    (
+                        Boolean::Difference,
+                        "boolean.difference",
+                        "boolean.difference_hint",
+                    ),
+                    (
+                        Boolean::Intersection,
+                        "boolean.intersection",
+                        "boolean.intersection_hint",
+                    ),
+                    (
+                        Boolean::Exclusion,
+                        "boolean.exclusion",
+                        "boolean.exclusion_hint",
+                    ),
+                ] {
+                    if ui.button(tr(key)).on_hover_text(tr(hint)).clicked() {
+                        combine_selection(app, operation);
+                        ui.close();
+                    }
+                }
+            });
+        }
         ui.menu_button(tr("offset.title"), |ui| {
             ui.label(RichText::new(tr("offset.hint")).weak());
             ui.add(
@@ -1575,6 +1603,52 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     about(app, ctx);
     close_confirmation(app, ctx);
     library_offer(app, ctx);
+}
+
+/// Replaces the selected shapes by the combination of their areas, in
+/// drawing order (the earliest drawn is the one others are cut from).
+fn combine_selection(app: &mut MyApp, operation: mml_core::region::Boolean) {
+    let shapes: Vec<&Shape> = app
+        .document
+        .shapes
+        .iter()
+        .filter(|shape| app.selection.contains(&shape.id) && !shape.is_image())
+        .collect();
+    let Some(first) = shapes.first() else {
+        return;
+    };
+    let layer = first.layer;
+    let name = first.name.clone();
+    let areas: Vec<Vec<Path>> = shapes.iter().map(|shape| shape.world_paths()).collect();
+    let used: Vec<mml_core::ShapeId> = shapes.iter().map(|shape| shape.id).collect();
+    let Some(rings) = mml_core::region::combine(&areas, operation) else {
+        app.notify(tr("boolean.empty"), Level::Warning);
+        return;
+    };
+    let mut bounds = Rect::EMPTY;
+    rings
+        .iter()
+        .flat_map(|path| &path.points)
+        .for_each(|point| bounds.include(*point));
+    let center = bounds.center();
+    let local = rings
+        .iter()
+        .map(|path| {
+            Path::new(
+                path.points.iter().map(|point| *point - center).collect(),
+                true,
+            )
+        })
+        .collect();
+    let mut shape = Shape::new(name, layer, ShapeKind::Paths { paths: local });
+    shape.transform = Transform::translate(center.x, center.y);
+    app.begin_edit("history.boolean");
+    app.document
+        .shapes
+        .retain(|shape| !used.contains(&shape.id));
+    app.selection = vec![shape.id];
+    app.document.shapes.push(shape);
+    app.end_edit();
 }
 
 /// Adds, for each selected shape, the contour at `distance` from it
