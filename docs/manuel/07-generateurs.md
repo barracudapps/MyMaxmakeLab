@@ -31,8 +31,9 @@ silhouette, texte épais, dessin importé…) puis **Puzzle…** dans le panneau
 Sélection, ou cochez *Dans la forme sélectionnée* dans le générateur. La
 grille de pièces couvre la forme, les coupes sont gardées à l'intérieur et
 le contour devient le bord ; la forme est remplacée par le puzzle (une
-seule annulation). Des petites pièces peuvent apparaître le long du bord :
-réduisez le nombre de pièces ou tirez une autre variante.
+seule annulation). La grille est placée pour éviter les toutes petites
+pièces le long du bord, et celles qui restent trop petites (moins de 30 %
+d'une pièce normale) sont réunies à leur voisine.
 
 ![Boîte, labyrinthes et puzzle](../images/makers.png)
 

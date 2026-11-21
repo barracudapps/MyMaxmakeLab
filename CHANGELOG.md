@@ -16,6 +16,9 @@ yet: GRBL is tested against simulated controllers.
   offers the HiMill D1S profile in one click.
 
 ### Changed
+- Puzzles inside a shape no longer leave tiny pieces along the border:
+  the grid is placed where its smallest piece is largest, and pieces
+  still under 30 % of a normal one join their neighbour.
 - Updates are checked on the public release page instead of the GitHub
   API, whose hourly quota is shared by everything on the same
   connection; the API is only a second way.

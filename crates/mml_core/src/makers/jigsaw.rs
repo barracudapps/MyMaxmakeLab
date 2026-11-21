@@ -162,33 +162,261 @@ pub fn generate_inside(outline: &[Path], params: &JigsawParams) -> Option<Vec<Pa
     if border.is_empty() || bounds.width() < 1.0 || bounds.height() < 1.0 {
         return None;
     }
+    let (columns, rows) = (params.columns.max(1), params.rows.max(1));
+    let piece = (
+        bounds.width() / columns as f64,
+        bounds.height() / rows as f64,
+    );
+    // One piece more each way, so the grid still covers the shape once
+    // shifted by up to a piece.
     let grid = JigsawParams {
-        width: bounds.width(),
-        height: bounds.height(),
+        width: bounds.width() + piece.0,
+        height: bounds.height() + piece.1,
+        columns: columns + 1,
+        rows: rows + 1,
         ..*params
     };
     let mut cuts = generate(&grid);
     // The last path is the rectangular border: the shape replaces it.
     cuts.pop();
-    let moved: Vec<Path> = cuts
-        .iter()
-        .map(|path| {
-            Path::new(
-                path.points
-                    .iter()
-                    .map(|point| Point::new(point.x + bounds.min.x, point.y + bounds.min.y))
-                    .collect(),
-                false,
-            )
-        })
-        .collect();
     let area = crate::region::region_of(&border);
-    let mut paths: Vec<Path> = crate::region::clip_lines(&moved, &area)
-        .into_iter()
-        .filter(|path| path.length() >= 1.0)
-        .collect();
+    let raster = Raster::new(&border, bounds);
+    // The grid position whose smallest piece is the largest: pieces
+    // barely touching the border become rare.
+    let shifted = |fx: f64, fy: f64| -> Vec<Path> {
+        let (dx, dy) = (bounds.min.x - fx * piece.0, bounds.min.y - fy * piece.1);
+        let moved: Vec<Path> = cuts
+            .iter()
+            .map(|path| {
+                Path::new(
+                    path.points
+                        .iter()
+                        .map(|point| Point::new(point.x + dx, point.y + dy))
+                        .collect(),
+                    false,
+                )
+            })
+            .collect();
+        crate::region::clip_lines(&moved, &area)
+            .into_iter()
+            .filter(|path| path.length() >= 1.0)
+            .collect()
+    };
+    let phases = [0.0, 0.25, 0.5, 0.75];
+    let mut best: Option<(f64, Vec<Path>)> = None;
+    for fy in phases {
+        for fx in phases {
+            let candidate = shifted(fx, fy);
+            let smallest = raster.smallest_piece(&candidate);
+            if best.as_ref().is_none_or(|(score, _)| smallest > *score) {
+                best = Some((smallest, candidate));
+            }
+        }
+    }
+    let chosen = best.map(|(_, paths)| paths).unwrap_or_default();
+    // Pieces still too small join their largest neighbour: the cut
+    // between them goes.
+    let mut paths = raster.merge_small(&chosen, 0.3 * piece.0 * piece.1);
+    paths.retain(|path| path.length() >= 1.0);
     paths.extend(border);
     Some(paths)
+}
+
+/// The inside of a shape on a fine grid, to measure the pieces cut
+/// lines make in it.
+struct Raster {
+    origin: Point,
+    cell: f64,
+    width: usize,
+    height: usize,
+    inside: Vec<bool>,
+}
+
+impl Raster {
+    fn new(border: &[Path], bounds: crate::geometry::Rect) -> Self {
+        let cell = (bounds.width().max(bounds.height()) / 240.0).max(0.2);
+        let width = (bounds.width() / cell).ceil() as usize + 1;
+        let height = (bounds.height() / cell).ceil() as usize + 1;
+        let origin = bounds.min;
+        let mut inside = vec![false; width * height];
+        for y in 0..height {
+            for x in 0..width {
+                let centre = Point::new(
+                    origin.x + (x as f64 + 0.5) * cell,
+                    origin.y + (y as f64 + 0.5) * cell,
+                );
+                inside[y * width + x] = crate::geometry::contains_even_odd(border, centre);
+            }
+        }
+        Self {
+            origin,
+            cell,
+            width,
+            height,
+            inside,
+        }
+    }
+
+    fn cell_of(&self, point: Point) -> Option<usize> {
+        let x = ((point.x - self.origin.x) / self.cell).floor();
+        let y = ((point.y - self.origin.y) / self.cell).floor();
+        (x >= 0.0 && y >= 0.0 && (x as usize) < self.width && (y as usize) < self.height)
+            .then(|| y as usize * self.width + x as usize)
+    }
+
+    /// Pieces the cuts make: a label per free cell (`usize::MAX` on
+    /// cuts and outside) and the cell count of each label.
+    fn label(&self, cuts: &[Path]) -> (Vec<usize>, Vec<usize>) {
+        let mut free = self.inside.clone();
+        for cut in cuts {
+            for (a, b) in cut.segments() {
+                let steps = (a.distance(b) / (self.cell * 0.5)).ceil().max(1.0) as usize;
+                for step in 0..=steps {
+                    if let Some(index) = self.cell_of(a.lerp(b, step as f64 / steps as f64)) {
+                        free[index] = false;
+                    }
+                }
+            }
+        }
+        let mut labels = vec![usize::MAX; free.len()];
+        let mut sizes = Vec::new();
+        let mut stack = Vec::new();
+        for start in 0..free.len() {
+            if !free[start] || labels[start] != usize::MAX {
+                continue;
+            }
+            let label = sizes.len();
+            labels[start] = label;
+            stack.push(start);
+            let mut count = 0usize;
+            while let Some(index) = stack.pop() {
+                count += 1;
+                let (x, y) = (index % self.width, index / self.width);
+                let neighbours = [
+                    (x > 0).then(|| index - 1),
+                    (x + 1 < self.width).then(|| index + 1),
+                    (y > 0).then(|| index - self.width),
+                    (y + 1 < self.height).then(|| index + self.width),
+                ];
+                for next in neighbours.into_iter().flatten() {
+                    if free[next] && labels[next] == usize::MAX {
+                        labels[next] = label;
+                        stack.push(next);
+                    }
+                }
+            }
+            sizes.push(count);
+        }
+        (labels, sizes)
+    }
+
+    /// Area of the smallest piece, mm²; specks of a cell or two along
+    /// the cuts are not pieces.
+    fn smallest_piece(&self, cuts: &[Path]) -> f64 {
+        let (_, sizes) = self.label(cuts);
+        sizes
+            .iter()
+            .filter(|count| **count > 2)
+            .min()
+            .map_or(0.0, |count| *count as f64 * self.cell * self.cell)
+    }
+
+    /// Joins every piece under `minimum` mm² to the neighbour it shares
+    /// the longest cut with, and drops the stretches of cut that now
+    /// run inside one piece.
+    fn merge_small(&self, cuts: &[Path], minimum: f64) -> Vec<Path> {
+        let (labels, sizes) = self.label(cuts);
+        let area = |count: usize| count as f64 * self.cell * self.cell;
+        let mut parent: Vec<usize> = (0..sizes.len()).collect();
+        fn root(parent: &mut [usize], mut label: usize) -> usize {
+            while parent[label] != label {
+                parent[label] = parent[parent[label]];
+                label = parent[label];
+            }
+            label
+        }
+        let mut merged_size = sizes.clone();
+        // Smallest first, so slivers join real pieces.
+        let mut order: Vec<usize> = (0..sizes.len()).filter(|label| sizes[*label] > 2).collect();
+        order.sort_by_key(|label| sizes[*label]);
+        let reach = 3isize;
+        for label in order {
+            let own = root(&mut parent, label);
+            if area(merged_size[own]) >= minimum {
+                continue;
+            }
+            // Neighbours across the cut, by how many cells touch.
+            let mut contacts: std::collections::HashMap<usize, usize> = Default::default();
+            for (index, cell_label) in labels.iter().enumerate() {
+                if *cell_label != label {
+                    continue;
+                }
+                let (x, y) = ((index % self.width) as isize, (index / self.width) as isize);
+                for (dx, dy) in [(reach, 0), (-reach, 0), (0, reach), (0, -reach)] {
+                    let (nx, ny) = (x + dx, y + dy);
+                    if nx < 0 || ny < 0 || nx >= self.width as isize || ny >= self.height as isize {
+                        continue;
+                    }
+                    let other = labels[ny as usize * self.width + nx as usize];
+                    if other != usize::MAX && sizes[other] > 2 {
+                        let other = root(&mut parent, other);
+                        if other != own {
+                            *contacts.entry(other).or_default() += 1;
+                        }
+                    }
+                }
+            }
+            if let Some((&neighbour, _)) = contacts.iter().max_by_key(|(_, count)| **count) {
+                parent[own] = neighbour;
+                merged_size[neighbour] += merged_size[own];
+            }
+        }
+        // Keep a stretch of cut only where its two sides are different
+        // pieces (or the border).
+        let side = |point: Point| -> Option<usize> {
+            let label = labels[self.cell_of(point)?];
+            (label != usize::MAX).then_some(label)
+        };
+        let offset = self.cell * 2.0;
+        let mut kept = Vec::new();
+        for cut in cuts {
+            let mut current: Vec<Point> = Vec::new();
+            for (a, b) in cut.segments() {
+                let direction = (b - a).normalized();
+                let normal = Point::new(-direction.y, direction.x);
+                let middle = a.lerp(b, 0.5);
+                let left = side(Point::new(
+                    middle.x + normal.x * offset,
+                    middle.y + normal.y * offset,
+                ));
+                let right = side(Point::new(
+                    middle.x - normal.x * offset,
+                    middle.y - normal.y * offset,
+                ));
+                let joined = match (left, right) {
+                    (Some(left), Some(right)) => {
+                        root(&mut parent, left) == root(&mut parent, right)
+                    }
+                    _ => false,
+                };
+                if joined {
+                    if current.len() > 1 {
+                        kept.push(Path::new(std::mem::take(&mut current), false));
+                    }
+                    current.clear();
+                } else {
+                    if current.is_empty() {
+                        current.push(a);
+                    }
+                    current.push(b);
+                }
+            }
+            if current.len() > 1 {
+                kept.push(Path::new(current, false));
+            }
+        }
+        kept
+    }
 }
 
 #[cfg(test)]
@@ -256,5 +484,30 @@ mod tests {
             }
         }
         assert_eq!(generate_inside(&[], &params), None);
+    }
+
+    #[test]
+    fn the_grid_is_placed_to_avoid_slivers_along_the_border() {
+        // A disc: an unlucky grid leaves tiny pieces where it grazes it.
+        let circle: Vec<Path> = vec![Path::new(
+            (0..128)
+                .map(|index| {
+                    let angle = index as f64 / 128.0 * std::f64::consts::TAU;
+                    Point::new(50.0 + 45.0 * angle.cos(), 50.0 + 45.0 * angle.sin())
+                })
+                .collect(),
+            true,
+        )];
+        let params = JigsawParams {
+            columns: 5,
+            rows: 5,
+            ..JigsawParams::default()
+        };
+        let bounds = bounds_of(&circle);
+        let raster = Raster::new(&circle, bounds);
+        let paths = generate_inside(&circle, &params).unwrap();
+        let chosen = raster.smallest_piece(&paths[..paths.len() - 1]);
+        // At least a fifth of a nominal piece (18 x 18 mm).
+        assert!(chosen > 0.2 * 18.0 * 18.0, "smallest piece {chosen:.1} mm²");
     }
 }
