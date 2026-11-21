@@ -289,7 +289,12 @@ impl DeviceState {
             done: active.done.is_some(),
             hold_required: active.hold_required,
         };
-        let held = std::mem::take(&mut active.held) && !escape;
+        // The press started on a homing button; from then on only letting
+        // go counts. The button itself may move or vanish as soon as the
+        // machine state changes (the alarm card closes when grblHAL
+        // reports Home), which must not read as a release.
+        let pointer = ctx.input(|input| input.pointer.primary_down() || input.any_touches());
+        let held = (std::mem::take(&mut active.held) || pointer) && !escape;
         let verdict = match homing::supervise(run, held, limit) {
             Verdict::Continue if escape => Verdict::Stop(StopReason::Released),
             verdict => verdict,
