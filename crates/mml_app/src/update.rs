@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 
 const REPOSITORY: &str = "barracudapps/MyMaxmakeLab";
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 3600);
+/// Retry delay when a newer release is still being published.
+const RETRY_SOON: Duration = Duration::from_secs(5 * 60);
 
 /// Archive name of this platform in a release.
 pub fn asset_name() -> Option<&'static str> {
@@ -47,16 +49,48 @@ pub struct Release {
 
 /// The release to install, when the latest one is a newer production
 /// version with an archive for this platform.
-pub fn pick_release(json: &str, current: &str) -> Option<Release> {
-    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+#[cfg(test)]
+fn pick_release(json: &str, current: &str) -> Option<Release> {
+    match newer_release(json, current) {
+        Newer::Ready(release) => Some(release),
+        _ => None,
+    }
+}
+
+/// What the latest release means for this copy.
+#[derive(Debug, PartialEq)]
+pub enum Newer {
+    No,
+    Ready(Release),
+    /// Newer, but its archive for this system is not attached yet (a
+    /// release still being published).
+    NotYet(String),
+}
+
+pub fn newer_release(json: &str, current: &str) -> Newer {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(json) else {
+        return Newer::No;
+    };
     if value["draft"].as_bool() == Some(true) || value["prerelease"].as_bool() == Some(true) {
-        return None;
+        return Newer::No;
     }
-    let tag = value["tag_name"].as_str()?;
-    if parse_version(tag)? <= parse_version(current)? {
-        return None;
+    let Some(tag) = value["tag_name"].as_str() else {
+        return Newer::No;
+    };
+    let newer = match (parse_version(tag), parse_version(current)) {
+        (Some(tag), Some(current)) => tag > current,
+        _ => false,
+    };
+    let Some(name) = asset_name().filter(|_| newer) else {
+        return Newer::No;
+    };
+    match ready(&value, tag, name) {
+        Some(release) => Newer::Ready(release),
+        None => Newer::NotYet(tag.to_owned()),
     }
-    let name = asset_name()?;
+}
+
+fn ready(value: &serde_json::Value, tag: &str, name: &str) -> Option<Release> {
     let url_of = |wanted: &str| {
         value["assets"].as_array()?.iter().find_map(|asset| {
             (asset["name"].as_str() == Some(wanted))
@@ -120,6 +154,9 @@ pub fn installed_location() -> Option<PathBuf> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Outcome {
     UpToDate,
+    /// A newer release is being published; its archive for this system
+    /// is not there yet.
+    NotYet(String),
     /// Installed, active at next start.
     Installed(String),
     /// A newer version exists but this copy cannot replace itself.
@@ -241,9 +278,10 @@ pub fn check_and_install() -> Outcome {
         // No release yet (404) or offline: nothing to do.
         Err(_) => return Outcome::UpToDate,
     };
-    let Some(release) = pick_release(&String::from_utf8_lossy(&json), env!("CARGO_PKG_VERSION"))
-    else {
-        return Outcome::UpToDate;
+    let release = match newer_release(&String::from_utf8_lossy(&json), env!("CARGO_PKG_VERSION")) {
+        Newer::Ready(release) => release,
+        Newer::NotYet(tag) => return Outcome::NotYet(tag),
+        Newer::No => return Outcome::UpToDate,
     };
     let Some(location) = installed_location() else {
         return Outcome::Available(release.tag);
@@ -269,6 +307,15 @@ impl Updater {
             && let Ok(outcome) = receiver.try_recv()
         {
             self.pending = None;
+            if matches!(outcome, Outcome::NotYet(_)) {
+                // Check again in a few minutes, once the build is attached
+                // (never "now": that would check at every frame).
+                if let Some(earlier) =
+                    Instant::now().checked_sub(CHECK_EVERY.saturating_sub(RETRY_SOON))
+                {
+                    self.last_check = Some(earlier);
+                }
+            }
             self.outcome = Some(outcome.clone());
             return Some(outcome);
         }
@@ -324,6 +371,20 @@ mod tests {
             pick_release(&release_json("v0.2.0-rc1", false), "0.1.0"),
             None
         );
+    }
+
+    #[test]
+    fn a_release_still_being_published_is_not_reported_as_up_to_date() {
+        if asset_name().is_none() {
+            return;
+        }
+        // Published with another system's archive only.
+        let json = release_json("v0.2.0", false).replace(asset_name().unwrap(), "Other.zip");
+        assert_eq!(
+            newer_release(&json, "0.1.0"),
+            Newer::NotYet("v0.2.0".into())
+        );
+        assert_eq!(newer_release(&json, "0.2.0"), Newer::No);
     }
 
     #[test]

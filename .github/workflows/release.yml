@@ -75,9 +75,25 @@ jobs:
         run: |
           if command -v sha256sum >/dev/null; then sha256sum ${{ matrix.asset }} > ${{ matrix.asset }}.sha256
           else shasum -a 256 ${{ matrix.asset }} > ${{ matrix.asset }}.sha256; fi
-      - uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: ${{ matrix.asset }}
+          path: |
             ${{ matrix.asset }}
             ${{ matrix.asset }}.sha256
+
+  # The release appears only once every archive is built: published
+  # job by job, it was visible for minutes without the macOS archive,
+  # and installed copies checking then found nothing for them.
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
           generate_release_notes: true

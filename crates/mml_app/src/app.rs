@@ -2239,6 +2239,10 @@ impl eframe::App for MyApp {
                 Outcome::Failed(error) => {
                     self.notify(trf("update.failed", &[&error]), Level::Error)
                 }
+                Outcome::NotYet(tag) if manual => {
+                    self.notify(trf("update.not_yet", &[&tag]), Level::Info)
+                }
+                Outcome::NotYet(_) => {}
                 Outcome::UpToDate if manual => self.notify(tr("update.up_to_date"), Level::Info),
                 Outcome::UpToDate => {}
             }
