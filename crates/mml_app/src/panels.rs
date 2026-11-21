@@ -191,6 +191,13 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
         if ui.button(tr("menu.array")).clicked() {
             app.array_dialog = Some(ArrayDialog::default());
         }
+        if ui
+            .button(tr("nest.button"))
+            .on_hover_text(tr("nest.intro"))
+            .clicked()
+        {
+            app.nest = Some(crate::nest_dialog::NestDialog::new(app));
+        }
         if app.selection.len() >= 2 {
             ui.menu_button(tr("boolean.title"), |ui| {
                 use mml_core::region::Boolean;
@@ -1595,6 +1602,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     array_dialog(app, ctx);
     crate::sprue_dialog::show(app, ctx);
     crate::paper_dialog::show(app, ctx);
+    crate::nest_dialog::show(app, ctx);
     crate::library::show(app, ctx);
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);

@@ -14,6 +14,7 @@ mod library;
 mod machine_panel;
 mod makers_dialog;
 mod manual_probe;
+mod nest_dialog;
 mod ornament_dialog;
 mod os;
 mod pairing;

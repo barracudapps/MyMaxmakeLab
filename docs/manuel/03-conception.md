@@ -76,6 +76,17 @@ hauteur.
 **Combiner** (deux formes ou plus sélectionnées) : union, différence (la
 forme dessinée en premier moins les autres), intersection, exclusion.
 
+**Imbriquer…** (panneau Sélection ou menu Édition) : place les pièces
+sélectionnées au plus serré sur une plaque, selon leur vrai contour : un L
+se glisse contre un autre L, une petite pièce va dans la fenêtre d'une
+grande. On choisit la taille de la plaque (celle du plateau par défaut), la
+marge au bord, l'écart entre pièces (2 à 3 mm au laser ; en fraisage, au
+moins le diamètre de la fraise plus 1 mm), le nombre d'exemplaires et si
+les pièces peuvent tourner d'un quart de tour. Un dessin importé est séparé
+en pièces ; les trous et les gravures restent avec la pièce qui les
+entoure. Ce qui ne tient pas est signalé, et les originaux restent en
+place. La plaque commence au coin avant gauche du plateau.
+
 **Barre des calques** : en bas à gauche du plateau, une pastille par calque.
 Avec des formes sélectionnées, un clic les met sur ce calque ; sans
 sélection, il en fait le calque courant ; **+** crée un calque (et y met la

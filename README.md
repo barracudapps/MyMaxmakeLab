@@ -129,6 +129,9 @@ multi-axis programs.
 - **WordArt-like shapes**: text on an arc above or below a circle, waves,
   bulges, with live preview; the same deformations on any vector.
 - **Combine** shapes: union, difference, intersection, exclusion.
+- **Nesting**: parts and their copies packed on a sheet by their real
+  outline (small parts go into the windows of big ones), quarter turns
+  allowed, holes and engravings kept with their part.
 - Move, scale, rotate with large handles (side handles stretch one axis,
   corners follow *Keep ratio*), snap, align, duplicate, grid or **circular
   arrays**, **contour offset** in or out, undo / redo, trace a picture to

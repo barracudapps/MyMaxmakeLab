@@ -204,6 +204,7 @@ pub struct MyApp {
     pub offset_distance: f64,
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub paper: Option<crate::paper_dialog::PaperDialog>,
+    pub nest: Option<crate::nest_dialog::NestDialog>,
     pub shapes_library: crate::library::LibraryState,
     /// The start panel shows on an empty design until closed.
     pub start_panel: bool,
@@ -322,6 +323,7 @@ impl MyApp {
             array_dialog: None,
             offset_distance: 2.0,
             sprue: None,
+            nest: None,
             paper: None,
             shapes_library: Default::default(),
             start_panel: true,
@@ -426,6 +428,7 @@ impl MyApp {
                     Some("palette") => self.palette.open = true,
                     Some("library") => self.shapes_library.open = true,
                     Some("paper") => self.paper = Some(crate::paper_dialog::PaperDialog::new(self)),
+                    Some("nest") => self.nest = Some(crate::nest_dialog::NestDialog::new(self)),
                     _ => {}
                 },
                 "--orbit" => {
@@ -1817,6 +1820,9 @@ impl MyApp {
                     }
                     if ui.button(tr("menu.array")).clicked() {
                         self.array_dialog = Some(ArrayDialog::default());
+                    }
+                    if ui.button(tr("nest.title")).clicked() {
+                        self.nest = Some(crate::nest_dialog::NestDialog::new(self));
                     }
                 });
                 ui.menu_button(tr("menu.machine"), |ui| {
