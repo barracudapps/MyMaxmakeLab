@@ -8,6 +8,7 @@ pub mod clearance;
 mod gentle;
 mod optimize;
 mod parser;
+pub mod resume;
 mod writer;
 
 pub use analysis::{JobStats, MotionSettings, analyze, tool_breakdown};

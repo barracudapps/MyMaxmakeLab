@@ -32,6 +32,15 @@ Atkinson, Jarvis, Stucki, **similigravure (vintage)**, **gravure au trait** ;
 motif de balayage en lignes, **diagonale** ou **cercles** ; résolution
 (dpi), luminosité, contraste, négatif.
 
+## Compensation du trait de coupe
+
+Le faisceau brûle une largeur d'environ 0,1 à 0,2 mm centrée sur le trait :
+sans correction, une pièce découpée sort un peu plus petite et un trou un
+peu plus grand. *Compensation du trait* (calque Laser ligne) décale les
+contours fermés vers l'extérieur et les trous vers l'intérieur de la
+moitié : tenons et mortaises s'emboîtent juste. Laissez 0 pour graver un
+trait.
+
 ## Décalage de balayage
 
 En gravure aller-retour rapide, les lignes de retour arrivent un peu

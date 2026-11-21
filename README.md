@@ -128,6 +128,7 @@ multi-axis programs.
   stencils, slab, display, monospace), 7 single-line fonts and your own.
 - **WordArt-like shapes**: text on an arc above or below a circle, waves,
   bulges, with live preview; the same deformations on any vector.
+- **Combine** shapes: union, difference, intersection, exclusion.
 - Move, scale, rotate with large handles (side handles stretch one axis,
   corners follow *Keep ratio*), snap, align, duplicate, grid or **circular
   arrays**, **contour offset** in or out, undo / redo, trace a picture to
@@ -158,8 +159,8 @@ multi-axis programs.
 <details>
 <summary><b>🔥 Laser</b></summary>
 
-- Line (cut / engrave) with passes, Z step, **dashed / dotted** styles and
-  holding **bridges**.
+- Line (cut / engrave) with passes, Z step, **dashed / dotted** styles,
+  holding **bridges** and **kerf compensation** so parts keep their size.
 - **Fill** by lines at any angle (diagonal in one click), **circles** or
   **contours**; crosshatch, overscan, bidirectional; holes kept.
 - **Image engraving**: greyscale, threshold, Bayer, Floyd–Steinberg,
@@ -277,6 +278,9 @@ flowchart TB
   using the live position; an open door blocks Start; laser jobs need an
   approved low-power **frame**, CNC jobs a **probed origin**; a short safety
   **checklist** (lid, glasses, clamping, fire watch).
+- **Resume an interrupted job** from the move the head was really on (not
+  the last line the controller had planned): the CNC goes up, across,
+  restarts the spindle and plunges back slowly; the laser goes there off.
 - **During the job**: automatic pause on anomalies (including the camera
   movement check, which catches lost steps and slipping belts), readable alarms with the
   action to take, Stop that keeps the position, emergency stop always visible.
@@ -321,7 +325,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 184 tests
+cargo test --workspace      # 193 tests
 cargo clippy --workspace    # no warnings
 ```
 

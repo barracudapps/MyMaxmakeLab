@@ -163,6 +163,25 @@ pub fn launch_job(app: &mut MyApp) {
         }
         guard
     });
+    if let Some(from) = app.job.resume_from.take() {
+        // Resume the program that ran, not a rebuilt one.
+        let Some(interrupted) = &app.job.interrupted else {
+            return;
+        };
+        let options = mml_gcode::resume::ResumeOptions {
+            safe_z: (app.machine.kind != MachineKind::Laser).then_some(app.machine.safe_z),
+            plunge_feed: 100.0,
+            spin_up: 3.0,
+        };
+        match mml_gcode::resume::resume(&interrupted.gcode, &interrupted.program, from, options) {
+            Ok(text) => gcode = text,
+            Err(_) => {
+                app.notify(tr("resume.unsupported"), Level::Error);
+                return;
+            }
+        }
+    }
+    app.job.streamed = Some(std::sync::Arc::new(gcode.clone()));
     let lines: Vec<String> = gcode.lines().map(str::to_owned).collect();
     let total = lines.len();
     app.device.send(Command::StartJob { lines, guard });
@@ -189,6 +208,25 @@ pub fn process_finished(app: &mut MyApp) {
     if matches!(kind, JobKind::ToolSetter | JobKind::SetterReference) {
         crate::collision::setter_finished(app, kind, completed);
         return;
+    }
+    if kind == JobKind::Main {
+        // Where to resume: the move the head was on when it stopped,
+        // not the last line the controller had planned.
+        let stop = app.device.interrupted.take();
+        app.job.interrupted = match (stop, &app.job.streamed) {
+            (Some((accepted, position)), Some(streamed)) if !completed => {
+                let program = mml_gcode::parse(streamed);
+                let accepted_line = mml_gcode::resume::source_line_of(streamed, accepted);
+                let line = mml_gcode::resume::resume_line(&program, accepted_line, position)
+                    .unwrap_or(accepted_line);
+                Some(crate::app::Interrupted {
+                    gcode: streamed.clone(),
+                    program,
+                    line,
+                })
+            }
+            _ => None,
+        };
     }
     if kind == JobKind::Main
         && let Some(built) = &app.job.built
@@ -360,6 +398,8 @@ pub fn checklist_modal(app: &mut MyApp, ctx: &egui::Context) {
         launch_job(app);
     } else if cancel {
         app.job.checklist = None;
+        // A cancelled resume must not turn the next Start into one.
+        app.job.resume_from = None;
     }
 }
 

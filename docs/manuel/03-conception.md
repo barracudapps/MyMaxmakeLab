@@ -73,6 +73,9 @@ Les poignées des coins suivent la case *Garder les proportions* (`Maj`
 l'inverse) ; celles du milieu des côtés changent seulement la largeur ou la
 hauteur.
 
+**Combiner** (deux formes ou plus sélectionnées) : union, différence (la
+forme dessinée en premier moins les autres), intersection, exclusion.
+
 **Barre des calques** : en bas à gauche du plateau, une pastille par calque.
 Avec des formes sélectionnées, un clic les met sur ce calque ; sans
 sélection, il en fait le calque courant ; **+** crée un calque (et y met la

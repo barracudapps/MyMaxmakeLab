@@ -87,6 +87,9 @@ pub struct DeviceState {
     /// Probe USB ports too (resets Arduino boards).
     pub detect_usb: bool,
     pub homing: Option<ActiveHoming>,
+    /// Lines the controller had accepted and the head position when the
+    /// last job stopped early.
+    pub interrupted: Option<(usize, [f64; 3])>,
 }
 
 /// Homing started from the application, supervised every frame.
@@ -136,6 +139,7 @@ impl DeviceState {
             discovered: None,
             detect_usb: true,
             homing: None,
+            interrupted: None,
         }
     }
 
@@ -419,6 +423,13 @@ impl DeviceState {
                 Event::JobFinished { outcome, elapsed } => {
                     self.last_elapsed = elapsed;
                     if let Some(job) = self.job.take() {
+                        if job.kind == JobKind::Main {
+                            self.interrupted = (outcome != JobOutcome::Completed).then(|| {
+                                let position =
+                                    self.status.as_ref().map_or([0.0; 3], |s| s.work_position);
+                                (job.acknowledged, position)
+                            });
+                        }
                         self.finished = Some((job.kind, outcome));
                         if job.kind != JobKind::Main {
                             continue;
@@ -1338,6 +1349,11 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
     let out_of_bounds = warnings.contains(&mml_job::JobWarning::OutOfBounds) && anchor.is_none();
     let can_start =
         connected && idle && current && !out_of_bounds && blockers.is_empty() && gates.is_empty();
+    resume_card(
+        app,
+        ui,
+        connected && idle && blockers.is_empty() && gates.is_empty(),
+    );
     ui.horizontal(|ui| {
         let frame = ui
             .add_enabled(
@@ -1387,6 +1403,74 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             }
         }
     });
+}
+
+/// After a job stopped early: the line to resume from (where the head
+/// stopped, editable), where the machine will go, and the button.
+fn resume_card(app: &mut MyApp, ui: &mut egui::Ui, can_resume: bool) {
+    let Some(interrupted) = &mut app.job.interrupted else {
+        return;
+    };
+    let mut resume = false;
+    let mut forget = false;
+    egui::Frame::new()
+        .fill(crate::theme::WARNING.gamma_multiply(0.15))
+        .corner_radius(8.0)
+        .inner_margin(8.0)
+        .show(ui, |ui| {
+            ui.label(RichText::new(tr("resume.title")).strong());
+            let total = interrupted.gcode.lines().count().max(1);
+            ui.horizontal(|ui| {
+                ui.label(tr("resume.line"));
+                let mut shown = interrupted.line + 1;
+                if ui
+                    .add(DragValue::new(&mut shown).range(1..=total))
+                    .changed()
+                {
+                    interrupted.line = shown - 1;
+                }
+                ui.label(RichText::new(format!("/ {total}")).weak());
+            });
+            if let Some(text) = interrupted.gcode.lines().nth(interrupted.line) {
+                ui.label(RichText::new(text.trim()).monospace().weak());
+            }
+            if let Some(motion) = interrupted
+                .program
+                .motions
+                .iter()
+                .find(|motion| motion.line >= interrupted.line)
+            {
+                let [x, y, z] = motion.from;
+                ui.label(trf(
+                    "resume.from",
+                    &[&format!("{x:.2}"), &format!("{y:.2}"), &format!("{z:.2}")],
+                ));
+            }
+            ui.add(egui::Label::new(RichText::new(tr("resume.hint")).weak().small()).wrap());
+            ui.horizontal(|ui| {
+                resume = ui
+                    .add_enabled(
+                        can_resume,
+                        egui::Button::new(RichText::new(tr("resume.go")).strong()),
+                    )
+                    .clicked();
+                forget = ui.button(tr("resume.forget")).clicked();
+            });
+        });
+    if forget {
+        app.job.interrupted = None;
+    } else if resume {
+        app.job.resume_from = app
+            .job
+            .interrupted
+            .as_ref()
+            .map(|interrupted| interrupted.line);
+        if app.settings.barriers {
+            app.job.checklist = Some(Default::default());
+        } else {
+            crate::workflow::launch_job(app);
+        }
+    }
 }
 
 fn job_line(app: &MyApp) -> Option<usize> {

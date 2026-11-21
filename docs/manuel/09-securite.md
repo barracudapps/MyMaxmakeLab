@@ -95,6 +95,25 @@ sous grblHAL), pas depuis le logiciel.
 **Arrêter** garde la position (pause puis réinitialisation) ; **Arrêt
 d'urgence** est toujours visible.
 
+### Reprendre un travail interrompu
+
+Après un arrêt, une erreur ou une alarme, la carte **Travail interrompu**
+propose la ligne de reprise : le mouvement sur lequel la tête se trouvait
+réellement (le contrôleur accepte des lignes d'avance, la dernière ligne
+reçue n'est donc pas la bonne). La ligne se modifie, et la position où la
+machine se rendra est affichée. *Reprendre à cette ligne* passe par les
+mêmes vérifications qu'un démarrage, puis :
+
+- en fraisage, la fraise remonte à la hauteur de sécurité, se place, la
+  broche démarre (3 s pour prendre sa vitesse) et redescend lentement à la
+  profondeur ;
+- au laser, la tête s'y rend laser éteint.
+
+Unités, coordonnées de travail, arrosage et avance sont rétablis. Si la
+machine a perdu sa position (alarme, coupure), refaites le homing et
+l'origine avant de reprendre. Les programmes en coordonnées relatives ou
+en temps inverse (4 axes continu) ne se reprennent pas.
+
 ## Ordinateur en veille et notifications
 
 Pendant un travail, l'ordinateur ne se met **pas en veille** (une mise en

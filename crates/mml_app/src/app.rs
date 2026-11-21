@@ -88,6 +88,19 @@ pub struct JobState {
     pub simulate: Option<f32>,
     pub simulating: bool,
     pub preview_line: Option<Option<usize>>,
+    /// Program text last sent to the machine.
+    pub streamed: Option<Arc<String>>,
+    /// A job that stopped before its end, and where to resume it.
+    pub interrupted: Option<Interrupted>,
+    /// Source line the next start resumes from (0-based).
+    pub resume_from: Option<usize>,
+}
+
+pub struct Interrupted {
+    pub gcode: Arc<String>,
+    pub program: mml_gcode::Program,
+    /// Line to resume from, 0-based, editable by the operator.
+    pub line: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -300,6 +313,9 @@ impl MyApp {
                 simulate: None,
                 simulating: false,
                 preview_line: None,
+                streamed: None,
+                interrupted: None,
+                resume_from: None,
             },
             notices: Vec::new(),
             text_dialog: None,
