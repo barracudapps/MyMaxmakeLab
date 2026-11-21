@@ -154,6 +154,7 @@ pub fn launch_job(app: &mut MyApp) {
         gcode = mml_probe::follow_surface(&gcode, &built.program, map, options);
     }
     let estimate = built.stats.duration;
+    let estimate = app.corrected_estimate(estimate).0;
     let guard = guard_for(app).map(|mut guard| {
         if follow && let (Some(envelope), Some(map)) = (&mut guard.envelope, &app.probe.map) {
             let heights = map.heights.iter().flatten();

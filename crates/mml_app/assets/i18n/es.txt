@@ -1343,3 +1343,4 @@ grbl.error.36 = Valores sin usar en la línea.
 grbl.error.37 = La corrección de longitud de herramienta G43.1 no está en el eje configurado.
 grbl.error.38 = Número de herramienta mayor que el máximo admitido.
 flow.to_start = Iniciar el trabajo  ›
+job.estimate_learned = Corregida según los últimos {0} trabajos terminados en esta máquina (aceleraciones, arranque del husillo…).

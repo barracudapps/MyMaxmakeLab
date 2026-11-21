@@ -1343,3 +1343,4 @@ grbl.error.36 = Unbenutzte Werte in der Zeile.
 grbl.error.37 = Die Werkzeuglängenkorrektur G43.1 liegt nicht auf der konfigurierten Achse.
 grbl.error.38 = Werkzeugnummer größer als das unterstützte Maximum.
 flow.to_start = Auftrag starten  ›
+job.estimate_learned = Korrigiert anhand der letzten {0} abgeschlossenen Aufträge auf dieser Maschine (Beschleunigung, Spindelhochlauf…).

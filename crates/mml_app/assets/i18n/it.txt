@@ -1343,3 +1343,4 @@ grbl.error.36 = Valori inutilizzati sulla riga.
 grbl.error.37 = La correzione lunghezza utensile G43.1 non è sull'asse configurato.
 grbl.error.38 = Numero utensile superiore al massimo supportato.
 flow.to_start = Avvia il lavoro  ›
+job.estimate_learned = Corretta in base agli ultimi {0} lavori completati su questa macchina (accelerazioni, avvio del mandrino…).

@@ -61,6 +61,11 @@ bloque les autres appareils du réseau.
   durée de vie de chaque outil.
 - En **Préparation**, le temps par outil et le coût estimé s'affichent avant
   de lancer le travail.
+- **Durée apprise** : après deux travaux terminés sur une machine, la durée
+  estimée (et le coût) est corrigée d'après l'écart réel des 10 derniers
+  (médiane, entre ×0,5 et ×3). Le calcul seul ignore les accélérations sur
+  les petits segments ou le démarrage de la broche ; une infobulle indique
+  sur combien de travaux repose la correction.
 
 L'historique est enregistré au fil de l'eau dans `usage.jsonl` (dossier de
 réglages) : un plantage ne le perd pas.

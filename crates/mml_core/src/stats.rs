@@ -32,6 +32,36 @@ pub struct JobRecord {
     pub completed: bool,
     pub tools: Vec<ToolUse>,
     pub cost: f64,
+    /// Duration estimated before the job, seconds (0 in older records).
+    pub estimated: f64,
+}
+
+/// How much longer (or shorter) jobs really take on `machine` than
+/// estimated: the median ratio over its last completed jobs, with the
+/// number of jobs it comes from. The estimate ignores what the machine
+/// does that the program does not say (acceleration limits on short
+/// segments, spindle spin-up, controller planning), which this learns.
+pub fn time_factor(records: &[JobRecord], machine: &str) -> Option<(f64, usize)> {
+    let mut ratios: Vec<f64> = records
+        .iter()
+        .rev()
+        .filter(|record| record.machine == machine && record.completed && record.estimated >= 20.0)
+        .take(10)
+        .map(|record| record.seconds / record.estimated)
+        .filter(|ratio| ratio.is_finite())
+        .collect();
+    if ratios.len() < 2 {
+        return None;
+    }
+    ratios.sort_by(f64::total_cmp);
+    let middle = ratios.len() / 2;
+    let median = if ratios.len().is_multiple_of(2) {
+        (ratios[middle - 1] + ratios[middle]) / 2.0
+    } else {
+        ratios[middle]
+    };
+    // A wildly different ratio is more likely a pause or a mistake.
+    Some((median.clamp(0.5, 3.0), ratios.len()))
 }
 
 /// What running a machine costs; zero for what does not apply.
@@ -251,5 +281,35 @@ mod tests {
         assert!((summary.machines[0].1 - 2.0).abs() < 1e-9);
         assert_eq!(summary.tools[0].2, Some(0.4));
         assert!((summary.days[6] - 1.0).abs() < 1e-9 && (summary.days[5] - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn estimates_learn_from_the_jobs_of_the_same_machine() {
+        let job = |machine: &str, seconds: f64, estimated: f64, completed: bool| JobRecord {
+            machine: machine.into(),
+            seconds,
+            estimated,
+            completed,
+            ..JobRecord::default()
+        };
+        let records = vec![
+            job("HiMill", 130.0, 100.0, true),
+            job("HiMill", 600.0, 100.0, false),
+            job("Laser", 50.0, 100.0, true),
+            job("HiMill", 120.0, 100.0, true),
+            job("HiMill", 10.0, 5.0, true),
+            job("HiMill", 125.0, 100.0, true),
+        ];
+        let (factor, count) = time_factor(&records, "HiMill").unwrap();
+        // Unfinished and very short jobs are left out.
+        assert_eq!(count, 3);
+        assert!((factor - 1.25).abs() < 1e-9);
+        assert_eq!(
+            time_factor(&records, "Laser"),
+            None,
+            "one job is not enough"
+        );
+        // Older records without an estimate are ignored.
+        assert_eq!(time_factor(&vec![job("A", 10.0, 0.0, true); 5], "A"), None);
     }
 }

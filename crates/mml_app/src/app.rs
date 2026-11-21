@@ -1142,9 +1142,19 @@ impl MyApp {
             completed,
             tools,
             cost,
+            estimated,
         };
         crate::settings::append_usage(&record);
         self.usage.push(record);
+    }
+
+    /// `raw` estimate corrected by what past jobs on this machine took,
+    /// with the number of jobs the correction comes from.
+    pub fn corrected_estimate(&self, raw: Duration) -> (Duration, Option<usize>) {
+        match mml_core::stats::time_factor(&self.usage, &self.machine.name) {
+            Some((factor, count)) => (raw.mul_f64(factor), Some(count)),
+            None => (raw, None),
+        }
     }
 
     /// Checks GitHub for a new release now.

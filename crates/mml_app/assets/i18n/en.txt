@@ -1273,3 +1273,4 @@ homing.doctor.other = Homing failed
 homing.doctor.other_text = The controller refused or interrupted homing. The details are in the console at the bottom of this tab.
 homing.doctor.dismiss = Hide
 flow.to_start = Start the job  ›
+job.estimate_learned = Corrected from the last {0} jobs completed on this machine (acceleration, spindle spin-up…).

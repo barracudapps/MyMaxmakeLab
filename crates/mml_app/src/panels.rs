@@ -1437,21 +1437,22 @@ fn job_summary(app: &mut MyApp, ui: &mut egui::Ui) {
         .as_ref()
         .map(|(_, tools)| tools.clone())
         .unwrap_or_default();
-    let cost = app
-        .settings
-        .costs
-        .job_cost(stats.duration.as_secs_f64(), &tools, 0.0);
+    let cost = app.settings.costs.job_cost(
+        app.corrected_estimate(stats.duration).0.as_secs_f64(),
+        &tools,
+        0.0,
+    );
     let currency = app.settings.costs.currency.clone();
     egui::Grid::new("stats")
         .num_columns(2)
         .spacing([12.0, 4.0])
         .show(ui, |ui| {
             ui.label(tr("job.duration"));
-            ui.label(
-                RichText::new(format_duration(stats.duration))
-                    .strong()
-                    .size(16.0),
-            );
+            let (duration, learned) = app.corrected_estimate(stats.duration);
+            let label = ui.label(RichText::new(format_duration(duration)).strong().size(16.0));
+            if let Some(count) = learned {
+                label.on_hover_text(trf("job.estimate_learned", &[&count]));
+            }
             ui.end_row();
             if tools.len() > 1 || tools.first().is_some_and(|tool| tool.label != "Program") {
                 for tool in &tools {

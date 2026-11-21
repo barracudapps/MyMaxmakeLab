@@ -1591,7 +1591,7 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         ui.label(RichText::new(tr("job.nothing_run")).weak());
         return;
     };
-    let estimate = built.stats.duration;
+    let (estimate, learned) = app.corrected_estimate(built.stats.duration);
     let bounds = built.stats.cut_bounds;
     let warnings = built.warnings.clone();
     let anchor = built.anchor;
@@ -1601,7 +1601,10 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
             RichText::new(format!("⚠ {}", warning_text(warning))).color(crate::theme::WARNING),
         );
     }
-    ui.label(trf("job.estimate", &[&format_short(estimate)]));
+    let label = ui.label(trf("job.estimate", &[&format_short(estimate)]));
+    if let Some(count) = learned {
+        label.on_hover_text(trf("job.estimate_learned", &[&count]));
+    }
     if pauses > 0 {
         ui.label(RichText::new(trf("job.pauses", &[&pauses])).weak());
     }
