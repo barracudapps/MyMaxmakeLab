@@ -36,6 +36,7 @@ enum Action {
     MachineSettings,
     Updates,
     Paper,
+    StartPanel,
 }
 
 /// Menu entries reused as command names, so the palette speaks the
@@ -64,10 +65,11 @@ const COMMANDS: [(&str, Action); 21] = [
     ("palette.camera", Action::Camera),
 ];
 
-const EXTRA: [(&str, Action); 3] = [
+const EXTRA: [(&str, Action); 4] = [
     ("menu.machine_settings", Action::MachineSettings),
     ("update.check", Action::Updates),
     ("paper.title", Action::Paper),
+    ("start.reopen", Action::StartPanel),
 ];
 
 /// Lower case without accents, so "prepa" finds "Préparation".
@@ -133,6 +135,12 @@ fn run(app: &mut MyApp, action: Action) {
         Action::Camera => app.camera.open = true,
         Action::MachineSettings => app.machine_dialog = Some(app.machine.clone()),
         Action::Updates => app.request_update_check(),
+        Action::StartPanel => {
+            app.start_panel = true;
+            app.settings.show_start_panel = true;
+            app.mode = Mode::Design;
+            app.canvas.tool = crate::canvas::Tool::Select;
+        }
         Action::Paper => app.paper = Some(crate::paper_dialog::PaperDialog::new(app)),
     }
 }

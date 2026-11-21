@@ -77,6 +77,8 @@ pub struct Settings {
     pub has_probe: bool,
     /// Homing runs only while its button is held.
     pub homing_hold: bool,
+    /// Show "What would you like to make?" on an empty design.
+    pub show_start_panel: bool,
     pub manual_contact: mml_probe::manual::Contact,
     /// Last choices of the paper quick setup.
     pub paper: mml_materials::paper::Setup,
@@ -130,6 +132,7 @@ impl Default for Settings {
             probe: mml_probe::ProbeSettings::default(),
             has_probe: false,
             homing_hold: true,
+            show_start_panel: true,
             manual_contact: Default::default(),
             paper: Default::default(),
             jog_proportional: true,

@@ -10,7 +10,17 @@ use mml_core::layer::Layer;
 
 pub fn overlays(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
     if app.mode == Mode::Design {
-        if app.document.shapes.is_empty() {
+        // Closed for this session once dismissed, or for good when asked.
+        // Picking a drawing tool means drawing: the panel steps aside.
+        let drawing = app.canvas.tool != crate::canvas::Tool::Select;
+        if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+            app.start_panel = false;
+        }
+        if app.document.shapes.is_empty()
+            && app.start_panel
+            && app.settings.show_start_panel
+            && !drawing
+        {
             start_panel(app, ui, canvas);
         }
         layer_bar(app, ui, canvas);
@@ -70,7 +80,18 @@ fn start_panel(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
         |ui| {
             frame.show(ui, |ui| {
                 ui.set_width(width - 28.0);
-                ui.label(RichText::new(tr("start.title")).size(18.0).strong());
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(tr("start.title")).size(18.0).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add(egui::Button::new(RichText::new("×").size(18.0)).frame(false))
+                            .on_hover_text(tr("start.close"))
+                            .clicked()
+                        {
+                            app.start_panel = false;
+                        }
+                    });
+                });
                 ui.add_space(6.0);
                 let laser = app.machine.kind == mml_core::machine::MachineKind::Laser;
                 let actions: Vec<(&str, &str, u8)> = [
@@ -122,6 +143,14 @@ fn start_panel(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
                 }
                 ui.add_space(4.0);
                 ui.add(egui::Label::new(RichText::new(tr("start.drop")).weak().small()).wrap());
+                let mut hide = !app.settings.show_start_panel;
+                if ui
+                    .checkbox(&mut hide, RichText::new(tr("start.never")).small())
+                    .on_hover_text(tr("start.never_hint"))
+                    .changed()
+                {
+                    app.settings.show_start_panel = !hide;
+                }
             });
         },
     );

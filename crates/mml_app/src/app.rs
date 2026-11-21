@@ -192,6 +192,8 @@ pub struct MyApp {
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub paper: Option<crate::paper_dialog::PaperDialog>,
     pub shapes_library: crate::library::LibraryState,
+    /// The start panel shows on an empty design until closed.
+    pub start_panel: bool,
     pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
     pub updater: crate::update::Updater,
     pub makers: Option<crate::makers_dialog::MakersDialog>,
@@ -306,6 +308,7 @@ impl MyApp {
             sprue: None,
             paper: None,
             shapes_library: Default::default(),
+            start_panel: true,
             ornament: None,
             updater: Default::default(),
             makers: None,
@@ -1682,6 +1685,12 @@ impl MyApp {
                     }
                     if ui.button(tr("menu.open")).clicked() {
                         self.open_dialog();
+                    }
+                    if ui.button(tr("start.reopen")).clicked() {
+                        self.start_panel = true;
+                        self.settings.show_start_panel = true;
+                        self.mode = Mode::Design;
+                        self.canvas.tool = crate::canvas::Tool::Select;
                     }
                     ui.menu_button(tr("menu.recent"), |ui| {
                         for path in self.settings.recent.clone() {

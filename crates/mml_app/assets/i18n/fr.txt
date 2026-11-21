@@ -1205,3 +1205,7 @@ manual.touch_inner_back = Paroi arrière, de l’intérieur
 machine.laser_offset = Décalage du laser
 machine.laser_offset_hint = Position du point laser par rapport à l’axe de la broche. Pour la mesurer : gravez un point au laser, puis amenez la pointe d’une fraise exactement dessus ; la différence de position est le décalage. Les calques laser sont déplacés d’autant.
 update.not_yet = La version {0} est en cours de publication : elle sera installée dès qu’elle sera prête pour cet ordinateur (nouvel essai dans quelques minutes).
+start.close = Fermer (Échap)
+start.never = Ne plus afficher
+start.never_hint = Le panneau reste accessible par Fichier › Panneau de démarrage ou ⌘K.
+start.reopen = Panneau de démarrage

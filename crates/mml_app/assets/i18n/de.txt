@@ -1207,3 +1207,7 @@ manual.touch_inner_back = Hintere Wand, von innen
 machine.laser_offset = Laser-Versatz
 machine.laser_offset_hint = Lage des Laserpunkts relativ zur Spindelachse. Messen: einen Punkt lasern, dann die Spitze eines Fräsers genau darüber fahren; die Positionsdifferenz ist der Versatz. Laserebenen werden entsprechend verschoben.
 update.not_yet = Version {0} wird gerade veröffentlicht: sie wird installiert, sobald sie für diesen Computer bereit ist (neuer Versuch in einigen Minuten).
+start.close = Schließen (Esc)
+start.never = Nicht mehr anzeigen
+start.never_hint = Das Feld bleibt über Datei › Startfeld oder ⌘K erreichbar.
+start.reopen = Startfeld

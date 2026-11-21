@@ -1173,3 +1173,7 @@ manual.touch_inner_back = Back wall, from inside
 machine.laser_offset = Laser offset
 machine.laser_offset_hint = Where the laser spot lies relative to the spindle axis. To measure it: burn a dot with the laser, then bring the tip of a cutter exactly onto it; the difference in position is the offset. Laser layers are moved by it.
 update.not_yet = Version {0} is being published: it will be installed as soon as it is ready for this computer (trying again in a few minutes).
+start.close = Close (Esc)
+start.never = Don’t show again
+start.never_hint = The panel stays available from File › Start panel or ⌘K.
+start.reopen = Start panel

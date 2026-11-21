@@ -1207,3 +1207,7 @@ manual.touch_inner_back = Pared trasera, desde dentro
 machine.laser_offset = Desfase del láser
 machine.laser_offset_hint = Posición del punto láser respecto al eje del husillo. Para medirla: grabe un punto con el láser y lleve la punta de una fresa justo encima; la diferencia de posición es el desfase. Las capas láser se desplazan en consecuencia.
 update.not_yet = La versión {0} se está publicando: se instalará en cuanto esté lista para este ordenador (nuevo intento en unos minutos).
+start.close = Cerrar (Esc)
+start.never = No volver a mostrar
+start.never_hint = El panel sigue disponible en Archivo › Panel de inicio o ⌘K.
+start.reopen = Panel de inicio
