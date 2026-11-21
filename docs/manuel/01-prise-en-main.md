@@ -51,6 +51,24 @@ flowchart LR
    CNC, CNC + laser, Makera Carvera) puis ajustez-le dans *Réglages de la
    machine* (taille du plateau, origine, puissance maximale `$30`…).
 
+## Démarrer avec une Maxmake HiMill D1S
+
+1. Branchez la machine en USB, puis **Machine › Connecter** (ou
+   *Détecter les machines*). La HiMill se présente sous le nom GCARVIN :
+   l'application propose **Utiliser le profil HiMill D1S** ; acceptez (ou
+   choisissez-le dans le menu **Machine**). Le plateau prend la course de la
+   machine (280 × 200 mm) et le repère home passe en haut à gauche : broche
+   à gauche, plateau mobile avancé vers vous.
+2. **Homing** : gardez le bouton enfoncé en surveillant la machine, ou
+   double-cliquez pour qu'il aille au bout tout seul. En cas d'échec, un
+   encadré dit quoi vérifier.
+3. **Déplacer la tête** avec le pavé ou les flèches (Page ↑/↓ pour Z),
+   d'abord en précision *Micro* ou *Fin* pour vérifier le sens de chaque
+   axe. Y+ va vers l'arrière : la flèche du bas ramène l'outil vers vous.
+4. Faites l'origine (*Zéro XY ici*, palpage ou relevé à la main), puis
+   **Lancer le travail** : chaque programme est encadré par
+   `[STREAM_START]` / `[STREAM_END]`, comme dans MaxmakeLAB.
+
 ## Langue, thème, réglages portables
 
 - Langues : français, anglais, allemand, italien, espagnol (menu
