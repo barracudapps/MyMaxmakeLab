@@ -1342,3 +1342,4 @@ grbl.error.35 = Un arco G2/G3 richiede almeno uno scostamento (I, J, K) nel pian
 grbl.error.36 = Valori inutilizzati sulla riga.
 grbl.error.37 = La correzione lunghezza utensile G43.1 non è sull'asse configurato.
 grbl.error.38 = Numero utensile superiore al massimo supportato.
+flow.to_start = Avvia il lavoro  ›

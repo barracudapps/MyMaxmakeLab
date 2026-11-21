@@ -76,6 +76,8 @@ pub struct JobState {
     /// Bumped when placement or selection-only change.
     pub options_revision: u64,
     pub picking_anchor: bool,
+    /// Scroll the Run panel to the job card on the next frame.
+    pub scroll_to_job: bool,
     /// Pause the job reached and that the operator must handle.
     pub waiting_pause: Option<mml_job::PauseReason>,
     /// Job key the last frame (dry run) was traced for.
@@ -296,6 +298,7 @@ impl MyApp {
                 selection_only: false,
                 options_revision: 0,
                 picking_anchor: false,
+                scroll_to_job: false,
                 waiting_pause: None,
                 frame_for: None,
                 frame_approved: None,

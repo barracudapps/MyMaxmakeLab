@@ -1340,3 +1340,4 @@ grbl.error.35 = Un arc G2/G3 demande au moins un décalage (I, J, K) dans le pla
 grbl.error.36 = Valeurs inutilisées sur la ligne.
 grbl.error.37 = La correction de longueur d'outil G43.1 n'est pas sur l'axe configuré.
 grbl.error.38 = Numéro d'outil supérieur au maximum pris en charge.
+flow.to_start = Lancer le travail  ›

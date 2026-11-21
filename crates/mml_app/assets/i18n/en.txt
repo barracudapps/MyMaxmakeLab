@@ -1272,3 +1272,4 @@ homing.doctor.too_long_text = It lasted much longer than usual: an axis may be p
 homing.doctor.other = Homing failed
 homing.doctor.other_text = The controller refused or interrupted homing. The details are in the console at the bottom of this tab.
 homing.doctor.dismiss = Hide
+flow.to_start = Start the job  ›

@@ -553,10 +553,21 @@ pub fn run_panel(app: &mut MyApp, ui: &mut egui::Ui) {
         return;
     }
     card(ui, |ui| machine_state(app, ui));
-    card(ui, |ui| job_card(app, ui));
+    // In the order of the work: bring the head, set the origin, then
+    // start. While a job runs, its card (progress, pause) comes first.
+    let running = app.device.job_running();
+    if running {
+        card(ui, |ui| job_card(app, ui));
+    }
     card(ui, |ui| jog(app, ui));
     card(ui, |ui| crate::manual_probe::section(app, ui));
     card(ui, |ui| crate::workflow::probe_section(app, ui));
+    if !running {
+        if std::mem::take(&mut app.job.scroll_to_job) {
+            ui.scroll_to_cursor(Some(egui::Align::TOP));
+        }
+        card(ui, |ui| job_card(app, ui));
+    }
     if app.machine.kind == mml_core::machine::MachineKind::Cnc {
         card(ui, |ui| crate::collision::card(app, ui));
     }

@@ -277,6 +277,13 @@ fn next_step(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
     let (label, target) = match app.mode {
         Mode::Design if !app.document.shapes.is_empty() => (tr("flow.to_prepare"), Mode::Prepare),
         Mode::Prepare if app.job.built.is_some() => (tr("flow.to_machine"), Mode::Run),
+        Mode::Run
+            if app.job.built.is_some()
+                && app.device.is_connected()
+                && !app.device.job_running() =>
+        {
+            (tr("flow.to_start"), Mode::Run)
+        }
         _ => return,
     };
     let size = egui::vec2(220.0, 40.0);
@@ -286,6 +293,7 @@ fn next_step(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
         .fill(crate::theme::ACCENT)
         .corner_radius(20.0);
     if ui.put(rect, button).clicked() {
+        app.job.scroll_to_job = app.mode == Mode::Run;
         app.mode = target;
     }
 }
