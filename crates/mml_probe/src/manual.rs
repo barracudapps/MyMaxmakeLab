@@ -349,7 +349,10 @@ pub fn solve(
             }
             let plane = crate::Plane::fit(&points).ok_or(SolveError::Inconsistent)?;
             let residual = plane.residual(&points);
-            let top = points.iter().map(|p| p[2]).fold(f64::NEG_INFINITY, f64::max);
+            let top = points
+                .iter()
+                .map(|p| p[2])
+                .fold(f64::NEG_INFINITY, f64::max);
             let mut measure = Measure::new(top);
             measure.plane = Some((plane, residual));
             return Ok(measure);
