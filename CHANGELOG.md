@@ -7,6 +7,14 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- When a HiMill is connected on another profile, the connection card
+  offers the HiMill D1S profile in one click.
+
+### Changed
+- Choosing a machine profile keeps the bed size the controller reports.
+- The *Start the job* button only shows when there is something to make.
+
 ## [0.1.10] - 2026-11-21
 
 ### Fixed
