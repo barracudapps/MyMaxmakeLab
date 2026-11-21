@@ -150,7 +150,8 @@ multi-axis programs.
   saves it (Inkscape, Krita, Affinity, Procreate via a synced folder).
 - **Insert SVG code** typed or pasted (or the `<svg>` of an HTML snippet).
 - **Generators**: finger-jointed **box** sized for an object, **round box** with a living-hinge wall, **maze** (walls
-  or corridors to mill), **jigsaw puzzle**, involute **gears**, **QR codes**
+  or corridors to mill), **jigsaw puzzle** (rectangle or **inside any
+  shape**), involute **gears**, **QR codes**
   and **Code 128** barcodes, a laser **test grid** (power × speed), random
   **ornaments** by style
   (Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian,
@@ -259,6 +260,14 @@ multi-axis programs.
 - **Production with several machines**: a shared queue of jobs, each machine
   with its own safety monitor, one emergency stop for all.
 - Makera Carvera: Wi-Fi discovery, tool changer, halt reasons.
+- **Maxmake HiMill D1S** profile (280 × 200 × 80 mm, home at the rear left
+  of the moving table, programs framed like MaxmakeLAB does); its `GCARVIN`
+  welcome line is recognised.
+- **The bed is the machine's**: on connection the travel the controller
+  reports (`$130`-`$132`) sets the bed size and Z travel.
+- **Jog** with five precision levels from the pad or the keyboard, held to
+  move until released, never past the travel ends once homed; the spindle
+  can turn while approaching the material, with capped speeds.
 - **Follow a job from a phone**: progress, time left, position; the page can
   only pause or stop, never start or resume.
 - The bed shows the front, the back, the home corner and the axes.
@@ -277,6 +286,7 @@ flowchart TB
     M -->|no answer 1.5 s| W["Warning"]
     H["Homing"] -->|button released or Esc| X["Controller reset"]
     H -->|longer than usual| X
+    X --> D["Diagnosis: what to check"]
     P --> R["Operator: resume or stop<br/>(stop keeps the position)"]
 ```
 
@@ -291,10 +301,14 @@ flowchart TB
   movement check, which catches lost steps and slipping belts), readable alarms with the
   action to take, Stop that keeps the position, emergency stop always visible.
 - **Homing**: it only runs while its button is held (release or `Esc`
-  resets the controller at once), it is cut when it lasts longer than
-  usual, and a fast search speed can be lowered in one click. Steppers feel
-  no resistance: the pushing force itself is the motor current, set on the
-  drivers.
+  resets the controller at once) or after a double click, it is cut when it
+  lasts longer than usual, and a fast search speed can be lowered in one
+  click. A failed homing says what to check (homing off with `$22=0`,
+  switch not found, pull-off). Steppers feel no resistance: the pushing
+  force itself is the motor current, set on the drivers.
+- **Jogging** stays within the travel once homed (machine space computed
+  from the home position, `$23` and `$130`-`$132`), and releasing a key or
+  a button always stops the head.
 - **Advanced mode** shows the console, macros and controller settings (`$$`
   with explanations). Only there can the mandatory checks be lifted; the
   live monitor stays on.
@@ -310,7 +324,7 @@ Download the archive of your system from the
 (macOS universal `.app`, Linux, Windows). Installed copies update
 themselves: every production release is downloaded, checked against its
 SHA-256 and installed, and runs at next start (Help menu: check now, or
-turn it off).
+turn it off). What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 Publishing a release is pushing a version tag; CI tests, builds the three
 platforms and attaches the archives:
@@ -331,7 +345,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 193 tests
+cargo test --workspace      # 209 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -341,9 +355,11 @@ cargo clippy --workspace    # no warnings
 |---|---|---|---|
 | `Ctrl/⌘ 1 2 3` | Design / Prepare / Run | `V R E P T D` | select, rectangle, ellipse, polygon, text, freehand |
 | `Ctrl/⌘ Z`, `⇧Z` | undo / redo | `F` | fit to view |
-| `Ctrl/⌘ D` | duplicate | arrows | nudge 1 mm (`⇧` 10 mm) or jog in Run |
+| `Ctrl/⌘ D` | duplicate | arrows | nudge 1 mm (`⇧` 10 mm); in Run, jog X / Y |
 | `Ctrl/⌘ I` / `O` / `S` | import / open / save | wheel, pinch | zoom; middle button or Space: pan |
 | `Ctrl/⌘ K` | command palette | `Esc` | stops a homing in progress |
+| `Page ↑` / `Page ↓` | jog Z (Run) | `1`…`5`, `+` / `−` | jog precision, Micro to Rapid (Run) |
+| `⇧` / `⌥` held | one precision level coarser / finer | double click *Homing* | homing to the end by itself |
 
 ```bash
 mymaxmakelab [--mode design|prepare|run] [--3d] [--play] [--open WINDOW]
@@ -404,6 +420,11 @@ body): `git log` is the technical changelog. See
 - [x] Stylus drawing page with brushes, eraser and live sync
 - [x] Start panel, layer bar, shape library, gears, QR / barcodes, circular arrays, offsets
 - [x] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
+- [x] Resume an interrupted job, kerf compensation, combined shapes
+- [x] Import from Fusion, LightBurn and MaxmakeLAB libraries; nesting on a sheet; puzzle inside any shape
+- [x] Keyboard jog with precision levels, spindle next to the jog pad, homing diagnosis, durations learned from past jobs
+- [x] Maxmake HiMill D1S profile, bed taken from the controller travel
+- [ ] File transfer to the machine memory (HiMill SD card)
 - [ ] Simultaneous 5-axis with tool orientation: needs the kinematics of a 5-axis machine
 
 ## 🇫🇷 En bref
@@ -425,7 +446,11 @@ relève à la main (bloc, cylindre, trapèze) ; le homing ne tourne que bouton
 maintenu. Panneau de démarrage, barre des calques, bibliothèque de formes,
 engrenages, QR codes, réseaux circulaires, décalage de contour, laser sur
 papier et dessin au stylet sur tablette (gomme, pinceau à pression, suivi en
-direct). Interface en français, anglais, allemand, italien et espagnol, thèmes
+direct). Reprise d'un travail interrompu, imbrication des pièces sur la
+plaque, puzzle dans n'importe quelle forme, import des bibliothèques Fusion,
+LightBurn et MaxmakeLAB, déplacement au clavier avec niveaux de précision,
+broche à côté du pavé, diagnostic du homing, profil Maxmake HiMill D1S et
+plateau à la taille de la machine connectée. Interface en français, anglais, allemand, italien et espagnol, thèmes
 clair et sombre. **[Manuel complet en français](docs/manuel/README.md)**.
 
 ---

@@ -40,6 +40,14 @@ Rules:
 - Code comments only for non-obvious traps; the why goes in the commit.
 - User-facing strings go through the translation files of `mml_app`.
 
+## Changelog
+
+Every change a user can notice gets a line under `## [Unreleased]` in
+[CHANGELOG.md](CHANGELOG.md), in plain words (what it does for the
+operator, not how). Releasing moves those lines under the new version
+heading; the release workflow publishes that section as the description
+of the GitHub release (`scripts/release-notes.sh` extracts it).
+
 ## Branches
 
 `main` is always releasable. Work on `main-<subject>-<initials>` branches
