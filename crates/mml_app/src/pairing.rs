@@ -16,6 +16,7 @@ use std::time::Duration;
 
 const PAGE: &str = include_str!("../assets/web/draw.html");
 const MONITOR: &str = include_str!("../assets/web/monitor.html");
+const ICON: &[u8] = include_bytes!("../assets/web/icon-180.png");
 
 /// What a phone may ask: only commands that make the machine safer.
 /// Nothing can start or resume a job from the network.
@@ -219,6 +220,10 @@ fn serve(
         parts.next().unwrap_or_default(),
     );
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
+    // The icon reveals nothing: browsers fetch it without the code.
+    if method == "GET" && path == "/icon.png" {
+        return respond(&mut stream, "200 OK", "image/png", ICON);
+    }
     let authorised = query.split('&').any(|pair| pair == format!("t={token}"));
     if !authorised {
         return respond(
@@ -446,9 +451,9 @@ mod tests {
                 body.len()
             )
             .unwrap();
-            let mut response = String::new();
-            stream.read_to_string(&mut response).unwrap();
-            response
+            let mut response = Vec::new();
+            stream.read_to_end(&mut response).unwrap();
+            String::from_utf8_lossy(&response).into_owned()
         };
         let refused = request("/", "");
         assert!(
@@ -457,6 +462,8 @@ mod tests {
             pairing.url
         );
         let token = pairing.url.split("t=").nth(1).unwrap().to_owned();
+        // The icon is the only thing served without the code.
+        assert!(request("/icon.png", "").contains("image/png"));
         assert!(request(&format!("/?t={token}"), "").contains("MyMaxmakeLab"));
         assert!(request(&format!("/area?t={token}"), "").contains("\"width\":100"));
         let ok = request(

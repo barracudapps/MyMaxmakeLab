@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MyMaxmakeLab
+Comment=Laser and CNC workshop
+Exec=mymaxmakelab %F
+Icon=mymaxmakelab
+Terminal=false
+Categories=Graphics;Engineering;
+StartupWMClass=mymaxmakelab

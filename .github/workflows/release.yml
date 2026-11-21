@@ -63,7 +63,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cargo build --release -p mml_app -p mml_mcp
-          tar -czf ${{ matrix.asset }} -C target/release mymaxmakelab mymaxmakelab-mcp
+          # Desktop entry and icon for menus and docks; the updater only
+          # takes the binary out of the archive.
+          cp packaging/linux/mymaxmakelab.desktop packaging/linux/mymaxmakelab.png target/release/
+          tar -czf ${{ matrix.asset }} -C target/release mymaxmakelab mymaxmakelab-mcp mymaxmakelab.desktop mymaxmakelab.png
       - name: Build Windows
         if: runner.os == 'Windows'
         shell: pwsh

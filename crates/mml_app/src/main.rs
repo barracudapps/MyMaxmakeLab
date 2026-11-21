@@ -36,9 +36,14 @@ mod workflow;
 use eframe::egui;
 
 fn main() -> eframe::Result {
+    // Without it eframe shows its own logo, even in the macOS Dock while
+    // the app runs (it replaces the bundle icon at launch).
+    let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon-256.png"))
+        .expect("bundled icon is a valid PNG");
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("MyMaxmakeLab")
+            .with_icon(icon)
             .with_app_id("mymaxmakelab")
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([980.0, 620.0])
