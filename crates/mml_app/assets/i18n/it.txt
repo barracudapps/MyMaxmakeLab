@@ -1230,3 +1230,5 @@ boolean.exclusion = Esclusione
 boolean.exclusion_hint = Ciò che copre una sola forma: le sovrapposizioni diventano fori.
 boolean.empty = Non resta nulla di questa combinazione.
 history.boolean = Forme combinate
+op.kerf = Compensazione del taglio
+op.kerf_hint = Larghezza bruciata dal raggio (spesso 0,1–0,2 mm). I contorni chiusi si spostano in fuori e i fori in dentro della metà: i pezzi mantengono le misure e si incastrano bene. 0 per incidere una linea.

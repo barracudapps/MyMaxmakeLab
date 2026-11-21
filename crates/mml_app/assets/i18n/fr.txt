@@ -1228,3 +1228,5 @@ boolean.exclusion = Exclusion
 boolean.exclusion_hint = Ce que couvre une seule des formes : les recouvrements deviennent des trous.
 boolean.empty = Rien ne reste de cette combinaison.
 history.boolean = Combinaison de formes
+op.kerf = Compensation du trait
+op.kerf_hint = Largeur brûlée par le faisceau (souvent 0,1 à 0,2 mm). Les contours fermés sont décalés vers l’extérieur et les trous vers l’intérieur de la moitié : les pièces gardent leurs cotes et s’emboîtent juste. 0 pour graver un trait.

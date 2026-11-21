@@ -141,6 +141,10 @@ pub struct LineParams {
     /// Bridges per part; 0 places them automatically.
     #[serde(default)]
     pub bridge_count: u32,
+    /// Width of the burnt line, mm: closed outlines are moved out by
+    /// half of it (holes in), so cut parts keep their drawn size.
+    #[serde(default)]
+    pub kerf: f64,
 }
 
 impl Default for LineParams {
@@ -155,6 +159,7 @@ impl Default for LineParams {
             dash_off: 0.0,
             bridge_width: 0.0,
             bridge_count: 0,
+            kerf: 0.0,
         }
     }
 }

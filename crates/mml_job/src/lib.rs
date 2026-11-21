@@ -302,6 +302,14 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         }
         match &layer.operation {
             Operation::LaserLine(params) => {
+                let vectors = if params.kerf > 0.0 {
+                    vectors
+                        .into_iter()
+                        .map(|paths| compensate_kerf(paths, params.kerf))
+                        .collect()
+                } else {
+                    vectors
+                };
                 mml_laser::emit_line_shapes(&mut writer, &mut head, vectors, params, &laser)
             }
             Operation::LaserFill(params) => {
@@ -434,6 +442,19 @@ pub fn frame_job(
     writer.finish()
 }
 
+/// Closed outlines moved out by half the kerf, holes in, so the part
+/// keeps its drawn size once the beam has burnt its width; open lines
+/// stay where they are.
+fn compensate_kerf(paths: Vec<Path>, kerf: f64) -> Vec<Path> {
+    let (closed, open): (Vec<Path>, Vec<Path>) = paths.into_iter().partition(|path| path.closed);
+    let mut result = mml_core::region::offset_paths(&closed, kerf / 2.0);
+    if result.is_empty() {
+        result = closed;
+    }
+    result.extend(open);
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,6 +522,51 @@ mod tests {
         let same = laser(&laser_only);
         let reference = laser(&MachineProfile::generic_laser());
         assert!((same.min.x - reference.min.x).abs() < 1e-6);
+    }
+
+    #[test]
+    fn kerf_compensation_grows_parts_and_shrinks_holes() {
+        let (mut document, _) = document_with_square(20.0);
+        let width = |document: &Document| {
+            mml_gcode::parse(&build_job(document, &MachineProfile::generic_laser()).gcode)
+                .cut_bounds()
+                .width()
+        };
+        let plain = width(&document);
+        if let Operation::LaserLine(params) = &mut document.layers[0].operation {
+            params.kerf = 0.2;
+        }
+        // Cut 0.1 mm outside on every side.
+        assert!((width(&document) - (plain + 0.2)).abs() < 1e-3);
+        let hole = compensate_kerf(
+            vec![
+                Path::new(
+                    vec![
+                        Point::new(0.0, 0.0),
+                        Point::new(10.0, 0.0),
+                        Point::new(10.0, 10.0),
+                        Point::new(0.0, 10.0),
+                    ],
+                    true,
+                ),
+                Path::new(
+                    vec![
+                        Point::new(4.0, 4.0),
+                        Point::new(6.0, 4.0),
+                        Point::new(6.0, 6.0),
+                        Point::new(4.0, 6.0),
+                    ],
+                    true,
+                ),
+            ],
+            0.2,
+        );
+        let inner = hole
+            .iter()
+            .map(|path| path.bounds())
+            .min_by(|a, b| a.width().total_cmp(&b.width()))
+            .unwrap();
+        assert!((inner.width() - 1.8).abs() < 1e-6);
     }
 
     #[test]

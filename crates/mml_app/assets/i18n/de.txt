@@ -1230,3 +1230,5 @@ boolean.exclusion = Ausschluss
 boolean.exclusion_hint = Was nur eine der Formen abdeckt: Überlappungen werden zu Löchern.
 boolean.empty = Von dieser Kombination bleibt nichts übrig.
 history.boolean = Formen kombiniert
+op.kerf = Schnittfugen-Ausgleich
+op.kerf_hint = Vom Strahl verbrannte Breite (oft 0,1 bis 0,2 mm). Geschlossene Konturen wandern um die Hälfte nach außen, Löcher nach innen: Teile behalten ihr Maß und passen genau. 0 zum Gravieren einer Linie.

@@ -695,6 +695,9 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                     .on_hover_text(tr("op.z_step_hint"));
                 changed |= number(ui, &mut params.z_step, 0.0..=10.0, " mm", 0.05);
                 ui.end_row();
+                ui.label(tr("op.kerf")).on_hover_text(tr("op.kerf_hint"));
+                changed |= number(ui, &mut params.kerf, 0.0..=2.0, " mm", 0.01);
+                ui.end_row();
                 ui.label(tr("op.bridges"))
                     .on_hover_text(tr("op.bridges_hint"));
                 ui.horizontal(|ui| {

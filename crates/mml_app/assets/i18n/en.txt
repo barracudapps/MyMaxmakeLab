@@ -1196,3 +1196,5 @@ boolean.exclusion = Exclusion
 boolean.exclusion_hint = What only one of the shapes covers: overlaps become holes.
 boolean.empty = Nothing is left of this combination.
 history.boolean = Shapes combined
+op.kerf = Kerf compensation
+op.kerf_hint = Width burnt by the beam (often 0.1 to 0.2 mm). Closed outlines move out and holes in by half of it: parts keep their size and fit snugly. 0 to engrave a line.
