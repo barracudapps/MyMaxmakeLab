@@ -1288,3 +1288,21 @@ spindle.start_hint = Avvia il mandrino a questa velocità (M3) e attende 3 s che
 spindle.turning = Mandrino in rotazione · {0} giri/min
 spindle.hint = Fai girare la fresa prima di avvicinarti al materiale: al contatto taglia un po' invece di rompersi. Utile anche per lavorare a mano con le frecce.
 spindle.turning_hint = Movimenti limitati a 1000 mm/min, 300 mm/min in discesa. Avvicinati al materiale con precisione Fine o Micro.
+homing.doctor.disabled = Homing disattivato nel controller ($22=0)
+homing.doctor.disabled_text = La macchina forse non ha finecorsa. Posiziona la testa a mano (o lasciala dov'è), poi Sblocca: quella posizione diventa il riferimento. Se la macchina ha i finecorsa, attiva l'homing.
+homing.doctor.unlock_hint = Sblocca la macchina senza homing ($X). I limiti software non sono allora affidabili.
+homing.doctor.enable = Attiva l'homing ($22=1)
+homing.doctor.enable_hint = Solo se la macchina ha finecorsa collegati: senza, l'homing andrebbe a sbattere.
+homing.doctor.not_found = Finecorsa non trovato (ALARM:9)
+homing.doctor.not_found_text = La testa ha percorso tutta la distanza di ricerca senza toccare un finecorsa. Controlla cablaggio e interruttori (un finecorsa premuto a mano deve comparire in «Ingressi attivi») e che la corsa impostata copra la macchina.
+homing.doctor.travel = Corsa impostata: {0}
+homing.doctor.pull_off = Disimpegno fallito (ALARM:8)
+homing.doctor.pull_off_text = Dopo aver toccato il finecorsa, la testa non l'ha rilasciato arretrando. L'arretramento ($27) è troppo corto o l'interruttore resta premuto.
+homing.doctor.more_pull_off = Arretrare di 3 mm invece di {0}
+homing.doctor.aborted = Homing interrotto
+homing.doctor.aborted_text = Il pulsante è stato rilasciato (o Esc). Tienilo premuto fino alla fine, o togli «Homing tenendo premuto il pulsante» nelle preferenze. Poi rilancia l'homing.
+homing.doctor.too_long = Homing fermato: troppo lungo
+homing.doctor.too_long_text = È durato molto più del solito: un asse forse spinge contro un ostacolo o una cinghia slitta. Controlla la macchina prima di riprovare.
+homing.doctor.other = Homing fallito
+homing.doctor.other_text = Il controller ha rifiutato o interrotto l'homing. I dettagli sono nella console in fondo a questa scheda.
+homing.doctor.dismiss = Nascondi

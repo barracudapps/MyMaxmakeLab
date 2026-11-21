@@ -90,6 +90,8 @@ pub struct DeviceState {
     pub jog_shift: i32,
     /// Spindle started by hand from the jog card (M3 sent).
     pub spindle_on: bool,
+    /// Why the last homing failed, until the next one starts.
+    pub homing_failure: Option<mml_device::homing::Failure>,
     /// Network search for Carvera machines in progress.
     discovery: Option<std::sync::mpsc::Receiver<Vec<Found>>>,
     pub discovered: Option<Vec<Found>>,
@@ -148,6 +150,7 @@ impl DeviceState {
             jog_keys: None,
             jog_shift: 0,
             spindle_on: false,
+            homing_failure: None,
             discovery: None,
             discovered: None,
             detect_usb: true,
@@ -266,6 +269,7 @@ impl DeviceState {
             return;
         }
         self.line("$H");
+        self.homing_failure = None;
         self.homing = Some(ActiveHoming {
             started: Instant::now(),
             done: None,
@@ -324,6 +328,10 @@ impl DeviceState {
             }
             Verdict::Stop(reason) => {
                 self.homing = None;
+                self.homing_failure = Some(match reason {
+                    StopReason::Released => homing::Failure::Aborted,
+                    StopReason::TooLong => homing::Failure::TooLong,
+                });
                 self.send(Command::Realtime(realtime::SOFT_RESET));
                 let text = match reason {
                     StopReason::Released => tr("homing.stopped_released").to_owned(),
@@ -401,6 +409,7 @@ impl DeviceState {
                         && line.trim() == "$H"
                     {
                         homing.done = Some(false);
+                        self.homing_failure = Some(mml_device::homing::Failure::from_error(code));
                     }
                     let text = format!("error:{code} — {} ({line})", grbl_error(code));
                     self.log(ConsoleKind::Error, text.clone());
@@ -409,6 +418,7 @@ impl DeviceState {
                 Event::Alarm(code) => {
                     if let Some(homing) = &mut self.homing {
                         homing.done = Some(false);
+                        self.homing_failure = Some(mml_device::homing::Failure::from_alarm(code));
                     }
                     self.alarm = Some(code);
                     let text = format!("ALARM:{code} — {}", grbl_alarm(code));
@@ -745,7 +755,6 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
                     {
                         device.line("$X");
                     }
-                    homing_button(device, ui, hold, tr("device.home"));
                 });
             }
             if state == MachineState::Door {
@@ -817,6 +826,7 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
         }
     });
     gentle_homing_advice(device, ui);
+    homing_doctor(device, ui);
 }
 
 /// Precision levels of the jog, finest first: step in mm and name.
@@ -1800,6 +1810,103 @@ fn gentle_homing_advice(device: &mut DeviceState, ui: &mut egui::Ui) {
         }
         device.line("$$");
     }
+}
+
+/// What to do after a failed homing, or before one when the controller
+/// has homing switched off.
+fn homing_doctor(device: &mut DeviceState, ui: &mut egui::Ui) {
+    use mml_device::homing::{self, Failure};
+    let disabled = homing::enabled(device.setting_f64(22)) == Some(false);
+    let failure = match device.homing_failure {
+        Some(failure) => failure,
+        // Machines without switches: only worth saying when locked.
+        None if disabled && device.state() == MachineState::Alarm => Failure::Disabled,
+        None => return,
+    };
+    let idle = !device.job_running() && device.homing.is_none();
+    let (title, text) = match failure {
+        Failure::Disabled => ("homing.doctor.disabled", "homing.doctor.disabled_text"),
+        Failure::NotFound => ("homing.doctor.not_found", "homing.doctor.not_found_text"),
+        Failure::PullOff => ("homing.doctor.pull_off", "homing.doctor.pull_off_text"),
+        Failure::Aborted => ("homing.doctor.aborted", "homing.doctor.aborted_text"),
+        Failure::TooLong => ("homing.doctor.too_long", "homing.doctor.too_long_text"),
+        Failure::Other(_) => ("homing.doctor.other", "homing.doctor.other_text"),
+    };
+    egui::Frame::new()
+        .fill(crate::theme::WARNING.gamma_multiply(0.15))
+        .corner_radius(6.0)
+        .inner_margin(8.0)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(
+                RichText::new(tr(title))
+                    .strong()
+                    .color(crate::theme::WARNING),
+            );
+            ui.label(tr(text));
+            ui.horizontal_wrapped(|ui| {
+                match failure {
+                    Failure::Disabled => {
+                        if ui
+                            .add_enabled(idle, egui::Button::new(tr("device.unlock")))
+                            .on_hover_text(tr("homing.doctor.unlock_hint"))
+                            .clicked()
+                        {
+                            device.line("$X");
+                            device.homing_failure = None;
+                        }
+                        if ui
+                            .add_enabled(idle, egui::Button::new(tr("homing.doctor.enable")))
+                            .on_hover_text(tr("homing.doctor.enable_hint"))
+                            .clicked()
+                        {
+                            device.line("$22=1");
+                            device.line("$$");
+                            device.homing_failure = None;
+                        }
+                    }
+                    Failure::NotFound => {
+                        let travel: Vec<String> = [(130, 'X'), (131, 'Y'), (132, 'Z')]
+                            .iter()
+                            .filter_map(|(key, axis)| {
+                                device
+                                    .setting_f64(*key)
+                                    .map(|value| format!("{axis} {value:.0} mm"))
+                            })
+                            .collect();
+                        if !travel.is_empty() {
+                            ui.label(
+                                RichText::new(trf("homing.doctor.travel", &[&travel.join(" · ")]))
+                                    .weak(),
+                            );
+                        }
+                    }
+                    Failure::PullOff => {
+                        let pull_off = device.setting_f64(27).unwrap_or(1.0);
+                        if pull_off < 3.0
+                            && ui
+                                .add_enabled(
+                                    idle,
+                                    egui::Button::new(trf(
+                                        "homing.doctor.more_pull_off",
+                                        &[&format!("{pull_off:.1}")],
+                                    )),
+                                )
+                                .clicked()
+                        {
+                            device.line("$27=3");
+                            device.line("$$");
+                        }
+                    }
+                    _ => {}
+                }
+                if device.homing_failure.is_some()
+                    && ui.small_button(tr("homing.doctor.dismiss")).clicked()
+                {
+                    device.homing_failure = None;
+                }
+            });
+        });
 }
 
 /// Homing button. With hold to run, homing starts when it is pressed

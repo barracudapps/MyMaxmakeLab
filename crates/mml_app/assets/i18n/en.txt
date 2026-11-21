@@ -1254,3 +1254,21 @@ spindle.start_hint = Starts the spindle at this speed (M3) and waits 3 s for it 
 spindle.turning = Spindle turning · {0} rpm
 spindle.hint = Spin the tool before approaching the material: on contact it cuts a little instead of breaking. Also useful to machine by hand with the arrows.
 spindle.turning_hint = Moves limited to 1000 mm/min, 300 mm/min going down. Approach the material at Fine or Micro precision.
+homing.doctor.disabled = Homing switched off in the controller ($22=0)
+homing.doctor.disabled_text = The machine may have no limit switches. Place the head by hand (or leave it where it is), then Unlock: that position becomes the reference. If the machine has limit switches, switch homing on.
+homing.doctor.unlock_hint = Unlocks the machine without homing ($X). Soft limits are then not reliable.
+homing.doctor.enable = Switch homing on ($22=1)
+homing.doctor.enable_hint = Only if the machine has limit switches wired: without them, homing would run into the end stops.
+homing.doctor.not_found = Limit switch not found (ALARM:9)
+homing.doctor.not_found_text = The head travelled the whole search distance without reaching a switch. Check the wiring and the switches (a switch pressed by hand should show in "Active inputs"), and that the travel set covers the machine.
+homing.doctor.travel = Travel set: {0}
+homing.doctor.pull_off = Pull-off failed (ALARM:8)
+homing.doctor.pull_off_text = After touching the switch, the head did not release it when backing off. The pull-off ($27) is too short or the switch sticks.
+homing.doctor.more_pull_off = Back off 3 mm instead of {0}
+homing.doctor.aborted = Homing interrupted
+homing.doctor.aborted_text = The button was released (or Escape). Keep it pressed until homing ends, or untick "Home while holding the button" in the preferences. Then home again.
+homing.doctor.too_long = Homing stopped: too long
+homing.doctor.too_long_text = It lasted much longer than usual: an axis may be pushing against an obstacle or a belt slipping. Check the machine before trying again.
+homing.doctor.other = Homing failed
+homing.doctor.other_text = The controller refused or interrupted homing. The details are in the console at the bottom of this tab.
+homing.doctor.dismiss = Hide

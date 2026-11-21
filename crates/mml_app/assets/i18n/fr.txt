@@ -1286,3 +1286,21 @@ spindle.start_hint = Démarre la broche à cette vitesse (M3) et attend 3 s qu'e
 spindle.turning = Broche en rotation · {0} tr/min
 spindle.hint = Faites tourner la fraise avant d'approcher la matière : au contact elle coupe un peu au lieu de casser. Utile aussi pour usiner à la main avec les flèches.
 spindle.turning_hint = Déplacements limités à 1000 mm/min, et 300 mm/min en descente. Approchez la matière en précision Fin ou Micro.
+homing.doctor.disabled = Homing désactivé dans le contrôleur ($22=0)
+homing.doctor.disabled_text = La machine n'a peut-être pas de fins de course. Placez la tête à la main (ou laissez-la où elle est), puis Déverrouiller : la position est alors prise comme référence. Si la machine a des fins de course, activez le homing.
+homing.doctor.unlock_hint = Déverrouille la machine sans homing ($X). Les limites logicielles ne sont alors pas fiables.
+homing.doctor.enable = Activer le homing ($22=1)
+homing.doctor.enable_hint = Seulement si la machine a des fins de course câblés : sans eux, le homing irait en butée.
+homing.doctor.not_found = Fin de course introuvable (ALARM:9)
+homing.doctor.not_found_text = La tête a parcouru toute la distance de recherche sans toucher de fin de course. Vérifiez le câblage et l'état des contacteurs (un fin de course enfoncé à la main doit apparaître dans « Entrées actives »), et que la course réglée couvre bien la machine.
+homing.doctor.travel = Course réglée : {0}
+homing.doctor.pull_off = Dégagement raté (ALARM:8)
+homing.doctor.pull_off_text = Après avoir touché le fin de course, la tête ne l'a pas relâché en reculant. Le recul ($27) est trop court ou le contacteur reste collé.
+homing.doctor.more_pull_off = Reculer de 3 mm au lieu de {0}
+homing.doctor.aborted = Homing interrompu
+homing.doctor.aborted_text = Le bouton a été relâché (ou Échap). Gardez-le enfoncé jusqu'à la fin du homing, ou décochez « Homing en maintenant le bouton » dans les préférences. Puis relancez le homing.
+homing.doctor.too_long = Homing arrêté : trop long
+homing.doctor.too_long_text = Il durait bien plus que d'habitude : un axe force peut-être contre un obstacle ou une courroie patine. Vérifiez la machine avant de relancer.
+homing.doctor.other = Échec du homing
+homing.doctor.other_text = Le contrôleur a refusé ou interrompu le homing. Le détail est dans la console en bas de cet onglet.
+homing.doctor.dismiss = Masquer

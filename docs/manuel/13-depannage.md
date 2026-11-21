@@ -23,6 +23,23 @@ clair avec l'action à faire. Les plus fréquentes :
 | 5 Palpage | la sonde n'a rien touché : vérifiez la distance et le câblage |
 | 8, 9 Retour à l'origine | dégagement ou fin de course : vérifiez le câblage et la mécanique |
 
+## Le homing ne marche pas
+
+Après un échec, un encadré sous les boutons de la machine dit quoi faire :
+
+- **Homing désactivé (`$22=0`)** : fréquent sur les machines sans fins de
+  course. Placez la tête à la main puis *Déverrouiller*. *Activer le
+  homing* seulement si des fins de course sont câblés.
+- **Fin de course introuvable (alarme 9)** : vérifiez le câblage (un
+  contacteur enfoncé à la main doit apparaître dans « Entrées actives ») et
+  la course réglée, affichée dans l'encadré.
+- **Dégagement raté (alarme 8)** : un bouton augmente le recul à 3 mm
+  (`$27`).
+- **Homing interrompu** : avec *Homing en maintenant le bouton*, gardez le
+  bouton enfoncé jusqu'à la fin, ou décochez l'option dans les préférences.
+- **Trop long** : un axe force ou une courroie patine ; vérifiez avant de
+  relancer.
+
 ## Le démarrage est bloqué
 
 Le panneau Travail affiche la raison : cadrage à approuver, origine à

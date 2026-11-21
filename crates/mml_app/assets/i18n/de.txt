@@ -1288,3 +1288,21 @@ spindle.start_hint = Startet die Spindel mit dieser Drehzahl (M3) und wartet 3 s
 spindle.turning = Spindel dreht · {0} U/min
 spindle.hint = Den Fräser vor dem Annähern an das Material drehen lassen: bei Kontakt schneidet er etwas statt zu brechen. Auch zum Fräsen von Hand mit den Pfeilen.
 spindle.turning_hint = Bewegungen auf 1000 mm/min begrenzt, 300 mm/min abwärts. Das Material mit Genauigkeit Fein oder Mikro anfahren.
+homing.doctor.disabled = Referenzfahrt in der Steuerung ausgeschaltet ($22=0)
+homing.doctor.disabled_text = Die Maschine hat vielleicht keine Endschalter. Den Kopf von Hand positionieren (oder lassen, wo er ist) und dann Entsperren: diese Position wird zur Referenz. Hat die Maschine Endschalter, die Referenzfahrt einschalten.
+homing.doctor.unlock_hint = Entsperrt die Maschine ohne Referenzfahrt ($X). Software-Endlagen sind dann nicht verlässlich.
+homing.doctor.enable = Referenzfahrt einschalten ($22=1)
+homing.doctor.enable_hint = Nur wenn Endschalter angeschlossen sind: ohne sie würde die Referenzfahrt an den Anschlag fahren.
+homing.doctor.not_found = Endschalter nicht gefunden (ALARM:9)
+homing.doctor.not_found_text = Der Kopf hat die ganze Suchstrecke zurückgelegt, ohne einen Endschalter zu erreichen. Verkabelung und Schalter prüfen (ein von Hand gedrückter Schalter muss unter „Aktive Eingänge“ erscheinen) und ob der eingestellte Verfahrweg die Maschine abdeckt.
+homing.doctor.travel = Eingestellter Verfahrweg: {0}
+homing.doctor.pull_off = Freifahren fehlgeschlagen (ALARM:8)
+homing.doctor.pull_off_text = Nach dem Berühren des Schalters hat der Kopf ihn beim Zurückfahren nicht freigegeben. Der Rückzug ($27) ist zu kurz oder der Schalter klemmt.
+homing.doctor.more_pull_off = 3 mm statt {0} zurückfahren
+homing.doctor.aborted = Referenzfahrt unterbrochen
+homing.doctor.aborted_text = Die Taste wurde losgelassen (oder Esc). Bis zum Ende gedrückt halten oder „Referenzfahrt nur bei gedrückter Taste“ in den Einstellungen abwählen. Dann erneut starten.
+homing.doctor.too_long = Referenzfahrt gestoppt: zu lang
+homing.doctor.too_long_text = Sie dauerte viel länger als sonst: eine Achse drückt vielleicht gegen ein Hindernis oder ein Riemen rutscht. Die Maschine vor einem neuen Versuch prüfen.
+homing.doctor.other = Referenzfahrt fehlgeschlagen
+homing.doctor.other_text = Die Steuerung hat die Referenzfahrt abgelehnt oder unterbrochen. Details in der Konsole unten in diesem Tab.
+homing.doctor.dismiss = Ausblenden

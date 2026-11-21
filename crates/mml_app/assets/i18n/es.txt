@@ -1288,3 +1288,21 @@ spindle.start_hint = Arranca el husillo a esta velocidad (M3) y espera 3 s a que
 spindle.turning = Husillo girando · {0} rpm
 spindle.hint = Haz girar la fresa antes de acercarte al material: al contacto corta un poco en lugar de romperse. También sirve para mecanizar a mano con las flechas.
 spindle.turning_hint = Movimientos limitados a 1000 mm/min, 300 mm/min al bajar. Acércate al material con precisión Fino o Micro.
+homing.doctor.disabled = Homing desactivado en el controlador ($22=0)
+homing.doctor.disabled_text = Puede que la máquina no tenga finales de carrera. Coloca el cabezal a mano (o déjalo donde está) y luego Desbloquear: esa posición pasa a ser la referencia. Si la máquina tiene finales de carrera, activa el homing.
+homing.doctor.unlock_hint = Desbloquea la máquina sin homing ($X). Los límites por software no son entonces fiables.
+homing.doctor.enable = Activar el homing ($22=1)
+homing.doctor.enable_hint = Solo si la máquina tiene finales de carrera conectados: sin ellos, el homing chocaría contra los topes.
+homing.doctor.not_found = Final de carrera no encontrado (ALARM:9)
+homing.doctor.not_found_text = El cabezal recorrió toda la distancia de búsqueda sin tocar un final de carrera. Revisa el cableado y los interruptores (uno pulsado a mano debe aparecer en «Entradas activas») y que el recorrido ajustado cubra la máquina.
+homing.doctor.travel = Recorrido ajustado: {0}
+homing.doctor.pull_off = Retroceso fallido (ALARM:8)
+homing.doctor.pull_off_text = Tras tocar el final de carrera, el cabezal no lo liberó al retroceder. El retroceso ($27) es demasiado corto o el interruptor se queda pegado.
+homing.doctor.more_pull_off = Retroceder 3 mm en lugar de {0}
+homing.doctor.aborted = Homing interrumpido
+homing.doctor.aborted_text = Se soltó el botón (o Esc). Mantenlo pulsado hasta el final, o desmarca «Homing manteniendo pulsado el botón» en las preferencias. Luego vuelve a lanzar el homing.
+homing.doctor.too_long = Homing detenido: demasiado largo
+homing.doctor.too_long_text = Duró mucho más de lo habitual: puede que un eje empuje contra un obstáculo o que una correa patine. Revisa la máquina antes de reintentar.
+homing.doctor.other = Fallo del homing
+homing.doctor.other_text = El controlador rechazó o interrumpió el homing. El detalle está en la consola al final de esta pestaña.
+homing.doctor.dismiss = Ocultar

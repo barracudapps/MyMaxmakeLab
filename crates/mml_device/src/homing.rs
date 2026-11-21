@@ -92,6 +92,50 @@ pub fn supervise(run: HomingRun, held: bool, limit: Duration) -> Verdict {
     }
 }
 
+/// Why the last homing failed, to tell the operator what to check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Failure {
+    /// `error:5`: homing is off in the controller (`$22=0`), usual on
+    /// machines without limit switches.
+    Disabled,
+    /// `ALARM:9`: no switch within the search distance.
+    NotFound,
+    /// `ALARM:8`: the switch stayed pressed after the pull-off.
+    PullOff,
+    /// Released button, Escape or `ALARM:6`.
+    Aborted,
+    /// Stopped after much longer than usual.
+    TooLong,
+    /// Another alarm or error code.
+    Other(u32),
+}
+
+impl Failure {
+    /// From an alarm received while homing.
+    pub fn from_alarm(code: u32) -> Self {
+        match code {
+            6 => Self::Aborted,
+            8 => Self::PullOff,
+            9 => Self::NotFound,
+            code => Self::Other(code),
+        }
+    }
+
+    /// From an error answering `$H`.
+    pub fn from_error(code: u32) -> Self {
+        match code {
+            5 => Self::Disabled,
+            code => Self::Other(code),
+        }
+    }
+}
+
+/// `$22` read from the controller: `Some(false)` when homing is off.
+pub fn enabled(setting_22: Option<f64>) -> Option<bool> {
+    // grblHAL uses bits of $22: bit 0 is "homing enabled".
+    setting_22.map(|value| (value as i64) & 1 == 1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,5 +190,19 @@ mod tests {
         );
         assert!(gentle_settings(Some(500.0), Some(50.0)).is_empty());
         assert!(gentle_settings(None, None).is_empty());
+    }
+
+    #[test]
+    fn failures_name_what_to_check() {
+        assert_eq!(Failure::from_error(5), Failure::Disabled);
+        assert_eq!(Failure::from_alarm(9), Failure::NotFound);
+        assert_eq!(Failure::from_alarm(8), Failure::PullOff);
+        assert_eq!(Failure::from_alarm(6), Failure::Aborted);
+        assert_eq!(Failure::from_alarm(1), Failure::Other(1));
+        assert_eq!(enabled(Some(0.0)), Some(false));
+        assert_eq!(enabled(Some(1.0)), Some(true));
+        // grblHAL: homing on with extra option bits.
+        assert_eq!(enabled(Some(5.0)), Some(true));
+        assert_eq!(enabled(None), None);
     }
 }
