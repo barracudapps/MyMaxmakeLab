@@ -51,8 +51,10 @@ and adds what operators kept asking for: safety, reproducibility and help.
 | Safety | alarm and error codes | live monitor, auto-pause, limits checked on the real position, mandatory checks |
 | Reproducibility | manual | probe-before-machining, approved dry-run frame |
 | G-code | relative, every word repeated | absolute, modal, up to 7× lighter |
-| Help | tour dialog | settings assistant, tooltips, skippable tutorial |
-| Languages / themes | EN / ZH, one theme | EN / FR, light and dark |
+| Help | tour dialog | start panel, settings assistant, command palette (`⌘K`), tooltips, tutorial |
+| No 3D probe | manual entry only | guided hand measurement of blocks, cylinders and trapezoids |
+| Homing | runs to the switches | hold-to-run, time-limited, slowed down on demand |
+| Languages / themes | EN / ZH, one theme | EN / FR / DE / IT / ES, light and dark |
 
 ## A quick tour
 
@@ -102,6 +104,10 @@ multi-axis programs.
 <td width="50%"><img src="docs/images/ornaments.png" alt="Ornaments by style"><br><b>Ornaments by style</b>: Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian, Islamic; a new variation at each click.</td>
 </tr>
 <tr>
+<td width="50%"><img src="docs/images/start.png" alt="Start panel"><br>An empty design starts with <b>what would you like to make?</b>: import, shape library, text, generators, tablet, laser on paper, recent projects.</td>
+<td width="50%"><img src="docs/images/gears-codes.png" alt="Gears, QR code and barcode"><br><b>Gears</b> that really mesh (module, pressure angle, backlash), <b>QR codes</b> and <b>Code 128 barcodes</b> ready to engrave, layer colours in one click under the canvas.</td>
+</tr>
+<tr>
 <td colspan="2"><img src="docs/images/stats.png" alt="Statistics and costs"><br><b>Statistics and costs</b>: jobs, working time, hours per machine and per tool with wear warnings, and the real cost of each job (machine wear, cutters, electricity, consumables, labour).</td>
 </tr>
 <tr>
@@ -122,13 +128,27 @@ multi-axis programs.
   stencils, slab, display, monospace), 7 single-line fonts and your own.
 - **WordArt-like shapes**: text on an arc above or below a circle, waves,
   bulges, with live preview; the same deformations on any vector.
-- Move, scale, rotate with large handles, snap, align, duplicate, arrays,
-  undo / redo, trace a picture to vectors.
+- Move, scale, rotate with large handles (side handles stretch one axis,
+  corners follow *Keep ratio*), snap, align, duplicate, grid or **circular
+  arrays**, **contour offset** in or out, undo / redo, trace a picture to
+  vectors.
+- **Start panel** on an empty design, a **bar of layer colours** to sort
+  shapes in one click, a **next step** button, and a **command palette**
+  (`Ctrl/⌘ K`) that finds any action in any language, accents ignored.
+- **Shape library**: your own SVG / DXF by theme and, when MaxmakeLAB is
+  installed on the computer, its ~980 drawings read in place (never copied).
+- **Tablet or phone** as a drawing pad (QR code, local network): a page
+  that stays still under the stylus, palm rejection, line / marker /
+  pressure brush, three intensities on their own layers, an eraser that
+  also answers the stylus button, selection to move and resize; every
+  change follows live on the computer.
 - **Live link**: an imported file reloads in place when your drawing program
   saves it (Inkscape, Krita, Affinity, Procreate via a synced folder).
 - **Insert SVG code** typed or pasted (or the `<svg>` of an HTML snippet).
 - **Generators**: finger-jointed **box** sized for an object, **maze** (walls
-  or corridors to mill), **jigsaw puzzle**, random **ornaments** by style
+  or corridors to mill), **jigsaw puzzle**, involute **gears**, **QR codes**
+  and **Code 128** barcodes, a laser **test grid** (power × speed), random
+  **ornaments** by style
   (Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian,
   Islamic).
 - **Sprue**: parts packed in a frame with **bridges** placed automatically
@@ -146,6 +166,9 @@ multi-axis programs.
   Atkinson, Jarvis, Stucki, **halftone (vintage)** and **line engraving**,
   swept by lines, **diagonals** or **circles**.
 - M4 dynamic power, air assist, holes cut before outlines, minimal travel.
+- **Laser on paper**: pick the sheet (80 gsm, card stock, greyboard,
+  corrugated) and the laser (diode or CO2, optical watts); each layer gets
+  cut, perforate, mark or engrave settings from the energy the sheet needs.
 - **Simplified 4-axis**: chuck on an A axis or rotary in place of Y with a
   single calibration value.
 </details>
@@ -176,8 +199,13 @@ multi-axis programs.
 </details>
 
 <details>
-<summary><b>📐 3D probe</b></summary>
+<summary><b>📐 Probing, with or without a probe</b></summary>
 
+- **No probe?** Jog until the tool, or a flexible rod, touches and click
+  *Record*: top, tilted top, cube, block, standing or lying cylinder,
+  trapezoid, each with the fewest touches; tool radius and paper shim
+  compensated, squareness checked, G54 written. The tool length for the
+  collision checks can be recorded by hand too.
 - Work origin on a touch plate (Z) or an XYZ block (corner).
 - **Flat mode**: 3 to 9 points give the plane of a tilted top face.
 - **Uneven mode**: grid of adjustable size, without alarms where nothing is
@@ -202,7 +230,8 @@ multi-axis programs.
   lowered in sharp corners, with gentle and balanced profiles.
 - **Statistics and costs**: time per tool, wear, dashboard, cost per job;
   production shares the wear fairly between machines.
-- Tutorial on first launch, tooltips everywhere, English and French.
+- Tutorial on first launch, tooltips everywhere; English, French, German,
+  Italian and Spanish.
 - **AI assistants**: an MCP server lets Claude, Codex, Gemini or any MCP
   client generate designs and G-code (never runs a machine), see
   [docs/MCP.md](docs/MCP.md).
@@ -216,6 +245,8 @@ multi-axis programs.
 - **Production with several machines**: a shared queue of jobs, each machine
   with its own safety monitor, one emergency stop for all.
 - Makera Carvera: Wi-Fi discovery, tool changer, halt reasons.
+- **Follow a job from a phone**: progress, time left, position; the page can
+  only pause or stop, never start or resume.
 - The bed shows the front, the back, the home corner and the axes.
 - **Automatic updates** from GitHub releases, checked against their SHA-256.
 </details>
@@ -230,7 +261,8 @@ flowchart TB
     M -->|limit switch pressed| P
     C["Camera sees the head<br/>away from its position"] --> P
     M -->|no answer 1.5 s| W["Warning"]
-    H["Homing duration"] -->|40 % slower than usual| W2["Binding axis? Loose belt?"]
+    H["Homing"] -->|button released or Esc| X["Controller reset"]
+    H -->|longer than usual| X
     P --> R["Operator: resume or stop<br/>(stop keeps the position)"]
 ```
 
@@ -241,6 +273,11 @@ flowchart TB
 - **During the job**: automatic pause on anomalies (including the camera
   movement check, which catches lost steps and slipping belts), readable alarms with the
   action to take, Stop that keeps the position, emergency stop always visible.
+- **Homing**: it only runs while its button is held (release or `Esc`
+  resets the controller at once), it is cut when it lasts longer than
+  usual, and a fast search speed can be lowered in one click. Steppers feel
+  no resistance: the pushing force itself is the motor current, set on the
+  drivers.
 - **Advanced mode** shows the console, macros and controller settings (`$$`
   with explanations). Only there can the mandatory checks be lifted; the
   live monitor stays on.
@@ -277,7 +314,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 141 tests
+cargo test --workspace      # 177 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -289,9 +326,11 @@ cargo clippy --workspace    # no warnings
 | `Ctrl/⌘ Z`, `⇧Z` | undo / redo | `F` | fit to view |
 | `Ctrl/⌘ D` | duplicate | arrows | nudge 1 mm (`⇧` 10 mm) or jog in Run |
 | `Ctrl/⌘ I` / `O` / `S` | import / open / save | wheel, pinch | zoom; middle button or Space: pan |
+| `Ctrl/⌘ K` | command palette | `Esc` | stops a homing in progress |
 
 ```bash
-mymaxmakelab [--mode design|prepare|run] [--3d] [--play] [files…]
+mymaxmakelab [--mode design|prepare|run] [--3d] [--play] [--open WINDOW]
+             [--connect HOST:PORT] [--pair] [files…]
 MYMAXMAKELAB_CONFIG_DIR=/path/on/usb mymaxmakelab   # portable settings
 ```
 
@@ -344,6 +383,10 @@ body): `git log` is the technical changelog. See
 - [x] Machine detection (USB, network), production with several machines
 - [x] MCP server for AI assistants
 - [x] macOS / Linux / Windows releases with automatic updates
+- [x] Hand measurement without a probe, supervised homing
+- [x] Stylus drawing page with brushes, eraser and live sync
+- [x] Start panel, layer bar, shape library, gears, QR / barcodes, circular arrays, offsets
+- [ ] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
 - [ ] Simultaneous 5-axis with tool orientation: needs the kinematics of a 5-axis machine
 
 ## 🇫🇷 En bref
@@ -360,7 +403,12 @@ mouvements par caméra, Makera Carvera (découverte Wi-Fi, changeur d'outils),
 réparation de G-code, moule, faces 5 axes, générateurs (boîte, labyrinthe,
 puzzle, motifs par style), grappes à ponts automatiques, détection des
 machines, production sur plusieurs machines, serveur MCP pour les
-assistants IA et mises à jour automatiques. Interface en français, anglais, allemand, italien et espagnol, thèmes
+assistants IA et mises à jour automatiques. Sans palpeur, l'origine se
+relève à la main (bloc, cylindre, trapèze) ; le homing ne tourne que bouton
+maintenu. Panneau de démarrage, barre des calques, bibliothèque de formes,
+engrenages, QR codes, réseaux circulaires, décalage de contour, laser sur
+papier et dessin au stylet sur tablette (gomme, pinceau à pression, suivi en
+direct). Interface en français, anglais, allemand, italien et espagnol, thèmes
 clair et sombre. **[Manuel complet en français](docs/manuel/README.md)**.
 
 ---
