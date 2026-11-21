@@ -193,6 +193,7 @@ pub struct MyApp {
     pub live_links: Vec<LiveLink>,
     last_link_check: Instant,
     pub probe: crate::workflow::ProbeState,
+    pub manual: crate::manual_probe::ManualState,
     pub settings_editor: crate::workflow::SettingsEditor,
     pub tutorial_step: Option<usize>,
     pub relief: Option<crate::relief_dialog::ReliefDialog>,
@@ -298,6 +299,7 @@ impl MyApp {
             live_links: Vec::new(),
             last_link_check: Instant::now(),
             probe: crate::workflow::ProbeState::default(),
+            manual: Default::default(),
             settings_editor: crate::workflow::SettingsEditor {
                 drafts: Default::default(),
             },

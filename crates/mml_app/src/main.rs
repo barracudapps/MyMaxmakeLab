@@ -11,6 +11,7 @@ mod i18n;
 mod icons;
 mod machine_panel;
 mod makers_dialog;
+mod manual_probe;
 mod ornament_dialog;
 mod os;
 mod pairing;

@@ -350,138 +350,151 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
         .default_open(app.machine.kind == MachineKind::Cnc)
         .show(ui, |ui| {
             let idle = app.device.state() == MachineState::Idle && !app.device.job_running();
-            egui::Grid::new("probe-settings")
-                .num_columns(2)
-                .show(ui, |ui| {
-                    ui.label(tr("probe.plate"));
-                    ui.add(
-                        DragValue::new(&mut app.settings.probe.plate_thickness)
-                            .range(0.0..=50.0)
-                            .suffix(" mm")
-                            .speed(0.05),
-                    );
-                    ui.end_row();
-                    ui.label(tr("probe.tool"));
-                    ui.add(
-                        DragValue::new(&mut app.settings.probe.tool_diameter)
-                            .range(0.1..=20.0)
-                            .suffix(" mm")
-                            .speed(0.01),
-                    );
-                    ui.end_row();
-                });
-            ui.horizontal_wrapped(|ui| {
-                if ui
-                    .add_enabled(idle, egui::Button::new(tr("probe.z")))
-                    .on_hover_text(tr("probe.z_hint"))
-                    .clicked()
-                {
-                    app.device.probe_reports.clear();
-                    run_auxiliary(
-                        app,
-                        mml_probe::z_origin_program(&app.settings.probe),
-                        JobKind::ProbeOrigin,
-                    );
-                }
-                if ui
-                    .add_enabled(idle, egui::Button::new(tr("probe.corner")))
-                    .on_hover_text(tr("probe.corner_hint"))
-                    .clicked()
-                {
-                    app.device.probe_reports.clear();
-                    run_auxiliary(
-                        app,
-                        mml_probe::corner_origin_program(&app.settings.probe),
-                        JobKind::ProbeOrigin,
-                    );
-                }
-            });
-            if app.device.z_probed {
-                ui.label(RichText::new(tr("probe.origin_ok")).color(crate::theme::SUCCESS));
+            ui.checkbox(&mut app.settings.has_probe, tr("probe.has_probe"))
+                .on_hover_text(tr("probe.has_probe_hint"));
+            if !app.settings.has_probe {
+                ui.label(RichText::new(tr("probe.without_probe")).weak());
             }
-            ui.add_space(4.0);
-            ui.label(RichText::new(tr("probe.map_title")).strong());
-            ui.horizontal(|ui| {
-                ui.radio_value(&mut app.probe.flat, true, tr("probe.flat"))
-                    .on_hover_text(tr("probe.flat_hint"));
-                ui.radio_value(&mut app.probe.flat, false, tr("probe.uneven"))
-                    .on_hover_text(tr("probe.uneven_hint"));
-            });
-            if app.probe.flat {
-                ui.horizontal(|ui| {
-                    ui.label(tr("probe.points"));
-                    for count in [3, 4, 5, 9] {
-                        ui.selectable_value(&mut app.probe.plane_points, count, count.to_string());
+            if app.settings.has_probe {
+                egui::Grid::new("probe-settings")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        ui.label(tr("probe.plate"));
+                        ui.add(
+                            DragValue::new(&mut app.settings.probe.plate_thickness)
+                                .range(0.0..=50.0)
+                                .suffix(" mm")
+                                .speed(0.05),
+                        );
+                        ui.end_row();
+                        ui.label(tr("probe.tool"));
+                        ui.add(
+                            DragValue::new(&mut app.settings.probe.tool_diameter)
+                                .range(0.1..=20.0)
+                                .suffix(" mm")
+                                .speed(0.01),
+                        );
+                        ui.end_row();
+                    });
+                ui.horizontal_wrapped(|ui| {
+                    if ui
+                        .add_enabled(idle, egui::Button::new(tr("probe.z")))
+                        .on_hover_text(tr("probe.z_hint"))
+                        .clicked()
+                    {
+                        app.device.probe_reports.clear();
+                        run_auxiliary(
+                            app,
+                            mml_probe::z_origin_program(&app.settings.probe),
+                            JobKind::ProbeOrigin,
+                        );
                     }
+                    if ui
+                        .add_enabled(idle, egui::Button::new(tr("probe.corner")))
+                        .on_hover_text(tr("probe.corner_hint"))
+                        .clicked()
+                    {
+                        app.device.probe_reports.clear();
+                        run_auxiliary(
+                            app,
+                            mml_probe::corner_origin_program(&app.settings.probe),
+                            JobKind::ProbeOrigin,
+                        );
+                    }
+                });
+                if app.device.z_probed {
+                    ui.label(RichText::new(tr("probe.origin_ok")).color(crate::theme::SUCCESS));
+                }
+                ui.add_space(4.0);
+                ui.label(RichText::new(tr("probe.map_title")).strong());
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut app.probe.flat, true, tr("probe.flat"))
+                        .on_hover_text(tr("probe.flat_hint"));
+                    ui.radio_value(&mut app.probe.flat, false, tr("probe.uneven"))
+                        .on_hover_text(tr("probe.uneven_hint"));
+                });
+                if app.probe.flat {
+                    ui.horizontal(|ui| {
+                        ui.label(tr("probe.points"));
+                        for count in [3, 4, 5, 9] {
+                            ui.selectable_value(
+                                &mut app.probe.plane_points,
+                                count,
+                                count.to_string(),
+                            );
+                        }
+                    });
+                    let area = app
+                        .job
+                        .built
+                        .as_ref()
+                        .map(|built| expand(built.stats.cut_bounds, 2.0))
+                        .filter(|area| area.width() > 4.0);
+                    let measure = egui::Button::new(tr("probe.measure_plane"));
+                    if ui.add_enabled(idle && area.is_some(), measure).clicked()
+                        && let Some(area) = area
+                    {
+                        start_plane(app, area);
+                    }
+                    if let Some((plane, residual)) = app.probe.plane {
+                        ui.label(trf(
+                            "probe.plane_summary",
+                            &[
+                                &format!("{:.2}", plane.tilt_degrees()),
+                                &format!("{residual:.2}"),
+                            ],
+                        ));
+                        if residual > 0.2 {
+                            ui.label(
+                                RichText::new(tr("probe.not_flat")).color(crate::theme::WARNING),
+                            );
+                        }
+                    }
+                }
+                ui.horizontal(|ui| {
+                    ui.label(tr("probe.grid"));
+                    ui.add(DragValue::new(&mut app.probe.columns).range(2..=40));
+                    ui.label("×");
+                    ui.add(DragValue::new(&mut app.probe.rows).range(2..=40));
+                    ui.label(tr("probe.depth"));
+                    ui.add(
+                        DragValue::new(&mut app.probe.depth)
+                            .range(1.0..=60.0)
+                            .suffix(" mm"),
+                    );
                 });
                 let area = app
                     .job
                     .built
                     .as_ref()
-                    .map(|built| expand(built.stats.cut_bounds, 2.0))
-                    .filter(|area| area.width() > 4.0);
-                let measure = egui::Button::new(tr("probe.measure_plane"));
-                if ui.add_enabled(idle && area.is_some(), measure).clicked()
-                    && let Some(area) = area
-                {
-                    start_plane(app, area);
-                }
-                if let Some((plane, residual)) = app.probe.plane {
-                    ui.label(trf(
-                        "probe.plane_summary",
-                        &[
-                            &format!("{:.2}", plane.tilt_degrees()),
-                            &format!("{residual:.2}"),
-                        ],
-                    ));
-                    if residual > 0.2 {
-                        ui.label(RichText::new(tr("probe.not_flat")).color(crate::theme::WARNING));
+                    .map(|built| built.stats.cut_bounds)
+                    .filter(|area| !area.is_empty());
+                ui.horizontal_wrapped(|ui| {
+                    let job_area = area.map(|area| expand(area, 2.0));
+                    if ui
+                        .add_enabled(
+                            idle && job_area.is_some() && !app.probe.flat,
+                            egui::Button::new(tr("probe.map_job")),
+                        )
+                        .on_hover_text(tr("probe.map_job_hint"))
+                        .clicked()
+                        && let Some(area) = job_area
+                    {
+                        start_grid(app, area);
                     }
-                }
+                    let bed = Rect::from_points(
+                        Point::new(5.0, 5.0),
+                        Point::new(app.machine.width - 5.0, app.machine.height - 5.0),
+                    );
+                    if ui
+                        .add_enabled(idle, egui::Button::new(tr("probe.detect")))
+                        .on_hover_text(tr("probe.detect_hint"))
+                        .clicked()
+                    {
+                        start_grid(app, bed);
+                    }
+                });
             }
-            ui.horizontal(|ui| {
-                ui.label(tr("probe.grid"));
-                ui.add(DragValue::new(&mut app.probe.columns).range(2..=40));
-                ui.label("×");
-                ui.add(DragValue::new(&mut app.probe.rows).range(2..=40));
-                ui.label(tr("probe.depth"));
-                ui.add(
-                    DragValue::new(&mut app.probe.depth)
-                        .range(1.0..=60.0)
-                        .suffix(" mm"),
-                );
-            });
-            let area = app
-                .job
-                .built
-                .as_ref()
-                .map(|built| built.stats.cut_bounds)
-                .filter(|area| !area.is_empty());
-            ui.horizontal_wrapped(|ui| {
-                let job_area = area.map(|area| expand(area, 2.0));
-                if ui
-                    .add_enabled(
-                        idle && job_area.is_some() && !app.probe.flat,
-                        egui::Button::new(tr("probe.map_job")),
-                    )
-                    .on_hover_text(tr("probe.map_job_hint"))
-                    .clicked()
-                    && let Some(area) = job_area
-                {
-                    start_grid(app, area);
-                }
-                let bed = Rect::from_points(
-                    Point::new(5.0, 5.0),
-                    Point::new(app.machine.width - 5.0, app.machine.height - 5.0),
-                );
-                if ui
-                    .add_enabled(idle, egui::Button::new(tr("probe.detect")))
-                    .on_hover_text(tr("probe.detect_hint"))
-                    .clicked()
-                {
-                    start_grid(app, bed);
-                }
-            });
             if let Some(map) = &app.probe.map {
                 let heights: Vec<f64> = map.heights.iter().flatten().copied().collect();
                 let (low, high) = heights

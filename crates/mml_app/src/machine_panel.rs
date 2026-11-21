@@ -398,6 +398,7 @@ pub fn run_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     card(ui, |ui| machine_state(app, ui));
     card(ui, |ui| job_card(app, ui));
     card(ui, |ui| jog(app, ui));
+    card(ui, |ui| crate::manual_probe::section(app, ui));
     card(ui, |ui| crate::workflow::probe_section(app, ui));
     if app.machine.kind == mml_core::machine::MachineKind::Cnc {
         card(ui, |ui| crate::collision::card(app, ui));
@@ -731,7 +732,7 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
         });
         ui.horizontal(|ui| {
             ui.label(tr("jog.step"));
-            for value in [0.1, 1.0, 10.0, 50.0] {
+            for value in [0.01, 0.1, 1.0, 10.0, 50.0] {
                 ui.selectable_value(&mut app.settings.jog_step, value, format!("{value}"));
             }
         });

@@ -264,6 +264,18 @@ pub fn card(app: &mut MyApp, ui: &mut egui::Ui) {
             app.device.probe_reports.clear();
             crate::workflow::run_auxiliary(app, setter_program(), JobKind::ToolSetter);
         }
+        let here = manual_z(app).filter(|_| idle && calibrated);
+        if ui
+            .add_enabled(
+                here.is_some(),
+                egui::Button::new(tr("collision.measure_manual")),
+            )
+            .on_hover_text(tr("collision.measure_manual_hint"))
+            .clicked()
+            && let Some(z) = here
+        {
+            record_touch(app, JobKind::ToolSetter, z);
+        }
         ui.menu_button(tr("collision.calibrate"), |ui| {
             ui.label(RichText::new(tr("collision.calibrate_hint")).weak());
             ui.horizontal(|ui| {
@@ -281,6 +293,19 @@ pub fn card(app: &mut MyApp, ui: &mut egui::Ui) {
             {
                 app.device.probe_reports.clear();
                 crate::workflow::run_auxiliary(app, setter_program(), JobKind::SetterReference);
+                ui.close();
+            }
+            let here = manual_z(app).filter(|_| idle);
+            if ui
+                .add_enabled(
+                    here.is_some(),
+                    egui::Button::new(tr("collision.gauge_manual")),
+                )
+                .on_hover_text(tr("collision.measure_manual_hint"))
+                .clicked()
+                && let Some(z) = here
+            {
+                record_touch(app, JobKind::SetterReference, z);
                 ui.close();
             }
         });
@@ -320,6 +345,13 @@ pub fn card(app: &mut MyApp, ui: &mut egui::Ui) {
     }
 }
 
+fn manual_z(app: &MyApp) -> Option<f64> {
+    app.device
+        .status
+        .as_ref()
+        .map(|status| status.machine_position[2])
+}
+
 /// End of a tool setter touch: calibration or measure.
 pub fn setter_finished(app: &mut MyApp, kind: JobKind, completed: bool) {
     let touch = app
@@ -334,6 +366,12 @@ pub fn setter_finished(app: &mut MyApp, kind: JobKind, completed: bool) {
         app.notify(tr("collision.probe_failed"), Level::Error);
         return;
     };
+    record_touch(app, kind, touch_z);
+}
+
+/// Machine Z of the tool tip touching the setter, by a probe cycle or
+/// by hand (jogged down until it touches, same shim every time).
+fn record_touch(app: &mut MyApp, kind: JobKind, touch_z: f64) {
     if kind == JobKind::SetterReference {
         app.machine.tool_setter.reference_z = Some(touch_z);
         app.settings.machine = app.machine.clone();

@@ -72,6 +72,10 @@ pub struct Settings {
     pub require_probe_cnc: bool,
     pub require_frame_laser: bool,
     pub probe: mml_probe::ProbeSettings,
+    /// The machine has a 3D probe; without one, origins are recorded
+    /// by hand.
+    pub has_probe: bool,
+    pub manual_contact: mml_probe::manual::Contact,
     /// Jog speed follows the step size (fine steps move slowly).
     pub jog_proportional: bool,
     pub idle_rpm: f64,
@@ -120,6 +124,8 @@ impl Default for Settings {
             require_probe_cnc: true,
             require_frame_laser: true,
             probe: mml_probe::ProbeSettings::default(),
+            has_probe: false,
+            manual_contact: Default::default(),
             jog_proportional: true,
             idle_rpm: 8000.0,
             tutorial_done: false,
