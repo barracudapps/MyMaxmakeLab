@@ -145,7 +145,7 @@ multi-axis programs.
 - **Live link**: an imported file reloads in place when your drawing program
   saves it (Inkscape, Krita, Affinity, Procreate via a synced folder).
 - **Insert SVG code** typed or pasted (or the `<svg>` of an HTML snippet).
-- **Generators**: finger-jointed **box** sized for an object, **maze** (walls
+- **Generators**: finger-jointed **box** sized for an object, **round box** with a living-hinge wall, **maze** (walls
   or corridors to mill), **jigsaw puzzle**, involute **gears**, **QR codes**
   and **Code 128** barcodes, a laser **test grid** (power × speed), random
   **ornaments** by style

@@ -6,7 +6,7 @@ use crate::i18n::{tr, tr_key};
 use eframe::egui::{self, DragValue, RichText};
 use mml_core::document::{Shape, ShapeKind};
 use mml_core::geometry::Path;
-use mml_core::makers::{boxes, codes, gear, jigsaw, maze, test_grid};
+use mml_core::makers::{boxes, codes, gear, jigsaw, maze, round_box, test_grid};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -16,6 +16,7 @@ enum Kind {
     TestGrid,
     Gear,
     Code,
+    RoundBox,
 }
 
 pub struct MakersDialog {
@@ -27,6 +28,7 @@ pub struct MakersDialog {
     grid: test_grid::TestGridParams,
     gear: gear::GearParams,
     code: codes::CodeParams,
+    round: round_box::RoundBoxParams,
 }
 
 impl MakersDialog {
@@ -51,6 +53,7 @@ impl Default for MakersDialog {
             grid: test_grid::TestGridParams::default(),
             gear: gear::GearParams::default(),
             code: codes::CodeParams::default(),
+            round: round_box::RoundBoxParams::default(),
         }
     }
 }
@@ -78,6 +81,8 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         .show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.selectable_value(&mut dialog.kind, Kind::Box, tr("makers.box"));
+                ui.selectable_value(&mut dialog.kind, Kind::RoundBox, tr("makers.round_box"))
+                    .on_hover_text(tr("makers.round_box_hint"));
                 ui.selectable_value(&mut dialog.kind, Kind::Maze, tr("makers.maze"));
                 ui.selectable_value(&mut dialog.kind, Kind::Jigsaw, tr("makers.jigsaw"));
                 ui.selectable_value(&mut dialog.kind, Kind::TestGrid, tr("makers.test_grid"))
@@ -198,6 +203,35 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                         ui.end_row();
                         ui.label(tr("makers.cell"));
                         millimetres(ui, &mut params.cell, 2.0..=50.0);
+                        ui.end_row();
+                    }
+                    Kind::RoundBox => {
+                        let params = &mut dialog.round;
+                        ui.label(tr("makers.inside"));
+                        ui.horizontal(|ui| {
+                            for value in &mut params.inner {
+                                millimetres(ui, value, 10.0..=1000.0);
+                            }
+                        });
+                        ui.end_row();
+                        ui.label(tr("makers.radius"));
+                        millimetres(ui, &mut params.radius, 2.0..=300.0);
+                        ui.end_row();
+                        ui.label(tr("makers.thickness"));
+                        millimetres(ui, &mut params.thickness, 1.0..=10.0);
+                        ui.end_row();
+                        ui.label(tr("makers.hinge_pitch"))
+                            .on_hover_text(tr("makers.hinge_pitch_hint"));
+                        ui.add(
+                            DragValue::new(&mut params.hinge_pitch)
+                                .range(0.5..=5.0)
+                                .suffix(" mm")
+                                .speed(0.05),
+                        );
+                        ui.end_row();
+                        ui.label(tr("makers.closed"))
+                            .on_hover_text(tr("makers.closed_hint"));
+                        ui.checkbox(&mut params.lid, "");
                         ui.end_row();
                     }
                     Kind::Gear => {
@@ -343,6 +377,40 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 return;
             }
             Kind::Gear => shapes.push((tr("makers.gear").to_owned(), gear::generate(&dialog.gear))),
+            Kind::RoundBox => {
+                let params = &dialog.round;
+                let made = round_box::generate(params);
+                let [w, d, _] = params.inner;
+                let t = params.thickness;
+                let wall_height = made.wall[0].bounds().height();
+                let place = |paths: Vec<Path>, dx: f64, dy: f64| -> Vec<Path> {
+                    paths
+                        .into_iter()
+                        .map(|path| {
+                            Path::new(
+                                path.points
+                                    .iter()
+                                    .map(|p| mml_core::geometry::Point::new(p.x + dx, p.y + dy))
+                                    .collect(),
+                                path.closed,
+                            )
+                        })
+                        .collect()
+                };
+                // Wall along the bottom, panels above it side by side.
+                let row = wall_height + 8.0 + d / 2.0 + 2.0 * t;
+                shapes.push((tr("makers.wall").to_owned(), made.wall));
+                shapes.push((
+                    tr("makers.panel_bottom").to_owned(),
+                    place(made.bottom, w / 2.0 + 2.0 * t, row),
+                ));
+                if let Some(lid) = made.lid {
+                    shapes.push((
+                        tr("makers.panel_lid").to_owned(),
+                        place(lid, 1.5 * w + 6.0 * t + 8.0, row),
+                    ));
+                }
+            }
             Kind::Code => {
                 let Some(paths) = codes::generate(&dialog.code) else {
                     app.makers = Some(dialog);

@@ -5,4 +5,5 @@ pub mod codes;
 pub mod gear;
 pub mod jigsaw;
 pub mod maze;
+pub mod round_box;
 pub mod test_grid;

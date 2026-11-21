@@ -9,6 +9,7 @@
 | Générateur | Réglages |
 |---|---|
 | **Boîte à encoches** | dimensions intérieures (l'objet + 1 à 2 mm de jeu), épaisseur de planche, largeur des encoches, trait de coupe, couvercle |
+| **Boîte ronde** | dimensions intérieures, rayon des coins, épaisseur, pas de la charnière, fermée ou non : la paroi est une seule bande pliée grâce à une charnière flexible, fond et dessus tenus par des tenons |
 | **Labyrinthe** | cases, taille d'une case, *murs* (à graver ou découper) ou *couloirs* (à fraiser pour un labyrinthe à bille), solution |
 | **Puzzle** | taille, nombre de pièces, taille des tenons, nouvelle variante |
 | **Grille de test laser** | plages de puissance et de vitesse, nombre de cases |
