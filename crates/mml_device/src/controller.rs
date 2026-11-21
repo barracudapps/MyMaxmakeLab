@@ -792,7 +792,14 @@ mod tests {
                 ..
             })
         ));
-        let received = received.lock().unwrap();
+        // The settings may be read ($$) before the job starts.
+        let received: Vec<String> = received
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| *line != "$$")
+            .cloned()
+            .collect();
         assert_eq!(received.len(), 500);
         assert_eq!(received[499], "G1 X499 F1000");
     }
@@ -836,7 +843,8 @@ mod tests {
                 ..
             })
         ));
-        assert_eq!(received.lock().unwrap().len(), 50);
+        let lines = received.lock().unwrap();
+        assert_eq!(lines.iter().filter(|line| *line != "$$").count(), 50);
     }
 
     #[test]

@@ -40,6 +40,22 @@ course Z, coin d'origine, valeur S de pleine puissance (`$30`), mode laser
 d'outils**, **plateau 5 axes**, **diamètre de l'écrou de pince** et
 **capteur d'outil** (voir [Sécurité](09-securite.md)).
 
+Le script de fin s'exécute en tout dernier, après le retour de l'outil
+(broche et arrosage déjà coupés), juste avant `M2`.
+
+À la connexion, la taille du plateau et la course Z prennent les valeurs
+du contrôleur (`$130` à `$132`) : la grille correspond à l'espace de travail
+réel. Option *Prendre la course du contrôleur* pour le désactiver.
+
+### Maxmake HiMill D1S
+
+Profil prêt dans le menu **Machine** : 280 × 200 × 80 mm, broche à 13 000
+(`$30`), origine à l'**arrière gauche** du plateau : la broche est à gauche
+et le plateau mobile tout avancé vers vous, donc l'outil au-dessus de
+l'arrière du plateau. Comme MaxmakeLAB, chaque programme est encadré par
+`[STREAM_START]` et `[STREAM_END]`, commandes du firmware HiMill (qui se
+présente sous le nom GCARVIN) ; une reprise de travail les réémet.
+
 ### Laser et broche sur la même machine (HiMill)
 
 Le module laser n'est pas sur l'axe de la broche. *Décalage du laser* (dans

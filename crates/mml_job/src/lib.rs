@@ -349,7 +349,9 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         }
     }
 
-    writer.raw(&machine.end_gcode);
+    // Spindle and coolant are already off: the head goes back, then the
+    // end G-code of the machine runs last (it may present the part, or
+    // close a stream like the HiMill), and the program ends.
     if let Some(anchor) = anchor {
         if machine.kind == MachineKind::Cnc {
             writer.rapid_z(machine.safe_z);
@@ -360,6 +362,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         writer.rapid_z(machine.safe_z);
         writer.rapid(0.0, 0.0);
     }
+    writer.raw(&machine.end_gcode);
     writer.program_end();
     let gcode = match options.rotary {
         Some(rotary) => wrap_rotary(&writer.finish(), rotary),
@@ -522,6 +525,30 @@ mod tests {
         let same = laser(&laser_only);
         let reference = laser(&MachineProfile::generic_laser());
         assert!((same.min.x - reference.min.x).abs() < 1e-6);
+    }
+
+    #[test]
+    fn himill_programs_are_framed_and_still_read_correctly() {
+        let (document, _) = document_with_square(20.0);
+        let himill = MachineProfile::maxmake_himill_d1s();
+        let job = build_job(&document, &himill);
+        let lines: Vec<&str> = job
+            .gcode
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+        assert!(lines.contains(&"[STREAM_START]"), "{lines:?}");
+        // End G-code goes just before the closing M2, like on any machine.
+        assert_eq!(lines[lines.len() - 2..], ["[STREAM_END]", "M2"]);
+        // The markers move nothing: same cut as without them.
+        let plain = MachineProfile {
+            start_gcode: String::new(),
+            end_gcode: String::new(),
+            ..himill.clone()
+        };
+        let framed = mml_gcode::parse(&job.gcode).cut_bounds();
+        let bare = mml_gcode::parse(&build_job(&document, &plain).gcode).cut_bounds();
+        assert_eq!(framed, bare);
     }
 
     #[test]

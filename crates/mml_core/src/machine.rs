@@ -272,6 +272,9 @@ impl MachineProfile {
             origin: Origin::RearLeft,
             // Spindle speed scale of the HiMill ($30 on the machine).
             max_s: 13000.0,
+            // The HiMill firmware frames each program like MaxmakeLAB does.
+            start_gcode: "[STREAM_START]".into(),
+            end_gcode: "[STREAM_END]".into(),
             ..Self::generic_cnc()
         }
     }

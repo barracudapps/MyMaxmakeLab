@@ -144,11 +144,18 @@ pub fn resume(
         .unwrap_or(([0.0; 3], 0.0));
     let ([x, y, z], a) = start;
     let rotary = program.uses_rotary;
-    let mut out = vec![
-        format!("; Resumed at line {} of the program", from + 1),
-        if modal.inches { "G20" } else { "G21" }.to_owned(),
-        "G90 G94".to_owned(),
-    ];
+    let mut out = vec![format!("; Resumed at line {} of the program", from + 1)];
+    // Firmware commands in brackets ([STREAM_START] on the HiMill) that
+    // opened the program open the resumed one too.
+    out.extend(
+        lines[..from]
+            .iter()
+            .map(|line| line.trim())
+            .filter(|line| line.starts_with('['))
+            .map(str::to_owned),
+    );
+    out.push(if modal.inches { "G20" } else { "G21" }.to_owned());
+    out.push("G90 G94".to_owned());
     if let Some(coordinates) = &modal.coordinates {
         out.push(coordinates.clone());
     }
@@ -325,5 +332,16 @@ M5
         // Acknowledgement counts skip blank lines and comments.
         let source = "; header\nG21\n\nG0 X1 ; move\nG0 X2\n";
         assert_eq!(source_line_of(source, 2), 3);
+    }
+
+    #[test]
+    fn firmware_framing_opens_the_resumed_program() {
+        let framed = format!("[STREAM_START]\n{PROGRAM}[STREAM_END]\n");
+        let program = crate::parse(&framed);
+        let text = resume(&framed, &program, 9, CNC).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[1], "[STREAM_START]");
+        assert_eq!(lines[2], "G21");
+        assert!(text.ends_with("[STREAM_END]\n"));
     }
 }
