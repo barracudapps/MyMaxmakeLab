@@ -10,6 +10,15 @@
 - Cochez **J'ai un palpeur 3D** pour afficher ces fonctions ; sans palpeur,
   elles sont masquées.
 
+## Trouver un centre (palpeur)
+
+**Trou ou poche** : placez le palpeur dans le trou, sous le bord ;
+**tenon ou bloc** : placez-le au-dessus du milieu et indiquez la taille
+approximative et la profondeur de touche. *Centrer en X et Y* touche deux
+parois opposées en X, se place au milieu, recommence en Y, puis met
+l'origine X/Y au centre et affiche les dimensions mesurées. Le cycle
+convient aux formes rondes comme rectangulaires ; Z ne change pas.
+
 ## Relevé manuel, sans palpeur
 
 Pas de palpeur 3D ? On approche l'outil pas à pas jusqu'au contact, puis
@@ -31,6 +40,8 @@ Pas de palpeur 3D ? On approche l'outil pas à pas jusqu'au contact, puis
 | Cylindre debout | 4 : dessus et 3 points du pourtour (+ plateau) | centre, diamètre |
 | Cylindre couché (le long de X) | 4 : avant, arrière, dessus, bout gauche | axe, diamètre, hauteur |
 | Trapèze (prisme le long de X) | 5 : dessus, gauche, pente avant en bas et en haut, pente arrière en bas | largeur du dessus, angle des flancs |
+| Trou | 4 : surface autour, puis 3 points de la paroi, de l'intérieur | centre, diamètre |
+| Poche rectangulaire | 5 : surface autour, puis les 4 parois de l'intérieur | centre, largeur, profondeur |
 
 - Le rayon de ce qui touche et la cale sont compensés automatiquement.
 - Un **second point sur la face avant** mesure si la pièce est tournée dans

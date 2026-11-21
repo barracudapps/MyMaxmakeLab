@@ -33,6 +33,19 @@ pub struct ProbeState {
     pub follow: bool,
     pub slope_power: bool,
     pub depth: f64,
+    /// Centre finding: outside (boss, block) or inside (hole, pocket),
+    /// rough size and touch depth for the outside cycle.
+    pub center_outside: bool,
+    pub center_size: f64,
+    pub center_depth: f64,
+    pub center_run: Option<CenterRun>,
+}
+
+/// A centre-finding cycle in progress: X done first, then Y.
+pub struct CenterRun {
+    kind: mml_probe::center::CenterKind,
+    start: [f64; 3],
+    x: Option<(f64, f64)>,
 }
 
 impl Default for ProbeState {
@@ -49,6 +62,10 @@ impl Default for ProbeState {
             follow: false,
             slope_power: true,
             depth: 15.0,
+            center_outside: false,
+            center_size: 30.0,
+            center_depth: 5.0,
+            center_run: None,
         }
     }
 }
@@ -229,6 +246,7 @@ pub fn process_finished(app: &mut MyApp) {
                 }
             }
         }
+        JobKind::ProbeCenter => center_step(app, completed),
         JobKind::ProbeGrid => {
             let reports = std::mem::take(&mut app.device.probe_reports);
             if let Some((spec, offset)) = app.probe.pending.take() {
@@ -406,6 +424,41 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
                     ui.label(RichText::new(tr("probe.origin_ok")).color(crate::theme::SUCCESS));
                 }
                 ui.add_space(4.0);
+                ui.label(RichText::new(tr("center.title")).strong());
+                ui.horizontal_wrapped(|ui| {
+                    ui.radio_value(&mut app.probe.center_outside, false, tr("center.inside"))
+                        .on_hover_text(tr("center.inside_hint"));
+                    ui.radio_value(&mut app.probe.center_outside, true, tr("center.outside"))
+                        .on_hover_text(tr("center.outside_hint"));
+                });
+                if app.probe.center_outside {
+                    ui.horizontal(|ui| {
+                        ui.label(tr("center.size"));
+                        ui.add(
+                            DragValue::new(&mut app.probe.center_size)
+                                .range(1.0..=500.0)
+                                .suffix(" mm"),
+                        );
+                        ui.label(tr("center.depth"));
+                        ui.add(
+                            DragValue::new(&mut app.probe.center_depth)
+                                .range(0.5..=50.0)
+                                .suffix(" mm")
+                                .speed(0.1),
+                        );
+                    });
+                }
+                if ui
+                    .add_enabled(
+                        idle && app.probe.center_run.is_none(),
+                        egui::Button::new(tr("center.run")),
+                    )
+                    .on_hover_text(tr("center.run_hint"))
+                    .clicked()
+                {
+                    start_center(app);
+                }
+                ui.add_space(4.0);
                 ui.label(RichText::new(tr("probe.map_title")).strong());
                 ui.horizontal(|ui| {
                     ui.radio_value(&mut app.probe.flat, true, tr("probe.flat"))
@@ -544,6 +597,90 @@ pub fn probe_section(app: &mut MyApp, ui: &mut egui::Ui) {
                 }
             }
         });
+}
+
+fn center_kind(app: &MyApp) -> mml_probe::center::CenterKind {
+    if app.probe.center_outside {
+        mml_probe::center::CenterKind::Outside {
+            size: app.probe.center_size,
+            depth: app.probe.center_depth,
+        }
+    } else {
+        mml_probe::center::CenterKind::Inside
+    }
+}
+
+fn start_center(app: &mut MyApp) {
+    let Some(start) = app
+        .device
+        .status
+        .as_ref()
+        .map(|status| status.machine_position)
+    else {
+        return;
+    };
+    let kind = center_kind(app);
+    app.device.probe_reports.clear();
+    app.probe.center_run = Some(CenterRun {
+        kind,
+        start,
+        x: None,
+    });
+    let lines = mml_probe::center::axis_program(0, kind, &app.settings.probe, start);
+    run_auxiliary(app, lines, JobKind::ProbeCenter);
+}
+
+/// End of one axis: X leads to Y from the X centre; Y moves to the
+/// centre and sets the work origin there (Z is left as it was).
+fn center_step(app: &mut MyApp, completed: bool) {
+    let touches: Vec<[f64; 3]> = std::mem::take(&mut app.device.probe_reports)
+        .into_iter()
+        .filter(|(_, touched)| *touched)
+        .map(|(position, _)| position)
+        .collect();
+    let Some(run) = app.probe.center_run.take() else {
+        return;
+    };
+    let tool = app.settings.probe.tool_diameter;
+    let axis = if run.x.is_none() { 0 } else { 1 };
+    let result = mml_probe::center::axis_result(&touches, axis, run.kind, tool);
+    let Some((centre, size)) = result.filter(|_| completed) else {
+        app.notify(tr("center.failed"), Level::Error);
+        return;
+    };
+    match run.x {
+        None => {
+            let start = [centre, run.start[1], run.start[2]];
+            let mut lines = vec!["G90".to_owned(), format!("G53 G0 X{centre:.3}")];
+            lines.extend(mml_probe::center::axis_program(
+                1,
+                run.kind,
+                &app.settings.probe,
+                start,
+            ));
+            app.probe.center_run = Some(CenterRun {
+                x: Some((centre, size)),
+                ..run
+            });
+            run_auxiliary(app, lines, JobKind::ProbeCenter);
+        }
+        Some((x, width)) => {
+            for line in [
+                "G90".to_owned(),
+                format!("G53 G0 X{x:.3} Y{centre:.3}"),
+                format!("G10 L2 P1 X{x:.3} Y{centre:.3}"),
+            ] {
+                app.device.line(line);
+            }
+            app.notify(
+                trf(
+                    "center.done",
+                    &[&format!("{width:.2}"), &format!("{size:.2}")],
+                ),
+                Level::Info,
+            );
+        }
+    }
 }
 
 fn expand(area: Rect, margin: f64) -> Rect {

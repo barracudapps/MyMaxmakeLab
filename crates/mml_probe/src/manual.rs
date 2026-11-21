@@ -22,10 +22,14 @@ pub enum StockShape {
     /// Prism along X whose section narrows from the base to the top
     /// (both sides sloping by the same angle).
     Trapezoid,
+    /// Round hole touched from inside: its centre becomes the origin.
+    Hole,
+    /// Rectangular pocket touched from inside.
+    Pocket,
 }
 
 impl StockShape {
-    pub const ALL: [StockShape; 7] = [
+    pub const ALL: [StockShape; 9] = [
         StockShape::Surface,
         StockShape::TiltedSurface,
         StockShape::Cube,
@@ -33,6 +37,8 @@ impl StockShape {
         StockShape::CylinderUpright,
         StockShape::CylinderLying,
         StockShape::Trapezoid,
+        StockShape::Hole,
+        StockShape::Pocket,
     ];
 
     /// Translation key of the shape name.
@@ -45,6 +51,8 @@ impl StockShape {
             StockShape::CylinderUpright => "manual.shape_cylinder_upright",
             StockShape::CylinderLying => "manual.shape_cylinder_lying",
             StockShape::Trapezoid => "manual.shape_trapezoid",
+            StockShape::Hole => "manual.shape_hole",
+            StockShape::Pocket => "manual.shape_pocket",
         }
     }
 
@@ -107,6 +115,19 @@ impl StockShape {
                 optional(Right),
                 optional(Bed),
             ],
+            StockShape::Hole => vec![
+                required(Top),
+                required(InnerRim(0)),
+                required(InnerRim(1)),
+                required(InnerRim(2)),
+            ],
+            StockShape::Pocket => vec![
+                required(Top),
+                required(InnerLeft),
+                required(InnerRight),
+                required(InnerFront),
+                required(InnerBack),
+            ],
         }
     }
 
@@ -114,7 +135,7 @@ impl StockShape {
     /// front-left corner otherwise.
     pub fn default_origin(self) -> Origin {
         match self {
-            StockShape::CylinderUpright => Origin::Center,
+            StockShape::CylinderUpright | StockShape::Hole | StockShape::Pocket => Origin::Center,
             _ => Origin::FrontLeft,
         }
     }
@@ -143,6 +164,13 @@ pub enum Touch {
     BackLow,
     /// Tool tip on the table (or vise jaw) beside the stock: height.
     Bed,
+    /// Tool inside a hole, side against its wall, n-th of 3 points.
+    InnerRim(u8),
+    /// Tool inside a pocket against its left wall (moving towards -X).
+    InnerLeft,
+    InnerRight,
+    InnerFront,
+    InnerBack,
 }
 
 impl Touch {
@@ -160,13 +188,18 @@ impl Touch {
             Touch::FrontHigh => "manual.touch_front_high",
             Touch::BackLow => "manual.touch_back_low",
             Touch::Bed => "manual.touch_bed",
+            Touch::InnerRim(_) => "manual.touch_inner_rim",
+            Touch::InnerLeft => "manual.touch_inner_left",
+            Touch::InnerRight => "manual.touch_inner_right",
+            Touch::InnerFront => "manual.touch_inner_front",
+            Touch::InnerBack => "manual.touch_inner_back",
         }
     }
 
     /// Number shown after the instruction for repeated touches.
     pub fn index(self) -> Option<u8> {
         match self {
-            Touch::TopAt(n) | Touch::Rim(n) => Some(n + 1),
+            Touch::TopAt(n) | Touch::Rim(n) | Touch::InnerRim(n) => Some(n + 1),
             _ => None,
         }
     }
@@ -441,6 +474,33 @@ pub fn solve(
             measure.top_width = Some(top_width);
             measure.side_angle = Some(slope.atan().to_degrees());
         }
+        StockShape::Hole => {
+            let rim: Vec<Point> = (0..3)
+                .map(|n| need(Touch::InnerRim(n)).map(|p| Point::new(p[0], p[1])))
+                .collect::<Result<_, _>>()?;
+            let (center, reach) =
+                circle_through(rim[0], rim[1], rim[2]).ok_or(SolveError::Inconsistent)?;
+            // From inside, the wall is beyond the tool axis.
+            let radius = reach + side;
+            measure.center = Some(center);
+            measure.diameter = Some(radius * 2.0);
+        }
+        StockShape::Pocket => {
+            let (left, right, front, back) = (
+                need(Touch::InnerLeft)?[0] - side,
+                need(Touch::InnerRight)?[0] + side,
+                need(Touch::InnerFront)?[1] - side,
+                need(Touch::InnerBack)?[1] + side,
+            );
+            if right <= left || back <= front {
+                return Err(SolveError::Inconsistent);
+            }
+            measure.left = Some(left);
+            measure.right = Some(right);
+            measure.front = Some(front);
+            measure.back = Some(back);
+            measure.center = Some(Point::new((left + right) / 2.0, (front + back) / 2.0));
+        }
     }
     if let (Some(first), Some(second)) = (get(Touch::Front), get(Touch::FrontSecond)) {
         let run = second[0] - first[0];
@@ -611,5 +671,37 @@ mod tests {
         for shape in StockShape::ALL {
             assert!(shape.steps().iter().any(|step| !step.optional));
         }
+    }
+
+    #[test]
+    fn hole_and_pocket_centres_from_inside() {
+        let (cx, cy, r) = (40.0, 30.0, 10.0);
+        // From inside, the tool axis stays one radius plus shim short.
+        let reach = r - 3.1;
+        let rim = |deg: f64| {
+            let a = deg.to_radians();
+            [cx + reach * a.cos(), cy + reach * a.sin(), -5.0]
+        };
+        let touches = [
+            (Touch::Top, [0.0, 0.0, 0.1]),
+            (Touch::InnerRim(0), rim(10.0)),
+            (Touch::InnerRim(1), rim(130.0)),
+            (Touch::InnerRim(2), rim(250.0)),
+        ];
+        let hole = solve(StockShape::Hole, &touches, CONTACT).unwrap();
+        assert!((hole.diameter.unwrap() - 20.0).abs() < 1e-9);
+        let [x, y, z] = hole.origin(Origin::Center).unwrap();
+        assert!((x - cx).abs() < 1e-9 && (y - cy).abs() < 1e-9 && z.abs() < 1e-9);
+        let touches = [
+            (Touch::Top, [0.0, 0.0, 0.1]),
+            (Touch::InnerLeft, [10.0 + 3.1, 25.0, -5.0]),
+            (Touch::InnerRight, [50.0 - 3.1, 25.0, -5.0]),
+            (Touch::InnerFront, [30.0, 5.0 + 3.1, -5.0]),
+            (Touch::InnerBack, [30.0, 45.0 - 3.1, -5.0]),
+        ];
+        let pocket = solve(StockShape::Pocket, &touches, CONTACT).unwrap();
+        assert_eq!((pocket.width(), pocket.depth()), (Some(40.0), Some(40.0)));
+        let [x, y, _] = pocket.origin(Origin::FrontLeft).unwrap();
+        assert!((x - 30.0).abs() < 1e-9 && (y - 25.0).abs() < 1e-9);
     }
 }

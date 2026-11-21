@@ -33,6 +33,8 @@ pub enum JobKind {
     ToolSetter,
     /// Touch of the calibration gauge on the tool setter.
     SetterReference,
+    /// One axis of a centre-finding cycle.
+    ProbeCenter,
 }
 
 pub struct RunningJob {

@@ -166,6 +166,8 @@ multi-axis programs.
   Atkinson, Jarvis, Stucki, **halftone (vintage)** and **line engraving**,
   swept by lines, **diagonals** or **circles**.
 - M4 dynamic power, air assist, holes cut before outlines, minimal travel.
+- **Scan offset**: a speed → offset table, measured once on a built-in test
+  pattern, keeps fast back-and-forth fills and pictures sharp.
 - **Laser on paper**: pick the sheet (80 gsm, card stock, greyboard,
   corrugated) and the laser (diode or CO2, optical watts); each layer gets
   cut, perforate, mark or engrave settings from the energy the sheet needs.
@@ -207,6 +209,9 @@ multi-axis programs.
   compensated, squareness checked, G54 written. The tool length for the
   collision checks can be recorded by hand too.
 - Work origin on a touch plate (Z) or an XYZ block (corner).
+- **Find a centre**: inside a hole or pocket, or around a boss or block,
+  X then Y, the work origin set in the middle (by hand too, for holes and
+  pockets).
 - **Flat mode**: 3 to 9 points give the plane of a tilted top face.
 - **Uneven mode**: grid of adjustable size, without alarms where nothing is
   touched, which also **detects the shape of the piece**.
@@ -314,7 +319,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 177 tests
+cargo test --workspace      # 183 tests
 cargo clippy --workspace    # no warnings
 ```
 
@@ -386,7 +391,7 @@ body): `git log` is the technical changelog. See
 - [x] Hand measurement without a probe, supervised homing
 - [x] Stylus drawing page with brushes, eraser and live sync
 - [x] Start panel, layer bar, shape library, gears, QR / barcodes, circular arrays, offsets
-- [ ] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
+- [x] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
 - [ ] Simultaneous 5-axis with tool orientation: needs the kinematics of a 5-axis machine
 
 ## 🇫🇷 En bref

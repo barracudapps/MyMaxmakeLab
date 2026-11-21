@@ -32,6 +32,21 @@ Atkinson, Jarvis, Stucki, **similigravure (vintage)**, **gravure au trait** ;
 motif de balayage en lignes, **diagonale** ou **cercles** ; résolution
 (dpi), luminosité, contraste, négatif.
 
+## Décalage de balayage
+
+En gravure aller-retour rapide, les lignes de retour arrivent un peu
+décalées : les bords paraissent dentelés et les petits textes flous.
+*Machine › Réglages de la machine › Décalage de balayage* :
+
+1. **Motif de mesure** ajoute un carré par vitesse (1000 à 6000 mm/min),
+   gravé en aller-retour, la vitesse gravée à côté ;
+2. gravez-le, mesurez à la loupe la largeur des dents sur les bords de
+   chaque carré ;
+3. entrez une ligne *vitesse → décalage* par carré.
+
+Les remplissages et les images en aller-retour sont alors corrigés : la
+valeur est interpolée entre les vitesses mesurées.
+
 ## Laser sur papier (configuration rapide)
 
 *Matériaux › Laser sur papier…* (ou `⌘K` « papier ») règle tous les calques

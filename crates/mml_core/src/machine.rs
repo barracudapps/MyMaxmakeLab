@@ -279,7 +279,6 @@ mod tests {
         assert_eq!(profile.scan_offset(9000.0), 0.3);
     }
 
-
     #[test]
     fn trunnion_turns_each_face_to_the_tool_and_back() {
         let trunnion = Trunnion {
