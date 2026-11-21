@@ -235,6 +235,8 @@ pub struct MyApp {
     pub about_open: bool,
     pub confirm_close: bool,
     pub sources: Option<crate::sources_dialog::SourcesDialog>,
+    /// Travel last read from the controller, to apply it once.
+    travel_applied: Option<[f64; 3]>,
     applied_theme: Option<ThemeChoice>,
     lock_ratio: bool,
     pub live_links: Vec<LiveLink>,
@@ -318,6 +320,7 @@ impl MyApp {
             offset_distance: 2.0,
             sprue: None,
             sources: None,
+            travel_applied: None,
             nest: None,
             paper: None,
             shapes_library: Default::default(),
@@ -1458,9 +1461,47 @@ impl MyApp {
         }
     }
 
+    /// The bed and Z travel follow what the connected controller reports
+    /// ($130 to $132), once per new reading, so the grid is the real
+    /// working area of the machine in use.
+    fn follow_controller_travel(&mut self) {
+        if !self.device.is_connected() {
+            self.travel_applied = None;
+            return;
+        }
+        let travel = [130, 131, 132].map(|key| self.device.setting_f64(key));
+        let [Some(x), Some(y), z] = travel else {
+            return;
+        };
+        let reading = [x, y, z.unwrap_or(0.0)];
+        if self.travel_applied == Some(reading) {
+            return;
+        }
+        self.travel_applied = Some(reading);
+        if self.settings.bed_from_controller
+            && self
+                .machine
+                .apply_travel(reading[0], reading[1], reading[2])
+        {
+            self.canvas.request_fit();
+            self.notify(
+                trf(
+                    "machine.travel_applied",
+                    &[
+                        &format!("{:.0}", self.machine.width),
+                        &format!("{:.0}", self.machine.height),
+                        &format!("{:.0}", self.machine.z_travel),
+                    ],
+                ),
+                Level::Info,
+            );
+        }
+    }
+
     /// Homing durations are compared with the usual one: a much slower
     /// homing is the typical sign of a binding axis or a loose belt.
     fn process_machine_events(&mut self) {
+        self.follow_controller_travel();
         for (duration, success) in std::mem::take(&mut self.device.homing_results) {
             if !success {
                 continue;

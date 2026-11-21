@@ -61,6 +61,8 @@ pub struct Settings {
     pub frame_power: f64,
     /// The import from other programs was proposed (first start).
     pub sources_offered: bool,
+    /// The bed takes the travel the connected controller reports.
+    pub bed_from_controller: bool,
     /// Libraries of other programs read again at start when changed.
     pub synced_sources: Vec<crate::sources_dialog::SyncedSource>,
     /// Feed hold automatically on a critical anomaly.
@@ -126,6 +128,7 @@ impl Default for Settings {
             jog_feed: 3000.0,
             frame_power: 0.0,
             sources_offered: false,
+            bed_from_controller: true,
             synced_sources: Vec::new(),
             auto_pause: true,
             homing_times: Vec::new(),

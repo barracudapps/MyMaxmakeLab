@@ -1344,3 +1344,7 @@ grbl.error.37 = La corrección de longitud de herramienta G43.1 no está en el e
 grbl.error.38 = Número de herramienta mayor que el máximo admitido.
 flow.to_start = Iniciar el trabajo  ›
 job.estimate_learned = Corregida según los últimos {0} trabajos terminados en esta máquina (aceleraciones, arranque del husillo…).
+machine.travel_applied = Mesa ajustada al recorrido de la máquina conectada: {0} × {1} mm, Z {2} mm.
+machine.bed_from_controller = Usar el recorrido del controlador ($130 a $132)
+machine.bed_from_controller_hint = Al conectar, el tamaño de la mesa y el recorrido Z siguen lo que indica la máquina: la cuadrícula corresponde a su área de trabajo real.
+machine.origin_hint = Esquina de la mesa donde queda la herramienta tras el homing. En una máquina de mesa móvil (HiMill), la mesa adelantada hacia ti deja la herramienta sobre la parte trasera: elige una esquina trasera.

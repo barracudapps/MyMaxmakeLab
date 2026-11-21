@@ -260,12 +260,46 @@ impl MachineProfile {
         }
     }
 
+    /// Maxmake HiMill D1S: 280 x 200 x 80 mm, grblHAL. Its table moves
+    /// along Y and homes fully forward (towards the operator), the
+    /// spindle at the left: seen on the table, home is the rear left.
+    pub fn maxmake_himill_d1s() -> Self {
+        Self {
+            name: "Maxmake HiMill D1S".into(),
+            width: 280.0,
+            height: 200.0,
+            z_travel: 80.0,
+            origin: Origin::RearLeft,
+            ..Self::generic_cnc()
+        }
+    }
+
+    /// Takes the travel the controller reports ($130, $131, $132) as the
+    /// bed and Z travel; true when something changed. Values that are
+    /// not plausible (zero, negative, absurdly large) are ignored.
+    pub fn apply_travel(&mut self, x: f64, y: f64, z: f64) -> bool {
+        let plausible = |value: f64| value > 5.0 && value < 5000.0;
+        let mut changed = false;
+        for (target, value) in [
+            (&mut self.width, x),
+            (&mut self.height, y),
+            (&mut self.z_travel, z),
+        ] {
+            if plausible(value) && (*target - value).abs() > 0.5 {
+                *target = value;
+                changed = true;
+            }
+        }
+        changed
+    }
+
     pub fn presets() -> Vec<MachineProfile> {
         vec![
             Self::generic_laser(),
             Self::generic_cnc(),
             Self::generic_hybrid(),
             Self::makera_carvera(),
+            Self::maxmake_himill_d1s(),
         ]
     }
 }
@@ -339,5 +373,24 @@ mod tests {
         // A tool touching 6 mm higher than the gauge sticks out 6 mm more.
         assert_eq!(setter.stick_out(-39.0), Some(36.0));
         assert_eq!(setter.stick_out(-52.5), Some(22.5));
+    }
+
+    #[test]
+    fn the_bed_follows_the_travel_of_the_controller() {
+        let mut profile = MachineProfile::generic_cnc();
+        assert!(profile.apply_travel(280.0, 200.0, 80.0));
+        assert_eq!(
+            (profile.width, profile.height, profile.z_travel),
+            (280.0, 200.0, 80.0)
+        );
+        assert!(
+            !profile.apply_travel(280.2, 200.0, 80.0),
+            "rounding is not a change"
+        );
+        // A laser reports no Z travel: the rest still applies.
+        assert!(profile.apply_travel(400.0, 300.0, 0.0));
+        assert_eq!(profile.z_travel, 80.0);
+        let himill = MachineProfile::maxmake_himill_d1s();
+        assert_eq!(himill.origin, Origin::RearLeft);
     }
 }

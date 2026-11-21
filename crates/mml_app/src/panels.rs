@@ -1959,7 +1959,15 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
                             .suffix(" mm"),
                     );
                     ui.end_row();
-                    ui.label(tr("machine.origin"));
+                    ui.label("");
+                    ui.checkbox(
+                        &mut app.settings.bed_from_controller,
+                        tr("machine.bed_from_controller"),
+                    )
+                    .on_hover_text(tr("machine.bed_from_controller_hint"));
+                    ui.end_row();
+                    ui.label(tr("machine.origin"))
+                        .on_hover_text(tr("machine.origin_hint"));
                     egui::ComboBox::from_id_salt("origin")
                         .selected_text(origin_label(profile.origin))
                         .show_ui(ui, |ui| {
