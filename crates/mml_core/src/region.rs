@@ -30,6 +30,36 @@ pub fn offset(region: &MultiPolygon<f64>, distance: f64) -> MultiPolygon<f64> {
     region.buffer(distance)
 }
 
+/// Contour at `distance` from some paths (outside when positive): the
+/// enclosed area grows or shrinks with round corners, and open lines
+/// get the outline around them when growing.
+pub fn offset_paths(paths: &[Path], distance: f64) -> Vec<Path> {
+    let mut area = offset(&region_of(paths), distance);
+    if distance > 0.0 {
+        for open in paths
+            .iter()
+            .filter(|path| !path.closed && path.points.len() > 1)
+        {
+            let line = LineString::new(
+                open.points
+                    .iter()
+                    .map(|point| Coord {
+                        x: point.x,
+                        y: point.y,
+                    })
+                    .collect(),
+            );
+            area = area.union(&line.buffer(distance));
+        }
+    }
+    area.0
+        .iter()
+        .flat_map(|polygon| std::iter::once(polygon.exterior()).chain(polygon.interiors()))
+        .map(to_path)
+        .filter(|path| path.points.len() > 2)
+        .collect()
+}
+
 pub fn to_line_string(path: &Path) -> LineString<f64> {
     let mut coords: Vec<Coord<f64>> = path
         .points
@@ -56,4 +86,35 @@ pub fn to_path(ring: &LineString<f64>) -> Path {
         points.pop();
     }
     Path::new(points, true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use geo::Area;
+
+    #[test]
+    fn offsets_grow_squares_and_surround_lines() {
+        let square = Path::new(
+            vec![
+                Point::new(0.0, 0.0),
+                Point::new(10.0, 0.0),
+                Point::new(10.0, 10.0),
+                Point::new(0.0, 10.0),
+            ],
+            true,
+        );
+        let grown = offset_paths(std::slice::from_ref(&square), 1.0);
+        let area = region_of(&grown).unsigned_area();
+        // 12 × 12 minus the four rounded corners.
+        assert!(
+            (area - (100.0 + 40.0 + std::f64::consts::PI)).abs() < 0.2,
+            "{area}"
+        );
+        let shrunk = offset_paths(std::slice::from_ref(&square), -2.0);
+        assert!((region_of(&shrunk).unsigned_area() - 36.0).abs() < 1e-6);
+        let line = Path::new(vec![Point::new(0.0, 0.0), Point::new(10.0, 0.0)], false);
+        let around = offset_paths(&[line], 1.0);
+        assert_eq!(around.len(), 1);
+    }
 }

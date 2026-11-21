@@ -14,3 +14,4 @@ thiserror.workspace = true
 uuid.workspace = true
 base64 = "0.22"
 geo = "0.33"
+qrcode = { version = "0.14", default-features = false }
