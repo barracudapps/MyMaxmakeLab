@@ -25,6 +25,17 @@ pub struct MakersDialog {
     grid: test_grid::TestGridParams,
 }
 
+impl MakersDialog {
+    /// Opens on the laser test grid with the given ranges.
+    pub fn test_grid(grid: test_grid::TestGridParams) -> Self {
+        Self {
+            kind: Kind::TestGrid,
+            grid,
+            ..Self::default()
+        }
+    }
+}
+
 impl Default for MakersDialog {
     fn default() -> Self {
         Self {

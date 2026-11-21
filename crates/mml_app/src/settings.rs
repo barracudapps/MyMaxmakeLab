@@ -78,6 +78,8 @@ pub struct Settings {
     /// Homing runs only while its button is held.
     pub homing_hold: bool,
     pub manual_contact: mml_probe::manual::Contact,
+    /// Last choices of the paper quick setup.
+    pub paper: mml_materials::paper::Setup,
     /// Jog speed follows the step size (fine steps move slowly).
     pub jog_proportional: bool,
     pub idle_rpm: f64,
@@ -129,6 +131,7 @@ impl Default for Settings {
             has_probe: false,
             homing_hold: true,
             manual_contact: Default::default(),
+            paper: Default::default(),
             jog_proportional: true,
             idle_rpm: 8000.0,
             tutorial_done: false,

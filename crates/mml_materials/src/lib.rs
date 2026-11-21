@@ -1,6 +1,7 @@
 //! Material presets: a named set of layer parameters for a material and
 //! thickness, applied to a layer in one click.
 
+pub mod paper;
 pub mod tools;
 
 use mml_core::layer::{DitherMode, FillParams, ImageParams, LineParams, Operation};

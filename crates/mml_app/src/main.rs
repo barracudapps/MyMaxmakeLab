@@ -18,6 +18,7 @@ mod pairing;
 mod pairing_dialog;
 mod palette;
 mod panels;
+mod paper_dialog;
 mod preview;
 mod relief_dialog;
 mod settings;

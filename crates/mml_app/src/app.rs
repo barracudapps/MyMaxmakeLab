@@ -163,6 +163,7 @@ pub struct MyApp {
     pub text_dialog: Option<TextDialog>,
     pub array_dialog: Option<ArrayDialog>,
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
+    pub paper: Option<crate::paper_dialog::PaperDialog>,
     pub ornament: Option<crate::ornament_dialog::OrnamentDialog>,
     pub updater: crate::update::Updater,
     pub makers: Option<crate::makers_dialog::MakersDialog>,
@@ -274,6 +275,7 @@ impl MyApp {
             text_dialog: None,
             array_dialog: None,
             sprue: None,
+            paper: None,
             ornament: None,
             updater: Default::default(),
             makers: None,
@@ -373,6 +375,7 @@ impl MyApp {
                     Some("pairing") => self.pairing.open = true,
                     Some("firmware") => self.firmware.open = true,
                     Some("palette") => self.palette.open = true,
+                    Some("paper") => self.paper = Some(crate::paper_dialog::PaperDialog::new(self)),
                     _ => {}
                 },
                 "--orbit" => {
@@ -1791,6 +1794,9 @@ impl MyApp {
                     }
                 });
                 ui.menu_button(tr("menu.materials"), |ui| {
+                    if ui.button(tr("paper.title")).clicked() {
+                        self.paper = Some(crate::paper_dialog::PaperDialog::new(self));
+                    }
                     if ui.button(tr("menu.import_library")).clicked()
                         && let Some(path) = rfd::FileDialog::new()
                             .add_filter("LightBurn", &["clb"])

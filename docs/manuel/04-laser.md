@@ -32,6 +32,34 @@ Atkinson, Jarvis, Stucki, **similigravure (vintage)**, **gravure au trait** ;
 motif de balayage en lignes, **diagonale** ou **cercles** ; résolution
 (dpi), luminosité, contraste, négatif.
 
+## Laser sur papier (configuration rapide)
+
+*Matériaux › Laser sur papier…* (ou `⌘K` « papier ») règle tous les calques
+d'un coup :
+
+1. choisissez la feuille : papier 80 g, bristol 200–300 g, carton gris
+   1,5 mm ou carton ondulé 3 mm ;
+2. indiquez le laser : diode ou CO2, sa **puissance optique** (celle du
+   faisceau, pas la puissance électrique) et la vitesse maximale propre de
+   la machine ;
+3. chaque calque reçoit un rôle deviné d'après son contenu, modifiable :
+   **découper**, **pointillés** (pliage, détachage), **marquer le trait**,
+   **graver le remplissage**, ou ne pas modifier (les images sont laissées
+   telles quelles).
+
+Vitesse, puissance et nombre de passes découlent de l'énergie dont chaque
+feuille a besoin par millimètre : trop rapide pour la machine, la puissance
+est réduite plutôt que de brûler plus large ; trop lent, le travail passe en
+plusieurs passes pour ne pas roussir les bords. L'assistance d'air reste
+coupée pour le papier fin (il s'envolerait).
+
+- Le papier blanc renvoie la lumière bleue d'une diode : un papier coloré ou
+  un trait de feutre noir sous la ligne aide beaucoup.
+- Fixez la feuille à plat et faites la mise au point sur son dessus.
+- Ne laissez jamais la machine seule : le papier s'enflamme facilement.
+- Ce sont des points de départ : **Grille de test…** ouvre la grille de test
+  avec des puissances et vitesses autour de ces réglages.
+
 ## Gravure sur cylindre
 
 Dans **Machine**, *Rotatif* : mandrin sur un vrai axe A, ou rouleaux à la
