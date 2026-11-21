@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-11-21
+
 ### Fixed
 - When GitHub cannot be reached, *Check for updates* says so instead of
   reporting the copy as up to date.
@@ -145,7 +147,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.7...v0.1.8
