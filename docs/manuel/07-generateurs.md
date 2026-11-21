@@ -11,7 +11,7 @@
 | **Boîte à encoches** | dimensions intérieures (l'objet + 1 à 2 mm de jeu), épaisseur de planche, largeur des encoches, trait de coupe, couvercle |
 | **Boîte ronde** | dimensions intérieures, rayon des coins, épaisseur, pas de la charnière, fermée ou non : la paroi est une seule bande pliée grâce à une charnière flexible, fond et dessus tenus par des tenons |
 | **Labyrinthe** | cases, taille d'une case, *murs* (à graver ou découper) ou *couloirs* (à fraiser pour un labyrinthe à bille), solution |
-| **Puzzle** | taille, nombre de pièces, taille des tenons, nouvelle variante |
+| **Puzzle** | taille, nombre de pièces, taille des tenons, nouvelle variante ; ou **dans la forme sélectionnée** |
 | **Grille de test laser** | plages de puissance et de vitesse, nombre de cases |
 | **Engrenage** | nombre de dents, module, angle de pression (14,5°, 20° ou 25°), alésage, jeu |
 | **QR / code-barres** | QR code ou Code 128, contenu, largeur, hauteur des barres, mode inversé |
@@ -25,6 +25,14 @@ blanchissent au laser (aluminium anodisé, ardoise).
 Les encoches de la boîte sont toujours en nombre impair, ce qui rend tous
 les angles cohérents ; les panneaux sont agrandis de la moitié du trait de
 coupe pour un assemblage serré sans colle.
+
+**Puzzle dans une forme** : sélectionnez une forme fermée (cœur,
+silhouette, texte épais, dessin importé…) puis **Puzzle…** dans le panneau
+Sélection, ou cochez *Dans la forme sélectionnée* dans le générateur. La
+grille de pièces couvre la forme, les coupes sont gardées à l'intérieur et
+le contour devient le bord ; la forme est remplacée par le puzzle (une
+seule annulation). Des petites pièces peuvent apparaître le long du bord :
+réduisez le nombre de pièces ou tirez une autre variante.
 
 ![Boîte, labyrinthes et puzzle](../images/makers.png)
 

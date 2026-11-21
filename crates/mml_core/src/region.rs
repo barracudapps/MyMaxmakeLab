@@ -96,6 +96,43 @@ pub fn combine(shapes: &[Vec<Path>], operation: Boolean) -> Option<Vec<Path>> {
     (!rings.is_empty()).then_some(rings)
 }
 
+/// The parts of open lines that lie inside `area`.
+pub fn clip_lines(lines: &[Path], area: &MultiPolygon<f64>) -> Vec<Path> {
+    if area.0.is_empty() {
+        return Vec::new();
+    }
+    let lines = geo::MultiLineString::new(
+        lines
+            .iter()
+            .filter(|line| line.points.len() > 1)
+            .map(|line| {
+                LineString::new(
+                    line.points
+                        .iter()
+                        .map(|point| Coord {
+                            x: point.x,
+                            y: point.y,
+                        })
+                        .collect(),
+                )
+            })
+            .collect(),
+    );
+    area.clip(&lines, false)
+        .0
+        .iter()
+        .map(|line| {
+            Path::new(
+                line.coords()
+                    .map(|coord| Point::new(coord.x, coord.y))
+                    .collect(),
+                false,
+            )
+        })
+        .filter(|path| path.points.len() > 1)
+        .collect()
+}
+
 pub fn to_line_string(path: &Path) -> LineString<f64> {
     let mut coords: Vec<Coord<f64>> = path
         .points

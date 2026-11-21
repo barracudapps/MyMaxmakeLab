@@ -3,7 +3,7 @@
 //! pieces are interchangeable. Cut lines run across the whole board
 //! (one polyline per row and per column), which is what a laser wants.
 
-use crate::geometry::{Path, Point};
+use crate::geometry::{Path, Point, bounds_of};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct JigsawParams {
@@ -147,6 +147,50 @@ pub fn generate(params: &JigsawParams) -> Vec<Path> {
     paths
 }
 
+/// A puzzle inside a shape: the grid of `params` (its size is the
+/// shape's) laid over the shape's closed outlines, cut lines kept only
+/// inside, and the outlines as the border. `None` without a closed
+/// outline. Bits of cut shorter than 1 mm, left where a knob grazes the
+/// border, are dropped.
+pub fn generate_inside(outline: &[Path], params: &JigsawParams) -> Option<Vec<Path>> {
+    let border: Vec<Path> = outline
+        .iter()
+        .filter(|path| path.closed && path.points.len() > 2)
+        .cloned()
+        .collect();
+    let bounds = bounds_of(&border);
+    if border.is_empty() || bounds.width() < 1.0 || bounds.height() < 1.0 {
+        return None;
+    }
+    let grid = JigsawParams {
+        width: bounds.width(),
+        height: bounds.height(),
+        ..*params
+    };
+    let mut cuts = generate(&grid);
+    // The last path is the rectangular border: the shape replaces it.
+    cuts.pop();
+    let moved: Vec<Path> = cuts
+        .iter()
+        .map(|path| {
+            Path::new(
+                path.points
+                    .iter()
+                    .map(|point| Point::new(point.x + bounds.min.x, point.y + bounds.min.y))
+                    .collect(),
+                false,
+            )
+        })
+        .collect();
+    let area = crate::region::region_of(&border);
+    let mut paths: Vec<Path> = crate::region::clip_lines(&moved, &area)
+        .into_iter()
+        .filter(|path| path.length() >= 1.0)
+        .collect();
+    paths.extend(border);
+    Some(paths)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -181,5 +225,36 @@ mod tests {
         });
         assert_eq!(a, generate(&JigsawParams::default()));
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn a_puzzle_fits_inside_a_round_shape() {
+        let circle = Path::new(
+            (0..96)
+                .map(|index| {
+                    let angle = index as f64 / 96.0 * std::f64::consts::TAU;
+                    Point::new(100.0 + 60.0 * angle.cos(), 50.0 + 60.0 * angle.sin())
+                })
+                .collect(),
+            true,
+        );
+        let params = JigsawParams {
+            columns: 4,
+            rows: 4,
+            ..JigsawParams::default()
+        };
+        let paths = generate_inside(std::slice::from_ref(&circle), &params).unwrap();
+        // The border is the circle itself.
+        assert_eq!(paths.last(), Some(&circle));
+        let cuts = &paths[..paths.len() - 1];
+        assert!(cuts.len() >= 6, "{} cuts", cuts.len());
+        for cut in cuts {
+            assert!(!cut.closed);
+            for point in &cut.points {
+                let distance = ((point.x - 100.0).powi(2) + (point.y - 50.0).powi(2)).sqrt();
+                assert!(distance <= 60.0 + 1e-6, "cut outside at {point:?}");
+            }
+        }
+        assert_eq!(generate_inside(&[], &params), None);
     }
 }

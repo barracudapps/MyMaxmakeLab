@@ -25,6 +25,8 @@ pub struct MakersDialog {
     maze: maze::MazeParams,
     solution: bool,
     jigsaw: jigsaw::JigsawParams,
+    /// Puzzle inside the selected shape instead of a rectangle.
+    jigsaw_in_shape: bool,
     grid: test_grid::TestGridParams,
     gear: gear::GearParams,
     code: codes::CodeParams,
@@ -32,6 +34,15 @@ pub struct MakersDialog {
 }
 
 impl MakersDialog {
+    /// Opens on a puzzle inside the selected shape.
+    pub fn jigsaw_in_shape() -> Self {
+        Self {
+            kind: Kind::Jigsaw,
+            jigsaw_in_shape: true,
+            ..Self::default()
+        }
+    }
+
     /// Opens on the laser test grid with the given ranges.
     pub fn test_grid(grid: test_grid::TestGridParams) -> Self {
         Self {
@@ -50,6 +61,7 @@ impl Default for MakersDialog {
             maze: maze::MazeParams::default(),
             solution: false,
             jigsaw: jigsaw::JigsawParams::default(),
+            jigsaw_in_shape: false,
             grid: test_grid::TestGridParams::default(),
             gear: gear::GearParams::default(),
             code: codes::CodeParams::default(),
@@ -68,7 +80,24 @@ fn seed() -> u64 {
         .map_or(1, |time| time.as_nanos() as u64)
 }
 
+/// Closed outlines of the selected shapes, in design coordinates, with
+/// their size: what a puzzle can be cut inside.
+pub fn selected_outline(app: &MyApp) -> Option<(Vec<Path>, f64, f64)> {
+    let paths: Vec<Path> = app
+        .document
+        .shapes
+        .iter()
+        .filter(|shape| app.selection.contains(&shape.id) && !shape.is_image())
+        .flat_map(|shape| shape.world_paths())
+        .filter(|path| path.closed && path.points.len() > 2)
+        .collect();
+    let bounds = mml_core::geometry::bounds_of(&paths);
+    (!paths.is_empty() && bounds.width() >= 1.0 && bounds.height() >= 1.0)
+        .then(|| (paths, bounds.width(), bounds.height()))
+}
+
 pub fn show(app: &mut MyApp, ctx: &egui::Context) {
+    let outline_size = selected_outline(app).map(|(_, width, height)| (width, height));
     let Some(dialog) = &mut app.makers else {
         return;
     };
@@ -322,11 +351,32 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     }
                     Kind::Jigsaw => {
                         let params = &mut dialog.jigsaw;
+                        if outline_size.is_none() {
+                            dialog.jigsaw_in_shape = false;
+                        }
+                        ui.label("");
+                        ui.add_enabled(
+                            outline_size.is_some(),
+                            egui::Checkbox::new(
+                                &mut dialog.jigsaw_in_shape,
+                                tr("makers.jigsaw_in_shape"),
+                            ),
+                        )
+                        .on_hover_text(tr("makers.jigsaw_in_shape_hint"))
+                        .on_disabled_hover_text(tr("makers.jigsaw_select_shape"));
+                        ui.end_row();
                         ui.label(tr("makers.size"));
-                        ui.horizontal(|ui| {
-                            millimetres(ui, &mut params.width, 20.0..=2000.0);
-                            millimetres(ui, &mut params.height, 20.0..=2000.0);
-                        });
+                        match outline_size.filter(|_| dialog.jigsaw_in_shape) {
+                            Some((width, height)) => {
+                                ui.label(format!("{width:.1} × {height:.1} mm"));
+                            }
+                            None => {
+                                ui.horizontal(|ui| {
+                                    millimetres(ui, &mut params.width, 20.0..=2000.0);
+                                    millimetres(ui, &mut params.height, 20.0..=2000.0);
+                                });
+                            }
+                        }
                         ui.end_row();
                         ui.label(tr("makers.pieces"));
                         ui.horizontal(|ui| {
@@ -367,6 +417,10 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 if dialog.solution {
                     shapes.push((tr("makers.solution").to_owned(), vec![generated.solution]));
                 }
+            }
+            Kind::Jigsaw if dialog.jigsaw_in_shape => {
+                puzzle_in_selection(app, &dialog.jigsaw);
+                return;
             }
             Kind::Jigsaw => shapes.push((
                 tr("makers.jigsaw").to_owned(),
@@ -439,6 +493,36 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     } else if !open {
         app.makers = None;
     }
+}
+
+/// Replaces the selected shapes by a puzzle cut inside them (one undo
+/// step): their outlines become its border.
+fn puzzle_in_selection(app: &mut MyApp, params: &jigsaw::JigsawParams) {
+    let Some((outline, _, _)) = selected_outline(app) else {
+        return;
+    };
+    let Some(paths) = jigsaw::generate_inside(&outline, params) else {
+        return;
+    };
+    let selected = app
+        .document
+        .shapes
+        .iter()
+        .find(|shape| app.selection.contains(&shape.id))
+        .map(|shape| shape.layer);
+    let layer = match selected {
+        Some(layer) => layer,
+        None => app.layer_for(false),
+    };
+    app.begin_edit("history.puzzle");
+    let used = std::mem::take(&mut app.selection);
+    app.document
+        .shapes
+        .retain(|shape| !used.contains(&shape.id) || shape.is_image());
+    let shape = Shape::new(tr("makers.jigsaw"), layer, ShapeKind::Paths { paths });
+    app.selection = vec![shape.id];
+    app.document.shapes.push(shape);
+    app.end_edit();
 }
 
 /// A layer that fills areas: the current one if it does, else a new one.

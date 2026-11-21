@@ -191,6 +191,14 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
         if ui.button(tr("menu.array")).clicked() {
             app.array_dialog = Some(ArrayDialog::default());
         }
+        if crate::makers_dialog::selected_outline(app).is_some()
+            && ui
+                .button(tr("makers.puzzle_button"))
+                .on_hover_text(tr("makers.jigsaw_in_shape_hint"))
+                .clicked()
+        {
+            app.makers = Some(crate::makers_dialog::MakersDialog::jigsaw_in_shape());
+        }
         if ui
             .button(tr("nest.button"))
             .on_hover_text(tr("nest.intro"))
