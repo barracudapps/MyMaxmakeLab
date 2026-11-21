@@ -65,6 +65,8 @@ pub enum Newer {
     /// Newer, but its archive for this system is not attached yet (a
     /// release still being published).
     NotYet(String),
+    /// GitHub did not answer.
+    Unknown,
 }
 
 pub fn newer_release(json: &str, current: &str) -> Newer {
@@ -110,6 +112,51 @@ fn ready(value: &serde_json::Value, tag: &str, name: &str) -> Option<Release> {
         archive_url,
         checksum_url,
     })
+}
+
+/// Tag of the release a `…/releases/tag/v1.2.3` address points to.
+fn tag_from_url(url: &str) -> Option<String> {
+    let prefix = format!("https://github.com/{REPOSITORY}/releases/tag/");
+    let tag = url.trim().strip_prefix(&prefix)?;
+    (!tag.is_empty() && !tag.contains('/')).then(|| tag.to_owned())
+}
+
+/// What the latest release means, from its tag and whether the archive
+/// of this system is already attached to it.
+fn newer_from_tag(tag: &str, current: &str, attached: impl Fn(&str) -> bool) -> Newer {
+    let newer = match (parse_version(tag), parse_version(current)) {
+        (Some(tag), Some(current)) => tag > current,
+        _ => false,
+    };
+    let Some(name) = asset_name().filter(|_| newer) else {
+        return Newer::No;
+    };
+    let base = format!("https://github.com/{REPOSITORY}/releases/download/{tag}/");
+    let archive_url = format!("{base}{name}");
+    if !attached(&archive_url) {
+        return Newer::NotYet(tag.to_owned());
+    }
+    let checksum_url = format!("{archive_url}.sha256");
+    Newer::Ready(Release {
+        tag: tag.to_owned(),
+        checksum_url: attached(&checksum_url).then_some(checksum_url),
+        archive_url,
+    })
+}
+
+/// The latest release without the GitHub API, whose hourly quota is
+/// shared by everything on the same connection: the public
+/// `releases/latest` page redirects to the latest production release
+/// (drafts and pre-releases excluded); its files are then checked with
+/// HEAD requests. `None` when GitHub could not be reached.
+fn latest_from_page(current: &str) -> Option<Newer> {
+    let page = format!("https://github.com/{REPOSITORY}/releases/latest");
+    let output = curl(&["--head", "--write-out", "\n%{url_effective}", &page]).ok()?;
+    let text = String::from_utf8_lossy(&output);
+    let tag = tag_from_url(text.lines().last()?)?;
+    Some(newer_from_tag(&tag, current, |url| {
+        curl(&["--head", url]).is_ok()
+    }))
 }
 
 fn curl(arguments: &[&str]) -> Result<Vec<u8>, String> {
@@ -162,6 +209,9 @@ pub enum Outcome {
     /// A newer version exists but this copy cannot replace itself.
     Available(String),
     Failed(String),
+    /// GitHub could not be reached (offline, refused): unknown, which
+    /// is not the same as up to date.
+    Unreachable,
 }
 
 fn install(release: &Release, location: &Path) -> Result<(), String> {
@@ -272,13 +322,15 @@ fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
 }
 
 pub fn check_and_install() -> Outcome {
-    let api = format!("https://api.github.com/repos/{REPOSITORY}/releases/latest");
-    let json = match curl(&["-H", "Accept: application/vnd.github+json", &api]) {
-        Ok(json) => json,
-        // No release yet (404) or offline: nothing to do.
-        Err(_) => return Outcome::UpToDate,
-    };
-    let release = match newer_release(&String::from_utf8_lossy(&json), env!("CARGO_PKG_VERSION")) {
+    let current = env!("CARGO_PKG_VERSION");
+    let newer = latest_from_page(current).or_else(|| {
+        // The API as a second way, should the page ever change.
+        let api = format!("https://api.github.com/repos/{REPOSITORY}/releases/latest");
+        let json = curl(&["-H", "Accept: application/vnd.github+json", &api]).ok()?;
+        Some(newer_release(&String::from_utf8_lossy(&json), current))
+    });
+    let release = match newer.unwrap_or(Newer::Unknown) {
+        Newer::Unknown => return Outcome::Unreachable,
         Newer::Ready(release) => release,
         Newer::NotYet(tag) => return Outcome::NotYet(tag),
         Newer::No => return Outcome::UpToDate,
@@ -401,5 +453,39 @@ mod tests {
     fn a_development_build_never_replaces_itself() {
         // Tests run from target/: the updater must not touch them.
         assert_eq!(installed_location(), None);
+    }
+
+    #[test]
+    fn the_latest_release_is_read_from_the_public_page() {
+        assert_eq!(
+            tag_from_url("https://github.com/barracudapps/MyMaxmakeLab/releases/tag/v0.1.10\n"),
+            Some("v0.1.10".into())
+        );
+        // Without any release, the page stays on the release list.
+        assert_eq!(
+            tag_from_url("https://github.com/barracudapps/MyMaxmakeLab/releases"),
+            None
+        );
+        assert_eq!(
+            tag_from_url("https://evil.example/releases/tag/v9.0.0"),
+            None
+        );
+        if asset_name().is_none() {
+            return;
+        }
+        assert_eq!(newer_from_tag("v0.0.1", "0.1.0", |_| true), Newer::No);
+        assert_eq!(
+            newer_from_tag("v9.0.0", "0.1.0", |_| false),
+            Newer::NotYet("v9.0.0".into())
+        );
+        let Newer::Ready(release) = newer_from_tag("v9.0.0", "0.1.0", |_| true) else {
+            panic!("ready");
+        };
+        assert!(
+            release.archive_url.starts_with(
+                "https://github.com/barracudapps/MyMaxmakeLab/releases/download/v9.0.0/"
+            )
+        );
+        assert!(release.checksum_url.is_some());
     }
 }

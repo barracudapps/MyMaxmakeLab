@@ -7,11 +7,18 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- When GitHub cannot be reached, *Check for updates* says so instead of
+  reporting the copy as up to date.
+
 ### Added
 - When a HiMill is connected on another profile, the connection card
   offers the HiMill D1S profile in one click.
 
 ### Changed
+- Updates are checked on the public release page instead of the GitHub
+  API, whose hourly quota is shared by everything on the same
+  connection; the API is only a second way.
 - Choosing a machine profile keeps the bed size the controller reports.
 - The *Start the job* button only shows when there is something to make.
 

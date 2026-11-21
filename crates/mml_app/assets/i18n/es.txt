@@ -1357,3 +1357,4 @@ homing.automatic = Doble clic: homing automático hasta el final. Esc o Reinicia
 machine.himill_detected = Esta máquina es una HiMill.
 machine.himill_use = Usar el perfil HiMill D1S
 machine.himill_use_hint = Mesa 280 × 200 mm, origen atrás a la izquierda, husillo a 13000 y programas enmarcados como en MaxmakeLAB. Sustituye el perfil actual.
+update.unreachable = GitHub no respondió: no se puede saber si hay una actualización. Comprueba la conexión e inténtalo de nuevo.

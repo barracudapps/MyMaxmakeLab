@@ -2332,6 +2332,10 @@ impl eframe::App for MyApp {
                 Outcome::NotYet(_) => {}
                 Outcome::UpToDate if manual => self.notify(tr("update.up_to_date"), Level::Info),
                 Outcome::UpToDate => {}
+                Outcome::Unreachable if manual => {
+                    self.notify(tr("update.unreachable"), Level::Warning)
+                }
+                Outcome::Unreachable => {}
             }
         }
         if self.updater.checking() {
