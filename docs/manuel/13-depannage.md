@@ -36,7 +36,8 @@ Après un échec, un encadré sous les boutons de la machine dit quoi faire :
 - **Dégagement raté (alarme 8)** : un bouton augmente le recul à 3 mm
   (`$27`).
 - **Homing interrompu** : avec *Homing en maintenant le bouton*, gardez le
-  bouton enfoncé jusqu'à la fin, ou décochez l'option dans les préférences.
+  bouton enfoncé jusqu'à la fin, **double-cliquez** pour un homing
+  automatique, ou décochez l'option dans les préférences.
 - **Trop long** : un axe force ou une courroie patine ; vérifiez avant de
   relancer.
 

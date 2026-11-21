@@ -86,6 +86,13 @@ Micro et Fin la tête avance lentement et s'arrête pile.
 Relâcher une touche arrête toujours la tête, même si l'on change d'onglet
 entre-temps.
 
+Après un homing réussi, les déplacements s'arrêtent aux bouts de course :
+l'application connaît alors l'espace machine (position de homing, sens de
+homing `$23`, course `$130` à `$132`). Avant le homing, un déplacement est
+seulement limité à une course d'axe. Rappel : **Y+ va vers l'arrière** ;
+pour ramener la tête (ou l'outil, sur un plateau mobile) vers vous, c'est
+la flèche du bas (Y−).
+
 **Broche** (fraiseuse) : *Faire tourner* démarre la broche à la vitesse
 choisie et attend 3 s qu'elle soit lancée. Faites tourner la fraise avant
 d'approcher la matière : au contact elle coupe un peu au lieu de casser.

@@ -5,6 +5,7 @@ mod controller;
 pub mod detect;
 pub mod discovery;
 pub mod homing;
+pub mod jog;
 mod messages;
 pub mod safety;
 mod status;

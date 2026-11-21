@@ -92,6 +92,47 @@ pub fn supervise(run: HomingRun, held: bool, limit: Duration) -> Verdict {
     }
 }
 
+/// A release this soon after the start may be the first click of a
+/// double click.
+pub const CLICK: Duration = Duration::from_millis(250);
+/// How long the second click of a double click is awaited.
+pub const SECOND_CLICK: Duration = Duration::from_millis(350);
+
+/// What the operator does with a hold-to-run homing button.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Press {
+    /// Held (or a short click awaiting a possible second one).
+    Held,
+    /// Let go: homing must stop.
+    Released,
+    /// Double click: homing goes on by itself.
+    Automatic,
+}
+
+/// Reads a double click on the homing button: a click (released within
+/// `CLICK` of the start) waits up to `SECOND_CLICK` for a second press;
+/// that press makes the homing automatic, otherwise it stops. A longer
+/// hold released stops at once, as before. `first_release` keeps, from
+/// call to call, when the first click was released (since the start).
+pub fn double_click(
+    since_start: Duration,
+    first_release: &mut Option<Duration>,
+    held: bool,
+) -> Press {
+    match (held, *first_release) {
+        (true, Some(_)) => Press::Automatic,
+        (true, None) => Press::Held,
+        (false, None) if since_start < CLICK => {
+            *first_release = Some(since_start);
+            Press::Held
+        }
+        (false, Some(released)) if since_start.saturating_sub(released) < SECOND_CLICK => {
+            Press::Held
+        }
+        (false, _) => Press::Released,
+    }
+}
+
 /// Why the last homing failed, to tell the operator what to check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Failure {
@@ -204,5 +245,24 @@ mod tests {
         // grblHAL: homing on with extra option bits.
         assert_eq!(enabled(Some(5.0)), Some(true));
         assert_eq!(enabled(None), None);
+    }
+
+    #[test]
+    fn a_double_click_makes_homing_automatic_and_a_release_still_stops() {
+        let ms = Duration::from_millis;
+        // Double click: press, release at 120 ms, press again at 300 ms.
+        let mut first = None;
+        assert_eq!(double_click(ms(50), &mut first, true), Press::Held);
+        assert_eq!(double_click(ms(120), &mut first, false), Press::Held);
+        assert_eq!(double_click(ms(200), &mut first, false), Press::Held);
+        assert_eq!(double_click(ms(300), &mut first, true), Press::Automatic);
+        // Single click: released at 120 ms, no second press.
+        let mut first = None;
+        assert_eq!(double_click(ms(120), &mut first, false), Press::Held);
+        assert_eq!(double_click(ms(480), &mut first, false), Press::Released);
+        // Held a while then let go: stops at once.
+        let mut first = None;
+        assert_eq!(double_click(ms(900), &mut first, true), Press::Held);
+        assert_eq!(double_click(ms(950), &mut first, false), Press::Released);
     }
 }

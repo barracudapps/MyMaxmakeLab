@@ -92,6 +92,11 @@ pub struct DeviceState {
     pub spindle_on: bool,
     /// Why the last homing failed, until the next one starts.
     pub homing_failure: Option<mml_device::homing::Failure>,
+    /// Machine position right after the last successful homing: with
+    /// the travel and homing directions it gives where jogs may go.
+    pub home_machine: Option<[f64; 3]>,
+    /// Homing just succeeded: the next status gives `home_machine`.
+    capture_home: bool,
     /// Network search for Carvera machines in progress.
     discovery: Option<std::sync::mpsc::Receiver<Vec<Found>>>,
     pub discovered: Option<Vec<Found>>,
@@ -111,6 +116,8 @@ pub struct ActiveHoming {
     hold_required: bool,
     /// A homing button was seen held since the last check.
     held: bool,
+    /// Release of a first click, for a double click (since the start).
+    first_release: Option<Duration>,
 }
 
 impl DeviceState {
@@ -151,6 +158,8 @@ impl DeviceState {
             jog_shift: 0,
             spindle_on: false,
             homing_failure: None,
+            home_machine: None,
+            capture_home: false,
             discovery: None,
             discovered: None,
             detect_usb: true,
@@ -214,6 +223,7 @@ impl DeviceState {
 
     pub fn disconnect(&mut self) {
         self.spindle_on = false;
+        self.home_machine = None;
         self.controller = None;
         self.connecting = false;
         self.banner = None;
@@ -243,19 +253,26 @@ impl DeviceState {
         self.send(Command::Line(line.into()));
     }
 
-    /// Jogs relative to the current position. With homing done and soft
-    /// limits active GRBL refuses targets outside the travel; when the
-    /// work area is known the target is also clamped here so a jog never
-    /// slams into the frame.
+    /// Jogs relative to the current position, never past the travel
+    /// ends once the machine has homed (see `mml_device::jog`); before
+    /// homing a move is only capped to one travel length per axis.
     pub fn jog(&mut self, dx: f64, dy: f64, dz: f64, feed: f64, machine: &MachineProfile) {
-        let (mut dx, mut dy) = (dx, dy);
-        if let Some(status) = &self.status {
-            let [x, y, _] = status.work_position;
-            if machine.width > 0.0 && !machine.relative_to_current {
-                dx = (x + dx).clamp(0.0, machine.width) - x;
-                dy = (y + dy).clamp(0.0, machine.height) - y;
-            }
-        }
+        let travel = [
+            self.setting_f64(130).unwrap_or(machine.width),
+            self.setting_f64(131).unwrap_or(machine.height),
+            self.setting_f64(132)
+                .unwrap_or(machine.z_travel)
+                .max(if machine.z_travel > 0.0 { 1.0 } else { 0.0 }),
+        ];
+        let limits = self.home_machine.map(|home| {
+            let mask = self.setting_f64(23).unwrap_or(0.0) as u32;
+            mml_device::jog::limits(home, travel, mask)
+        });
+        let position = self
+            .status
+            .as_ref()
+            .map_or([0.0; 3], |status| status.machine_position);
+        let [dx, dy, dz] = mml_device::jog::clamp(position, [dx, dy, dz], limits, travel);
         if dx.abs() < 1e-6 && dy.abs() < 1e-6 && dz.abs() < 1e-6 {
             return;
         }
@@ -275,6 +292,7 @@ impl DeviceState {
             done: None,
             hold_required,
             held: true,
+            first_release: None,
         });
     }
 
@@ -303,17 +321,34 @@ impl DeviceState {
             .and_then(|value| value.trim().parse().ok())
             .unwrap_or(500.0);
         let limit = homing::time_limit(history, travel, seek);
-        let run = HomingRun {
-            elapsed: active.started.elapsed(),
-            done: active.done.is_some(),
-            hold_required: active.hold_required,
-        };
+
         // The press started on a homing button; from then on only letting
         // go counts. The button itself may move or vanish as soon as the
         // machine state changes (the alarm card closes when grblHAL
         // reports Home), which must not read as a release.
         let pointer = ctx.input(|input| input.pointer.primary_down() || input.any_touches());
-        let held = (std::mem::take(&mut active.held) || pointer) && !escape;
+        let mut held = (std::mem::take(&mut active.held) || pointer) && !escape;
+        if active.hold_required && !escape {
+            let since = active.started.elapsed();
+            match homing::double_click(since, &mut active.first_release, held) {
+                homing::Press::Held => held = true,
+                homing::Press::Released => held = false,
+                homing::Press::Automatic => {
+                    active.hold_required = false;
+                    let text = tr("homing.automatic").to_owned();
+                    self.console.push_back((ConsoleKind::Info, text.clone()));
+                    notices.push((text, Level::Info, Instant::now()));
+                }
+            }
+        }
+        let Some(active) = &mut self.homing else {
+            return;
+        };
+        let run = HomingRun {
+            elapsed: active.started.elapsed(),
+            done: active.done.is_some(),
+            hold_required: active.hold_required,
+        };
         let verdict = match homing::supervise(run, held, limit) {
             Verdict::Continue if escape => Verdict::Stop(StopReason::Released),
             verdict => verdict,
@@ -361,6 +396,7 @@ impl DeviceState {
                 }
                 Event::Disconnected { reason } => {
                     self.homing = None;
+                    self.home_machine = None;
                     self.spindle_on = false;
                     self.controller = None;
                     self.connecting = false;
@@ -388,6 +424,10 @@ impl DeviceState {
                     if status.state != MachineState::Alarm {
                         self.alarm = None;
                     }
+                    if self.capture_home && status.state == MachineState::Idle {
+                        self.capture_home = false;
+                        self.home_machine = Some(status.machine_position);
+                    }
                     self.status = Some(status);
                 }
                 Event::Sent(line) => self.log(ConsoleKind::Sent, line),
@@ -402,6 +442,7 @@ impl DeviceState {
                         && line.trim() == "$H"
                     {
                         homing.done = Some(true);
+                        self.capture_home = true;
                     }
                 }
                 Event::Error { code, line } => {
@@ -421,6 +462,9 @@ impl DeviceState {
                         self.homing_failure = Some(mml_device::homing::Failure::from_alarm(code));
                     }
                     self.alarm = Some(code);
+                    // The position may be lost: jog limits wait for homing.
+                    self.home_machine = None;
+                    self.capture_home = false;
                     let text = format!("ALARM:{code} — {}", grbl_alarm(code));
                     self.log(ConsoleKind::Error, text.clone());
                     notices.push((text, Level::Error, Instant::now()));
