@@ -273,6 +273,13 @@ struct Job {
     pauses: usize,
 }
 
+/// Welcome line of a GRBL-family controller: GRBL, grblHAL, and the
+/// HiMill firmware, which introduces itself as GCARVIN.
+fn is_banner(line: &str) -> bool {
+    let lower = line.trim_start().to_ascii_lowercase();
+    lower.starts_with("grbl") || lower.starts_with("gcarvin")
+}
+
 struct Worker {
     transport: Box<dyn Transport>,
     commands: Receiver<Command>,
@@ -289,6 +296,8 @@ struct Worker {
     monitor: SafetyMonitor,
     homing_since: Option<Instant>,
     protocol: Protocol,
+    /// The welcome line was seen (or replaced by a first status).
+    greeted: bool,
 }
 
 impl Worker {
@@ -313,6 +322,7 @@ impl Worker {
             monitor: SafetyMonitor::default(),
             homing_since: None,
             protocol: Protocol::Grbl,
+            greeted: false,
         }
     }
 
@@ -549,6 +559,19 @@ impl Worker {
                     });
                 }
                 self.status = status.clone();
+                if !self.greeted {
+                    // Some controllers print nothing when the port opens:
+                    // answering a status query is enough to know they are
+                    // there and to read their settings.
+                    self.greeted = true;
+                    self.emit(Event::Connected {
+                        banner: "GRBL".to_owned(),
+                    });
+                    // Never between the lines of a job.
+                    if self.job.is_none() {
+                        self.queue.push_back(("$$".into(), Origin::User));
+                    }
+                }
                 self.emit(Event::Status(status));
                 let drained = self.job.as_ref().is_some_and(|job| {
                     job.acknowledged == job.lines.len() && job.next == job.lines.len()
@@ -625,7 +648,8 @@ impl Worker {
             self.finish_job(JobOutcome::Alarm(code));
             return Ok(());
         }
-        if line.starts_with("Grbl") || line.starts_with("GrblHAL") {
+        if is_banner(line) {
+            self.greeted = true;
             self.clear_buffers();
             self.emit(Event::Connected {
                 banner: line.to_owned(),
@@ -818,5 +842,14 @@ mod tests {
     #[test]
     fn comments_are_stripped() {
         assert_eq!(strip_comment("G1 X1 (feed) Y2 ; tail"), "G1 X1  Y2");
+    }
+
+    #[test]
+    fn himill_and_grbl_welcome_lines_are_recognised() {
+        assert!(is_banner("Grbl 1.1h ['$' for help]"));
+        assert!(is_banner("GrblHAL 1.1f ['$' or '$HELP' for help]"));
+        assert!(is_banner("GCARVIN 1.0 ['$' for help]"));
+        assert!(!is_banner("[MSG:'$H'|'$X' to unlock]"));
+        assert!(!is_banner("ok"));
     }
 }

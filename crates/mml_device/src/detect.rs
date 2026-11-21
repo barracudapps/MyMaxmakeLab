@@ -72,7 +72,11 @@ pub fn classify(reply: &str) -> Option<Firmware> {
         || lower.contains("grbl 1.1f [")
     {
         Some(Firmware::GrblHal)
-    } else if lower.contains("grbl") || reply.contains("<Idle") || reply.contains("<Alarm") {
+    } else if lower.contains("grbl")
+        || lower.contains("gcarvin")
+        || reply.contains("<Idle")
+        || reply.contains("<Alarm")
+    {
         Some(Firmware::Grbl)
     } else if lower.contains("smoothie") || lower.contains("build version") {
         Some(Firmware::Smoothieware)
@@ -333,6 +337,7 @@ mod tests {
             classify("<Idle|MPos:0.000,0.000,0.000|FS:0,0>"),
             Some(Firmware::Grbl)
         );
+        assert_eq!(classify("GCARVIN 1.2 ['$' for help]"), Some(Firmware::Grbl));
         assert_eq!(classify(""), None);
         assert_eq!(Firmware::Carvera.protocol(), Protocol::SendAndWait);
         assert_eq!(Firmware::FluidNc.protocol(), Protocol::Grbl);

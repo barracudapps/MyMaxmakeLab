@@ -270,6 +270,8 @@ impl MachineProfile {
             height: 200.0,
             z_travel: 80.0,
             origin: Origin::RearLeft,
+            // Spindle speed scale of the HiMill ($30 on the machine).
+            max_s: 13000.0,
             ..Self::generic_cnc()
         }
     }
