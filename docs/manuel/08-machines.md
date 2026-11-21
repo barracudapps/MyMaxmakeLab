@@ -40,6 +40,15 @@ course Z, coin d'origine, valeur S de pleine puissance (`$30`), mode laser
 d'outils**, **plateau 5 axes**, **diamètre de l'écrou de pince** et
 **capteur d'outil** (voir [Sécurité](09-securite.md)).
 
+### Laser et broche sur la même machine (HiMill)
+
+Le module laser n'est pas sur l'axe de la broche. *Décalage du laser* (dans
+les réglages d'une CNC dont le mode laser est activé) indique où tombe le
+point laser par rapport à la broche ; les calques laser sont déplacés
+d'autant, si bien qu'une gravure et un fraisage du même dessin tombent au
+même endroit. Pour le mesurer : gravez un point au laser, amenez la pointe
+d'une fraise exactement dessus, et entrez la différence de position.
+
 ## Réglages du contrôleur et mode avancé
 
 Le **mode avancé** (préférences) affiche la console, les macros et

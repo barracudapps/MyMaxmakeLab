@@ -1170,3 +1170,5 @@ manual.touch_inner_left = Left wall, from inside
 manual.touch_inner_right = Right wall, from inside
 manual.touch_inner_front = Front wall, from inside
 manual.touch_inner_back = Back wall, from inside
+machine.laser_offset = Laser offset
+machine.laser_offset_hint = Where the laser spot lies relative to the spindle axis. To measure it: burn a dot with the laser, then bring the tip of a cutter exactly onto it; the difference in position is the offset. Laser layers are moved by it.

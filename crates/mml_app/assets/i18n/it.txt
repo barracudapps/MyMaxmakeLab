@@ -1204,3 +1204,5 @@ manual.touch_inner_left = Parete sinistra, dall’interno
 manual.touch_inner_right = Parete destra, dall’interno
 manual.touch_inner_front = Parete anteriore, dall’interno
 manual.touch_inner_back = Parete posteriore, dall’interno
+machine.laser_offset = Offset del laser
+machine.laser_offset_hint = Posizione del punto laser rispetto all’asse del mandrino. Per misurarla: incidete un punto col laser, poi portate la punta di una fresa esattamente sopra; la differenza di posizione è l’offset. I livelli laser vengono spostati di conseguenza.

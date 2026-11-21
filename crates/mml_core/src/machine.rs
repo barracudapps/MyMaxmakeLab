@@ -49,6 +49,10 @@ pub struct MachineProfile {
     /// Measured once on a test pattern; bidirectional fills and
     /// pictures are corrected by it.
     pub scan_offsets: Vec<(f64, f64)>,
+    /// Laser and spindle machine: where the laser spot lies relative
+    /// to the spindle axis, mm. Laser layers are moved by the opposite
+    /// amount so they burn where the design is.
+    pub laser_offset: [f64; 2],
 }
 
 impl MachineProfile {
@@ -213,6 +217,7 @@ impl MachineProfile {
             holder_diameter: 20.0,
             tool_setter: ToolSetter::default(),
             scan_offsets: Vec::new(),
+            laser_offset: [0.0, 0.0],
         }
     }
 

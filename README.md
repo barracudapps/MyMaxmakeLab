@@ -166,6 +166,8 @@ multi-axis programs.
   Atkinson, Jarvis, Stucki, **halftone (vintage)** and **line engraving**,
   swept by lines, **diagonals** or **circles**.
 - M4 dynamic power, air assist, holes cut before outlines, minimal travel.
+- **Laser offset** on laser + spindle machines (HiMill): laser layers are
+  moved so engraving and milling of the same drawing line up.
 - **Scan offset**: a speed → offset table, measured once on a built-in test
   pattern, keeps fast back-and-forth fills and pictures sharp.
 - **Laser on paper**: pick the sheet (80 gsm, card stock, greyboard,
@@ -319,7 +321,7 @@ Requirements: a recent stable Rust toolchain. Linux also needs
 `libudev-dev` and the usual X11 / Wayland development packages.
 
 ```bash
-cargo test --workspace      # 183 tests
+cargo test --workspace      # 184 tests
 cargo clippy --workspace    # no warnings
 ```
 

@@ -1899,6 +1899,22 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
                         .on_hover_text(tr("machine.laser_mode_hint"));
                     ui.checkbox(&mut profile.laser_mode, "");
                     ui.end_row();
+                    if profile.kind == MachineKind::Cnc && profile.laser_mode {
+                        ui.label(tr("machine.laser_offset"))
+                            .on_hover_text(tr("machine.laser_offset_hint"));
+                        ui.horizontal(|ui| {
+                            for (axis, value) in ["X", "Y"].iter().zip(&mut profile.laser_offset) {
+                                ui.add(
+                                    DragValue::new(value)
+                                        .range(-500.0..=500.0)
+                                        .prefix(format!("{axis} "))
+                                        .suffix(" mm")
+                                        .speed(0.05),
+                                );
+                            }
+                        });
+                        ui.end_row();
+                    }
                     ui.label(tr("machine.safe_z"));
                     ui.add(
                         DragValue::new(&mut profile.safe_z)

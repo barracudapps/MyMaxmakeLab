@@ -4,7 +4,7 @@ mod vcarve;
 
 use mml_cnc::CncSettings;
 use mml_core::document::{Document, Shape, ShapeId, ShapeKind};
-use mml_core::geometry::{Path, Point, Rect};
+use mml_core::geometry::{Path, Point, Rect, Transform};
 use mml_core::layer::Operation;
 use mml_core::machine::{MachineKind, MachineProfile};
 use mml_gcode::GcodeWriter;
@@ -229,6 +229,23 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         }
         let name = layer.name.clone();
         let is_laser = layer.operation.is_laser();
+        // Laser module beside the spindle: burn where the design is.
+        let [dx, dy] = machine.laser_offset;
+        let moved: Vec<Shape>;
+        let shapes: Vec<&Shape> =
+            if is_laser && machine.kind == MachineKind::Cnc && (dx != 0.0 || dy != 0.0) {
+                moved = shapes
+                    .iter()
+                    .map(|shape| {
+                        let mut copy = (*shape).clone();
+                        copy.transform = copy.transform.then(Transform::translate(-dx, -dy));
+                        copy
+                    })
+                    .collect();
+                moved.iter().collect()
+            } else {
+                shapes
+            };
         if previous_family.is_some_and(|previous| previous != is_laser) {
             let reason = PauseReason::HeadChange {
                 next_layer: name.clone(),
@@ -463,6 +480,27 @@ mod tests {
         document.layers[0].output = false;
         let job = build_job(&document, &MachineProfile::generic_laser());
         assert!(!job.gcode.contains("; Layer Fill"));
+    }
+
+    #[test]
+    fn laser_layers_move_by_the_laser_offset_on_a_hybrid_machine() {
+        let (document, _) = document_with_square(20.0);
+        let laser = |profile: &MachineProfile| {
+            let job = build_job(&document, profile);
+            mml_gcode::parse(&job.gcode).cut_bounds()
+        };
+        let mut hybrid = MachineProfile::generic_hybrid();
+        let plain = laser(&hybrid);
+        hybrid.laser_offset = [30.0, -12.5];
+        let moved = laser(&hybrid);
+        assert!((moved.min.x - (plain.min.x - 30.0)).abs() < 1e-6);
+        assert!((moved.min.y - (plain.min.y + 12.5)).abs() < 1e-6);
+        // A laser-only machine has no spindle to be offset from.
+        let mut laser_only = MachineProfile::generic_laser();
+        laser_only.laser_offset = [30.0, 0.0];
+        let same = laser(&laser_only);
+        let reference = laser(&MachineProfile::generic_laser());
+        assert!((same.min.x - reference.min.x).abs() < 1e-6);
     }
 
     #[test]
