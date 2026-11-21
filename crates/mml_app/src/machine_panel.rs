@@ -84,6 +84,17 @@ pub struct DeviceState {
     pub discovered: Option<Vec<Found>>,
     /// Probe USB ports too (resets Arduino boards).
     pub detect_usb: bool,
+    pub homing: Option<ActiveHoming>,
+}
+
+/// Homing started from the application, supervised every frame.
+pub struct ActiveHoming {
+    started: Instant,
+    /// Answer of the controller to `$H`: success or failure.
+    done: Option<bool>,
+    hold_required: bool,
+    /// A homing button was seen held since the last check.
+    held: bool,
 }
 
 impl DeviceState {
@@ -122,6 +133,7 @@ impl DeviceState {
             discovery: None,
             discovered: None,
             detect_usb: true,
+            homing: None,
         }
     }
 
@@ -216,6 +228,80 @@ impl DeviceState {
         self.line(format!("$J=G91 G21 X{dx:.3} Y{dy:.3} Z{dz:.3} F{feed:.0}"));
     }
 
+    /// Sends `$H` and supervises it: with `hold_required`, the homing
+    /// stops as soon as no homing button is held any more.
+    pub fn start_homing(&mut self, hold_required: bool) {
+        if self.job_running() || self.homing.is_some() {
+            return;
+        }
+        self.line("$H");
+        self.homing = Some(ActiveHoming {
+            started: Instant::now(),
+            done: None,
+            hold_required,
+            held: true,
+        });
+    }
+
+    /// Resets the controller when the operator let go of the button, or
+    /// when homing lasts longer than it usually does.
+    pub fn supervise_homing(
+        &mut self,
+        ctx: &egui::Context,
+        history: &[f64],
+        notices: &mut Vec<(String, Level, Instant)>,
+    ) {
+        use mml_device::homing::{self, HomingRun, StopReason, Verdict};
+        let Some(active) = &mut self.homing else {
+            return;
+        };
+        let escape = ctx.input(|input| input.key_pressed(egui::Key::Escape));
+        let travel = [130, 131, 132].map(|key| {
+            self.settings
+                .get(&key)
+                .and_then(|value| value.trim().parse().ok())
+                .unwrap_or(1000.0)
+        });
+        let seek = self
+            .settings
+            .get(&25)
+            .and_then(|value| value.trim().parse().ok())
+            .unwrap_or(500.0);
+        let limit = homing::time_limit(history, travel, seek);
+        let run = HomingRun {
+            elapsed: active.started.elapsed(),
+            done: active.done.is_some(),
+            hold_required: active.hold_required,
+        };
+        let held = std::mem::take(&mut active.held) && !escape;
+        let verdict = match homing::supervise(run, held, limit) {
+            Verdict::Continue if escape => Verdict::Stop(StopReason::Released),
+            verdict => verdict,
+        };
+        match verdict {
+            Verdict::Continue => ctx.request_repaint_after(Duration::from_millis(50)),
+            Verdict::Finished => {
+                if active.done == Some(true) {
+                    self.homing_results.push((run.elapsed, true));
+                }
+                self.homing = None;
+            }
+            Verdict::Stop(reason) => {
+                self.homing = None;
+                self.send(Command::Realtime(realtime::SOFT_RESET));
+                let text = match reason {
+                    StopReason::Released => tr("homing.stopped_released").to_owned(),
+                    StopReason::TooLong => trf(
+                        "homing.stopped_long",
+                        &[&format!("{:.0}", limit.as_secs_f64())],
+                    ),
+                };
+                self.log(ConsoleKind::Error, text.clone());
+                notices.push((text, Level::Warning, Instant::now()));
+            }
+        }
+    }
+
     pub fn poll(&mut self, ctx: &egui::Context, notices: &mut Vec<(String, Level, Instant)>) {
         let Some(controller) = &self.controller else {
             return;
@@ -230,6 +316,7 @@ impl DeviceState {
                     self.alarm = None;
                 }
                 Event::Disconnected { reason } => {
+                    self.homing = None;
                     self.controller = None;
                     self.connecting = false;
                     self.banner = None;
@@ -265,12 +352,27 @@ impl DeviceState {
                     }
                     self.log(ConsoleKind::Received, line);
                 }
+                Event::Acknowledged(line) => {
+                    if let Some(homing) = &mut self.homing
+                        && line.trim() == "$H"
+                    {
+                        homing.done = Some(true);
+                    }
+                }
                 Event::Error { code, line } => {
+                    if let Some(homing) = &mut self.homing
+                        && line.trim() == "$H"
+                    {
+                        homing.done = Some(false);
+                    }
                     let text = format!("error:{code} — {} ({line})", grbl_error(code));
                     self.log(ConsoleKind::Error, text.clone());
                     notices.push((text, Level::Error, Instant::now()));
                 }
                 Event::Alarm(code) => {
+                    if let Some(homing) = &mut self.homing {
+                        homing.done = Some(false);
+                    }
                     self.alarm = Some(code);
                     let text = format!("ALARM:{code} — {}", grbl_alarm(code));
                     self.log(ConsoleKind::Error, text.clone());
@@ -299,9 +401,10 @@ impl DeviceState {
                     notices.push((text, level, Instant::now()));
                     self.anomaly = Some((anomaly, paused));
                 }
-                Event::HomingFinished { duration, success } => {
+                Event::HomingFinished { success, .. } => {
+                    // Durations are measured from the reply to `$H`, which
+                    // plain GRBL sends without any Home status report.
                     self.homed = success;
-                    self.homing_results.push((duration, success));
                 }
                 Event::ProgramPaused { index } => {
                     self.reached_pause = Some(index);
@@ -567,6 +670,7 @@ fn discovery(device: &mut DeviceState, ui: &mut egui::Ui) {
 }
 
 fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
+    let hold = app.settings.homing_hold;
     let device = &mut app.device;
     let state = device.state();
     egui::Frame::new()
@@ -597,9 +701,7 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
                     {
                         device.line("$X");
                     }
-                    if ui.button(tr("device.home")).clicked() {
-                        device.line("$H");
-                    }
+                    homing_button(device, ui, hold, tr("device.home"));
                 });
             }
             if state == MachineState::Door {
@@ -655,9 +757,7 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
             }
         });
     ui.horizontal_wrapped(|ui| {
-        if ui.button(tr("device.home")).clicked() {
-            device.line("$H");
-        }
+        homing_button(device, ui, hold, tr("device.home"));
         if ui.button(tr("device.zero_xy")).clicked() {
             device.line("G10 L20 P1 X0 Y0");
         }
@@ -672,6 +772,7 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
             device.send(Command::Realtime(realtime::SOFT_RESET));
         }
     });
+    gentle_homing_advice(device, ui);
 }
 
 /// Jog pad: a click moves one step, holding a button moves until it is
@@ -1328,6 +1429,65 @@ fn overrides(app: &mut MyApp, ui: &mut egui::Ui) {
     });
 }
 
+/// Proposes slower homing speeds when the controller searches fast:
+/// an obstruction then takes a much smaller hit.
+fn gentle_homing_advice(device: &mut DeviceState, ui: &mut egui::Ui) {
+    use mml_device::homing;
+    let lines = homing::gentle_settings(device.setting_f64(25), device.setting_f64(24));
+    if lines.is_empty() {
+        return;
+    }
+    let seek = device.setting_f64(25).unwrap_or(0.0);
+    ui.label(
+        RichText::new(trf("homing.fast", &[&format!("{seek:.0}")])).color(crate::theme::WARNING),
+    );
+    let idle = device.state() == MachineState::Idle && !device.job_running();
+    if ui
+        .add_enabled(idle, egui::Button::new(tr("homing.make_gentle")))
+        .on_hover_text(tr("homing.make_gentle_hint"))
+        .clicked()
+    {
+        for line in lines {
+            device.line(line);
+        }
+        device.line("$$");
+    }
+}
+
+/// Homing button. With hold to run, homing starts when it is pressed
+/// and stops (controller reset) as soon as it is released.
+pub fn homing_button(device: &mut DeviceState, ui: &mut egui::Ui, hold: bool, label: &str) {
+    let active = device.homing.is_some();
+    let text = if active && hold {
+        tr("homing.keep_holding")
+    } else {
+        label
+    };
+    let mut button = egui::Button::new(text);
+    if active {
+        button = button.fill(crate::theme::WARNING.gamma_multiply(0.35));
+    }
+    let response = ui.add_enabled(!device.job_running(), button);
+    let response = if hold {
+        response.on_hover_text(tr("homing.hold_hint"))
+    } else {
+        response
+    };
+    if hold {
+        let pressed = response.hovered() && ui.input(|input| input.pointer.primary_pressed());
+        if pressed && !active {
+            device.start_homing(true);
+        }
+        if response.is_pointer_button_down_on()
+            && let Some(homing) = &mut device.homing
+        {
+            homing.held = true;
+        }
+    } else if response.clicked() {
+        device.start_homing(false);
+    }
+}
+
 pub fn format_short(duration: Duration) -> String {
     let seconds = duration.as_secs();
     format!(
@@ -1385,7 +1545,11 @@ fn console(app: &mut MyApp, ui: &mut egui::Ui) {
                 {
                     let line = std::mem::take(&mut app.device.console_input);
                     app.device.command_history.push(line.clone());
-                    app.device.line(line);
+                    if line.trim() == "$H" {
+                        app.device.start_homing(false);
+                    } else {
+                        app.device.line(line);
+                    }
                     response.request_focus();
                 }
             });
@@ -1393,12 +1557,21 @@ fn console(app: &mut MyApp, ui: &mut egui::Ui) {
             ui.horizontal_wrapped(|ui| {
                 let macros = app.settings.macros.clone();
                 for (index, entry) in macros.iter().enumerate() {
+                    if entry.gcode.trim() == "$H" {
+                        let hold = app.settings.homing_hold;
+                        homing_button(&mut app.device, ui, hold, &entry.name);
+                        continue;
+                    }
                     let response = ui
                         .add_enabled(!running, egui::Button::new(&entry.name))
                         .on_hover_text(&entry.gcode);
                     if response.clicked() {
                         for line in entry.gcode.lines() {
-                            app.device.line(line.to_owned());
+                            if line.trim() == "$H" {
+                                app.device.start_homing(false);
+                            } else {
+                                app.device.line(line.to_owned());
+                            }
                         }
                     }
                     response.context_menu(|ui| {

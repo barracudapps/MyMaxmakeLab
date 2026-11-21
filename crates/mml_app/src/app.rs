@@ -379,6 +379,18 @@ impl MyApp {
                     self.view3d.enabled = true;
                     self.view3d.orbit = true;
                 }
+                // Connects at start over the network: --connect host:port.
+                "--connect" => {
+                    if let Some((host, port)) =
+                        iterator.next().as_deref().and_then(|text| text.rsplit_once(':'))
+                        && let Ok(port) = port.parse()
+                    {
+                        self.device.use_tcp = true;
+                        self.device.host = host.to_owned();
+                        self.device.tcp_port = port;
+                        self.device.connect();
+                    }
+                }
                 "--play" => {
                     self.job.simulate = Some(0.0);
                     self.job.simulating = true;
@@ -2134,6 +2146,8 @@ impl eframe::App for MyApp {
         self.apply_theme(&ctx);
         self.update_burst();
         self.device.poll(&ctx, &mut self.notices);
+        self.device
+            .supervise_homing(&ctx, &self.settings.homing_times, &mut self.notices);
         self.process_machine_events();
         self.refresh_live_links();
         crate::workflow::process_finished(self);

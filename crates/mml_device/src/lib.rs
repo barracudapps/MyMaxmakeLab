@@ -4,6 +4,7 @@
 mod controller;
 pub mod detect;
 pub mod discovery;
+pub mod homing;
 mod messages;
 pub mod safety;
 mod status;

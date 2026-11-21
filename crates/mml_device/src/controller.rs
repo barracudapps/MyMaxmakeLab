@@ -94,6 +94,9 @@ pub enum Event {
     Status(MachineStatus),
     Sent(String),
     Received(String),
+    /// The controller answered ok to a line sent outside a job; for
+    /// `$H` this is the end of homing.
+    Acknowledged(String),
     Error {
         code: u32,
         line: String,
@@ -607,7 +610,10 @@ impl Worker {
                         }
                     }
                 }
-                Origin::User => self.emit(Event::Received(line.to_owned())),
+                Origin::User => {
+                    self.emit(Event::Received(line.to_owned()));
+                    self.emit(Event::Acknowledged(sent));
+                }
             }
             return Ok(());
         }

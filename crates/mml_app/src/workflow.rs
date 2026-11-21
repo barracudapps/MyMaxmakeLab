@@ -829,8 +829,13 @@ pub fn advanced_settings(app: &mut MyApp, ui: &mut egui::Ui) {
             app.settings.barriers = barriers || !app.settings.advanced;
         }
     });
+    ui.add_enabled_ui(app.settings.advanced, |ui| {
+        ui.checkbox(&mut app.settings.homing_hold, tr("advanced.homing_hold"))
+            .on_hover_text(tr("advanced.homing_hold_hint"));
+    });
     if !app.settings.advanced {
         app.settings.barriers = true;
+        app.settings.homing_hold = true;
     }
     ui.add_enabled_ui(app.settings.barriers, |ui| {
         ui.checkbox(

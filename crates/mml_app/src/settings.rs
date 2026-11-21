@@ -75,6 +75,8 @@ pub struct Settings {
     /// The machine has a 3D probe; without one, origins are recorded
     /// by hand.
     pub has_probe: bool,
+    /// Homing runs only while its button is held.
+    pub homing_hold: bool,
     pub manual_contact: mml_probe::manual::Contact,
     /// Jog speed follows the step size (fine steps move slowly).
     pub jog_proportional: bool,
@@ -125,6 +127,7 @@ impl Default for Settings {
             require_frame_laser: true,
             probe: mml_probe::ProbeSettings::default(),
             has_probe: false,
+            homing_hold: true,
             manual_contact: Default::default(),
             jog_proportional: true,
             idle_rpm: 8000.0,
