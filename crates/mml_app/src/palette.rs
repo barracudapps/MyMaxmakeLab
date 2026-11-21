@@ -38,6 +38,7 @@ enum Action {
     Paper,
     StartPanel,
     Nest,
+    Sources,
 }
 
 /// Menu entries reused as command names, so the palette speaks the
@@ -66,12 +67,13 @@ const COMMANDS: [(&str, Action); 21] = [
     ("palette.camera", Action::Camera),
 ];
 
-const EXTRA: [(&str, Action); 5] = [
+const EXTRA: [(&str, Action); 6] = [
     ("menu.machine_settings", Action::MachineSettings),
     ("update.check", Action::Updates),
     ("paper.title", Action::Paper),
     ("start.reopen", Action::StartPanel),
     ("nest.title", Action::Nest),
+    ("sources.menu", Action::Sources),
 ];
 
 /// Lower case without accents, so "prepa" finds "Préparation".
@@ -145,6 +147,7 @@ fn run(app: &mut MyApp, action: Action) {
         }
         Action::Paper => app.paper = Some(crate::paper_dialog::PaperDialog::new(app)),
         Action::Nest => app.nest = Some(crate::nest_dialog::NestDialog::new(app)),
+        Action::Sources => app.sources = Some(crate::sources_dialog::SourcesDialog::new(app)),
     }
 }
 

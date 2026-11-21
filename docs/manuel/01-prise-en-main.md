@@ -40,8 +40,13 @@ flowchart LR
 
 1. **Tutoriel** : quelques bulles présentent les trois étapes ; vous pouvez
    le passer et le relancer depuis l'aide.
-2. **Bibliothèque de matériaux** : si MaxmakeLAB ou LightBurn est installé,
-   l'application propose d'importer ses préréglages (`.clb`).
+2. **Importer depuis vos logiciels** : l'application cherche les
+   bibliothèques là où vos logiciels les rangent (outils d'Autodesk Fusion,
+   matériaux LightBurn `.clb`, bibliothèque de MaxmakeLAB) et propose de les
+   importer d'un clic. Avec *Garder à jour automatiquement*, une bibliothèque
+   modifiée depuis est relue au démarrage : seuls les nouveaux outils et
+   réglages sont ajoutés, rien n'est effacé. Fenêtre accessible ensuite par
+   **Matériaux › Importer depuis vos logiciels…**.
 3. **Machine** : choisissez votre profil dans le menu **Machine** (laser,
    CNC, CNC + laser, Makera Carvera) puis ajustez-le dans *Réglages de la
    machine* (taille du plateau, origine, puissance maximale `$30`…).

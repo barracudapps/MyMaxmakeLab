@@ -2,6 +2,7 @@
 //! thickness, applied to a layer in one click.
 
 pub mod paper;
+pub mod sources;
 pub mod tools;
 
 use mml_core::layer::{DitherMode, FillParams, ImageParams, LineParams, Operation};
@@ -109,32 +110,24 @@ impl Library {
         }
         added
     }
-}
 
-/// Where MaxmakeLAB keeps its material library, to offer a migration.
-pub fn maxmakelab_library_candidates() -> Vec<std::path::PathBuf> {
-    let mut roots = Vec::new();
-    if let Some(home) = std::env::var_os("HOME") {
-        roots.push(
-            Path::new(&home).join("Library/Application Support/Marxmake/MaxmakeLAB/data/files"),
-        );
+    /// Adds the tools not already in the library (same name, kind and
+    /// diameter), so importing a library again adds only what is new.
+    pub fn merge_tools(&mut self, tools: Vec<Tool>) -> usize {
+        let mut added = 0;
+        for tool in tools {
+            let duplicate = self.tools.iter().any(|existing| {
+                existing.name == tool.name
+                    && existing.kind == tool.kind
+                    && (existing.diameter - tool.diameter).abs() < 1e-6
+            });
+            if !duplicate {
+                self.tools.push(tool);
+                added += 1;
+            }
+        }
+        added
     }
-    if let Some(appdata) = std::env::var_os("APPDATA") {
-        roots.push(Path::new(&appdata).join("Marxmake/MaxmakeLAB/data/files"));
-    }
-    roots.push("/Applications/MaxmakeLAB.app/Contents/Resources/data/files".into());
-    roots
-        .into_iter()
-        .filter_map(|root| std::fs::read_dir(root).ok())
-        .flat_map(|entries| entries.flatten().map(|entry| entry.path()))
-        .filter(|path| {
-            path.extension().is_some_and(|extension| extension == "clb")
-                && path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(|name| name.is_ascii())
-        })
-        .collect()
 }
 
 /// "BlackAcrylic" -> "Black Acrylic".

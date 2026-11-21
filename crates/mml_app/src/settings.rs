@@ -59,7 +59,10 @@ pub struct Settings {
     pub jog_step: f64,
     pub jog_feed: f64,
     pub frame_power: f64,
-    pub library_import_offered: bool,
+    /// The import from other programs was proposed (first start).
+    pub sources_offered: bool,
+    /// Libraries of other programs read again at start when changed.
+    pub synced_sources: Vec<crate::sources_dialog::SyncedSource>,
     /// Feed hold automatically on a critical anomaly.
     pub auto_pause: bool,
     /// Recent successful homing durations in seconds, newest last.
@@ -122,7 +125,8 @@ impl Default for Settings {
             jog_step: 10.0,
             jog_feed: 3000.0,
             frame_power: 0.0,
-            library_import_offered: false,
+            sources_offered: false,
+            synced_sources: Vec::new(),
             auto_pause: true,
             homing_times: Vec::new(),
             advanced: false,

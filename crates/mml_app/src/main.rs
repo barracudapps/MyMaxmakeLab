@@ -25,6 +25,7 @@ mod paper_dialog;
 mod preview;
 mod relief_dialog;
 mod settings;
+mod sources_dialog;
 mod sprue_dialog;
 mod stats_dialog;
 mod text_tools;

@@ -232,7 +232,7 @@ pub struct MyApp {
     pub settings_open: bool,
     pub about_open: bool,
     pub confirm_close: bool,
-    pub library_offer: Vec<PathBuf>,
+    pub sources: Option<crate::sources_dialog::SourcesDialog>,
     applied_theme: Option<ThemeChoice>,
     lock_ratio: bool,
     pub live_links: Vec<LiveLink>,
@@ -269,15 +269,6 @@ impl MyApp {
             .unwrap_or_default();
         let document = Document::default();
         let current_layer = document.layers[0].id;
-        let library_offer = if settings.library_import_offered || !library.presets.is_empty() {
-            Vec::new()
-        } else {
-            mml_materials::maxmakelab_library_candidates()
-                .into_iter()
-                .filter(|path| path.to_string_lossy().contains("en_US"))
-                .take(1)
-                .collect()
-        };
         creation
             .egui_ctx
             .options_mut(|options| options.zoom_with_keyboard = true);
@@ -323,6 +314,7 @@ impl MyApp {
             array_dialog: None,
             offset_distance: 2.0,
             sprue: None,
+            sources: None,
             nest: None,
             paper: None,
             shapes_library: Default::default(),
@@ -346,7 +338,6 @@ impl MyApp {
             settings_open: false,
             about_open: false,
             confirm_close: false,
-            library_offer,
             applied_theme: None,
             lock_ratio: true,
             live_links: Vec::new(),
@@ -378,6 +369,7 @@ impl MyApp {
         if !app.settings.tutorial_done {
             app.tutorial_step = Some(0);
         }
+        crate::sources_dialog::at_start(&mut app);
         app.apply_arguments(std::env::args().skip(1).collect());
         app
     }
@@ -428,6 +420,9 @@ impl MyApp {
                     Some("palette") => self.palette.open = true,
                     Some("library") => self.shapes_library.open = true,
                     Some("paper") => self.paper = Some(crate::paper_dialog::PaperDialog::new(self)),
+                    Some("sources") => {
+                        self.sources = Some(crate::sources_dialog::SourcesDialog::new(self))
+                    }
                     Some("nest") => self.nest = Some(crate::nest_dialog::NestDialog::new(self)),
                     _ => {}
                 },
@@ -1856,6 +1851,13 @@ impl MyApp {
                     }
                 });
                 ui.menu_button(tr("menu.materials"), |ui| {
+                    if ui
+                        .button(tr("sources.menu"))
+                        .on_hover_text(tr("sources.intro"))
+                        .clicked()
+                    {
+                        self.sources = Some(crate::sources_dialog::SourcesDialog::new(self));
+                    }
                     if ui.button(tr("paper.title")).clicked() {
                         self.paper = Some(crate::paper_dialog::PaperDialog::new(self));
                     }

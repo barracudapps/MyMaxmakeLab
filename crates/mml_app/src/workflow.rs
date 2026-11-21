@@ -950,7 +950,7 @@ pub fn tutorial(app: &mut MyApp, ctx: &egui::Context) {
     let Some(step) = app.tutorial_step else {
         return;
     };
-    if !app.library_offer.is_empty() {
+    if app.sources.is_some() {
         return;
     }
     let (title, text) = TUTORIAL[step.min(TUTORIAL.len() - 1)];

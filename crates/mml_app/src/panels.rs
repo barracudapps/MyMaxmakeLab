@@ -1613,7 +1613,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     preferences(app, ctx);
     about(app, ctx);
     close_confirmation(app, ctx);
-    library_offer(app, ctx);
+    crate::sources_dialog::show(app, ctx);
 }
 
 /// Replaces the selected shapes by the combination of their areas, in
@@ -2233,27 +2233,6 @@ fn close_confirmation(app: &mut MyApp, ctx: &egui::Context) {
             }
             if ui.button(tr("dialog.cancel")).clicked() {
                 app.confirm_close = false;
-            }
-        });
-    });
-}
-
-fn library_offer(app: &mut MyApp, ctx: &egui::Context) {
-    let Some(path) = app.library_offer.first().cloned() else {
-        return;
-    };
-    egui::Modal::new(egui::Id::unique("library-offer")).show(ctx, |ui| {
-        ui.label(RichText::new(tr("materials.offer_title")).strong());
-        ui.label(tr("materials.offer_text"));
-        ui.horizontal(|ui| {
-            if ui.button(tr("materials.offer_import")).clicked() {
-                app.import_library(&path);
-                app.library_offer.clear();
-                app.settings.library_import_offered = true;
-            }
-            if ui.button(tr("dialog.later")).clicked() {
-                app.library_offer.clear();
-                app.settings.library_import_offered = true;
             }
         });
     });

@@ -232,7 +232,10 @@ multi-axis programs.
   a line drawing and proposes the operation and settings from your material
   library, or cautious defaults.
 - **Material library**: one-click presets, MaxmakeLAB / LightBurn `.clb`
-  import (offered on first launch).
+  import.
+- **Import from your software**: Autodesk Fusion tool libraries, LightBurn
+  and MaxmakeLAB material libraries found in their usual folders (macOS,
+  Windows), imported in one click and kept up to date at start.
 - **G-code repair**: comments, repeated words, zero moves, colinear segments,
   missing feed, relative / inch detection — with a diagnosis before applying.
 - **Shorter travel**: paths ordered by nearest neighbour, then untangled
