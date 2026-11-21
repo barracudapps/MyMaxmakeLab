@@ -524,7 +524,7 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
     let per_second = app.settings.laser_speed_per_second;
     let mut operation = app.document.layers[index].operation.clone();
     let mut changed = false;
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.label(tr("op.type"));
         egui::ComboBox::from_id_salt("op-type")
             .selected_text(operation_label(&operation))
@@ -885,11 +885,13 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 ui.label(tr("op.spindle"));
                 changed |= number(ui, &mut params.spindle, 0.0..=60_000.0, " rpm", 100.0);
                 ui.end_row();
-                ui.label("");
-                ui.label(RichText::new(tr("op.vcarve_hint")).weak().small());
-                ui.end_row();
             }
         });
+    // Below the grid: grid cells never wrap, a long hint there would
+    // stop the panel from getting narrower.
+    if matches!(operation, Operation::CncVCarve(_)) {
+        ui.add(egui::Label::new(RichText::new(tr("op.vcarve_hint")).weak().small()).wrap());
+    }
     if changed {
         app.document.layers[index].operation = operation;
         app.touch();
@@ -1083,7 +1085,7 @@ fn tool_picker(app: &mut MyApp, ui: &mut egui::Ui, operation: &mut Operation, ch
         .filter(|tool| matches!(tool.kind, ToolKind::VBit { .. }) == wants_v)
         .cloned()
         .collect();
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.label(tr("tools.tool"));
         let hint = if tools.is_empty() {
             tr("tools.none")
@@ -1147,7 +1149,7 @@ fn material_picker(
     operation: &mut Operation,
     changed: &mut bool,
 ) {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.label(tr("materials.preset"));
         let compatible: Vec<(usize, String)> = app
             .library

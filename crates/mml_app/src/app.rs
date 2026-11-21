@@ -381,8 +381,10 @@ impl MyApp {
                 }
                 // Connects at start over the network: --connect host:port.
                 "--connect" => {
-                    if let Some((host, port)) =
-                        iterator.next().as_deref().and_then(|text| text.rsplit_once(':'))
+                    if let Some((host, port)) = iterator
+                        .next()
+                        .as_deref()
+                        .and_then(|text| text.rsplit_once(':'))
                         && let Ok(port) = port.parse()
                     {
                         self.device.use_tcp = true;

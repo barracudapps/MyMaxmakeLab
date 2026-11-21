@@ -41,7 +41,7 @@ pub fn section(app: &mut MyApp, ui: &mut egui::Ui) {
 }
 
 fn body(app: &mut MyApp, ui: &mut egui::Ui) {
-    ui.label(RichText::new(tr("manual.intro")).weak());
+    ui.add(egui::Label::new(RichText::new(tr("manual.intro")).weak()).wrap());
     ui.horizontal_wrapped(|ui| {
         for shape in StockShape::ALL {
             if ui
@@ -77,7 +77,7 @@ fn body(app: &mut MyApp, ui: &mut egui::Ui) {
             );
             ui.end_row();
         });
-    ui.label(RichText::new(tr("manual.tip")).weak().small());
+    ui.add(egui::Label::new(RichText::new(tr("manual.tip")).weak().small()).wrap());
     ui.add_space(4.0);
 
     let position = app
@@ -91,70 +91,64 @@ fn body(app: &mut MyApp, ui: &mut egui::Ui) {
         .iter()
         .find(|step| !app.manual.touches.iter().any(|(t, _)| *t == step.touch))
         .map(|step| step.touch);
-    egui::Grid::new("manual-steps")
-        .num_columns(3)
-        .spacing([8.0, 4.0])
-        .show(ui, |ui| {
-            for (number, step) in steps.iter().enumerate() {
-                let mut text = format!("{}. {}", number + 1, touch_label(step.touch));
-                if step.optional {
-                    text.push_str(&format!(" ({})", tr("manual.optional")));
-                }
-                let mut label = RichText::new(text);
-                if next == Some(step.touch) {
-                    label = label.strong().color(crate::theme::ACCENT);
-                }
-                ui.label(label);
-                let recorded = app
-                    .manual
-                    .touches
-                    .iter()
-                    .position(|(t, _)| *t == step.touch);
-                match recorded {
-                    Some(index) => {
-                        ui.horizontal(|ui| {
-                            for (axis, value) in
-                                ["X", "Y", "Z"].iter().zip(&mut app.manual.touches[index].1)
-                            {
-                                ui.add(
-                                    DragValue::new(value)
-                                        .prefix(format!("{axis} "))
-                                        .speed(0.01)
-                                        .max_decimals(3),
-                                );
-                            }
-                        });
-                        if ui.small_button(tr("manual.clear_one")).clicked() {
-                            app.manual.touches.remove(index);
-                        }
+    // One instruction per line, its values below: no grid, whose cells
+    // never wrap and would keep the panel from getting narrower.
+    for (number, step) in steps.iter().enumerate() {
+        let mut text = format!("{}. {}", number + 1, touch_label(step.touch));
+        if step.optional {
+            text.push_str(&format!(" ({})", tr("manual.optional")));
+        }
+        let mut label = RichText::new(text);
+        if next == Some(step.touch) {
+            label = label.strong().color(crate::theme::ACCENT);
+        }
+        ui.add(egui::Label::new(label).wrap());
+        let recorded = app
+            .manual
+            .touches
+            .iter()
+            .position(|(t, _)| *t == step.touch);
+        ui.horizontal_wrapped(|ui| {
+            ui.add_space(14.0);
+            match recorded {
+                Some(index) => {
+                    for (axis, value) in
+                        ["X", "Y", "Z"].iter().zip(&mut app.manual.touches[index].1)
+                    {
+                        ui.add(
+                            DragValue::new(value)
+                                .prefix(format!("{axis} "))
+                                .speed(0.01)
+                                .max_decimals(3),
+                        );
                     }
-                    None => {
-                        ui.horizontal(|ui| {
-                            let record = egui::Button::new(tr("manual.record"));
-                            if ui
-                                .add_enabled(position.is_some(), record)
-                                .on_hover_text(tr("manual.record_hint"))
-                                .clicked()
-                                && let Some(position) = position
-                            {
-                                app.manual.touches.push((step.touch, position));
-                            }
-                            if ui
-                                .small_button(tr("manual.type"))
-                                .on_hover_text(tr("manual.type_hint"))
-                                .clicked()
-                            {
-                                app.manual
-                                    .touches
-                                    .push((step.touch, position.unwrap_or([0.0; 3])));
-                            }
-                        });
-                        ui.label("");
+                    if ui.small_button(tr("manual.clear_one")).clicked() {
+                        app.manual.touches.remove(index);
                     }
                 }
-                ui.end_row();
+                None => {
+                    let record = egui::Button::new(tr("manual.record"));
+                    if ui
+                        .add_enabled(position.is_some(), record)
+                        .on_hover_text(tr("manual.record_hint"))
+                        .clicked()
+                        && let Some(position) = position
+                    {
+                        app.manual.touches.push((step.touch, position));
+                    }
+                    if ui
+                        .small_button(tr("manual.type"))
+                        .on_hover_text(tr("manual.type_hint"))
+                        .clicked()
+                    {
+                        app.manual
+                            .touches
+                            .push((step.touch, position.unwrap_or([0.0; 3])));
+                    }
+                }
             }
         });
+    }
 
     let result = manual::solve(
         app.manual.shape,
