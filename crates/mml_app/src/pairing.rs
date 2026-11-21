@@ -33,15 +33,36 @@ struct SharedView {
     height: f64,
     /// Job and machine state for the monitoring page, as JSON.
     status: String,
+    /// Translated texts of the drawing page, as a JSON object.
+    labels: String,
 }
 
-pub type Stroke = Vec<[f64; 2]>;
+/// One stroke of the tablet, in millimetres of the area (Y up).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Stroke {
+    /// Identifier chosen by the page, stable while the stroke exists.
+    pub id: String,
+    pub style: mml_core::brush::BrushStyle,
+    /// Intensity 1 (light) to 3 (strong).
+    pub level: u8,
+    pub width: f64,
+    /// x, y and stylus pressure.
+    pub points: Vec<[f64; 3]>,
+}
+
+/// Every stroke a page holds: strokes no longer listed were erased.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sync {
+    /// Random per page load, so two tablets do not erase each other.
+    pub session: String,
+    pub strokes: Vec<Stroke>,
+}
 
 pub struct Pairing {
     pub url: String,
     /// Machine area the page maps to.
     pub area: Rect,
-    pub strokes: Receiver<Vec<Stroke>>,
+    pub strokes: Receiver<Sync>,
     pub remote: Receiver<RemoteCommand>,
     /// Address of the monitoring page.
     pub monitor_url: String,
@@ -94,6 +115,7 @@ impl Pairing {
             width: area.width(),
             height: area.height(),
             status: "{}".into(),
+            labels: "{}".into(),
         }));
         let (remote_sender, remote) = channel();
         let stop = Arc::new(AtomicBool::new(false));
@@ -133,9 +155,17 @@ impl Pairing {
         }
     }
 
-    pub fn update_view(&self, document: &Document) {
+    pub fn update_labels(&self, json: String) {
         if let Ok(mut shared) = self.shared.lock() {
-            shared.svg = design_svg(document, self.area);
+            shared.labels = json;
+        }
+    }
+
+    /// Design shown behind the drawing, without the shapes that came
+    /// from the tablet (the page draws those itself).
+    pub fn update_view(&self, document: &Document, skip: &[mml_core::document::ShapeId]) {
+        if let Ok(mut shared) = self.shared.lock() {
+            shared.svg = design_svg(document, self.area, skip);
             shared.width = self.area.width();
             shared.height = self.area.height();
         }
@@ -155,7 +185,7 @@ fn serve(
     mut stream: TcpStream,
     token: &str,
     shared: &Mutex<SharedView>,
-    sender: &Sender<Vec<Stroke>>,
+    sender: &Sender<Sync>,
     remote: &Sender<RemoteCommand>,
 ) -> std::io::Result<()> {
     stream.set_nonblocking(false)?;
@@ -241,11 +271,11 @@ fn serve(
             respond(&mut stream, "200 OK", "text/plain", b"ok")
         }
         ("GET", "/area") => {
-            let (width, height) = shared
+            let (width, height, labels) = shared
                 .lock()
-                .map(|view| (view.width, view.height))
-                .unwrap_or((100.0, 100.0));
-            let json = format!("{{\"width\":{width},\"height\":{height}}}");
+                .map(|view| (view.width, view.height, view.labels.clone()))
+                .unwrap_or((100.0, 100.0, "{}".into()));
+            let json = format!("{{\"width\":{width},\"height\":{height},\"labels\":{labels}}}");
             respond(&mut stream, "200 OK", "application/json", json.as_bytes())
         }
         ("GET", "/design.svg") => {
@@ -255,9 +285,9 @@ fn serve(
                 .unwrap_or_default();
             respond(&mut stream, "200 OK", "image/svg+xml", svg.as_bytes())
         }
-        ("POST", "/strokes") => match parse_strokes(&body) {
-            Some(strokes) => {
-                let _ = sender.send(strokes);
+        ("POST", "/sync") => match parse_sync(&body) {
+            Some(sync) => {
+                let _ = sender.send(sync);
                 respond(&mut stream, "200 OK", "text/plain", b"ok")
             }
             None => respond(
@@ -271,36 +301,70 @@ fn serve(
     }
 }
 
-/// `{"strokes": [[[x, y], ...], ...]}` in millimetres of the area.
-pub fn parse_strokes(body: &[u8]) -> Option<Vec<Stroke>> {
+/// `{"session": "...", "strokes": [{"id": "...", "style": "brush",
+/// "level": 2, "width": 1.5, "points": [[x, y, pressure], ...]}, ...]}`
+/// in millimetres of the area. Invalid strokes are dropped; an empty
+/// list is valid (everything erased).
+pub fn parse_sync(body: &[u8]) -> Option<Sync> {
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let strokes = value.get("strokes")?.as_array()?;
-    let parsed: Vec<Stroke> = strokes
+    let session = value.get("session")?.as_str()?.chars().take(64).collect();
+    let strokes = value
+        .get("strokes")?
+        .as_array()?
         .iter()
+        .take(20_000)
         .filter_map(|stroke| {
-            let points: Stroke = stroke
+            let id = stroke.get("id")?.as_str()?.chars().take(64).collect();
+            let style = stroke
+                .get("style")
+                .and_then(|style| serde_json::from_value(style.clone()).ok())
+                .unwrap_or_default();
+            let level = stroke
+                .get("level")
+                .and_then(|level| level.as_u64())
+                .unwrap_or(3)
+                .clamp(1, 3) as u8;
+            let width = stroke
+                .get("width")
+                .and_then(|width| width.as_f64())
+                .filter(|width| width.is_finite())
+                .unwrap_or(1.0)
+                .clamp(0.05, 100.0);
+            let points: Vec<[f64; 3]> = stroke
+                .get("points")?
                 .as_array()?
                 .iter()
                 .filter_map(|point| {
                     let point = point.as_array()?;
-                    Some([point.first()?.as_f64()?, point.get(1)?.as_f64()?])
+                    let pressure = point.get(2).and_then(|p| p.as_f64()).unwrap_or(0.5);
+                    Some([point.first()?.as_f64()?, point.get(1)?.as_f64()?, pressure])
                 })
-                .filter(|[x, y]| x.is_finite() && y.is_finite())
+                .filter(|point| point.iter().all(|value| value.is_finite()))
                 .collect();
-            (points.len() >= 2).then_some(points)
+            (!points.is_empty()).then_some(Stroke {
+                id,
+                style,
+                level,
+                width,
+                points,
+            })
         })
         .collect();
-    (!parsed.is_empty()).then_some(parsed)
+    Some(Sync { session, strokes })
 }
 
 /// The design inside `area` as SVG (Y up converted to SVG Y down), drawn
 /// behind the tablet strokes so drawing aligns with existing work.
-pub fn design_svg(document: &Document, area: Rect) -> String {
+pub fn design_svg(document: &Document, area: Rect, skip: &[mml_core::document::ShapeId]) -> String {
     let (width, height) = (area.width(), area.height());
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {width:.3} {height:.3}\" preserveAspectRatio=\"none\">"
     );
-    for shape in &document.shapes {
+    for shape in document
+        .shapes
+        .iter()
+        .filter(|shape| !skip.contains(&shape.id))
+    {
         let color = document
             .layer(shape.layer)
             .map_or([0, 0, 0], |layer| layer.color);
@@ -341,11 +405,24 @@ mod tests {
 
     #[test]
     fn strokes_are_parsed_and_invalid_ones_dropped() {
-        let body = br#"{"strokes":[[[0,0],[1,2],[3,4]],[[5,5]],[["a",1],[2,2]]]}"#;
-        let strokes = parse_strokes(body).unwrap();
-        assert_eq!(strokes.len(), 1);
-        assert_eq!(strokes[0][2], [3.0, 4.0]);
-        assert!(parse_strokes(b"nonsense").is_none());
+        let body = br#"{"session":"s1","strokes":[
+            {"id":"a","style":"brush","level":2,"width":1.5,"points":[[0,0,0.2],[1,2,0.9]]},
+            {"id":"b","points":[]},
+            {"id":"c","style":"marker","level":9,"points":[[5,5]]}]}"#;
+        let sync = parse_sync(body).unwrap();
+        assert_eq!(sync.session, "s1");
+        let strokes = &sync.strokes;
+        assert_eq!(strokes.len(), 2);
+        assert_eq!(strokes[0].style, mml_core::brush::BrushStyle::Brush);
+        assert_eq!(strokes[0].points[1], [1.0, 2.0, 0.9]);
+        assert_eq!((strokes[1].level, strokes[1].points[0][2]), (3, 0.5));
+        assert!(
+            parse_sync(br#"{"session":"s","strokes":[]}"#)
+                .unwrap()
+                .strokes
+                .is_empty()
+        );
+        assert!(parse_sync(b"nonsense").is_none());
     }
 
     #[test]
@@ -383,15 +460,15 @@ mod tests {
         assert!(request(&format!("/?t={token}"), "").contains("MyMaxmakeLab"));
         assert!(request(&format!("/area?t={token}"), "").contains("\"width\":100"));
         let ok = request(
-            &format!("/strokes?t={token}"),
-            r#"{"strokes":[[[1,1],[9,9]]]}"#,
+            &format!("/sync?t={token}"),
+            r#"{"session":"x","strokes":[{"id":"1","points":[[1,1],[9,9]]}]}"#,
         );
         assert!(ok.starts_with("HTTP/1.1 200"));
         let received = pairing
             .strokes
             .recv_timeout(Duration::from_secs(2))
             .unwrap();
-        assert_eq!(received[0][1], [9.0, 9.0]);
+        assert_eq!(received.strokes[0].points[1], [9.0, 9.0, 0.5]);
         // Monitoring: the page and the status need the code too, and a
         // phone can only pause or stop.
         assert!(request("/status", "").starts_with("HTTP/1.1 403"));

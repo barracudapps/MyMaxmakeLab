@@ -5,8 +5,12 @@ use crate::app::{Level, MyApp};
 use crate::i18n::{tr, trf};
 use crate::pairing::Pairing;
 use eframe::egui::{self, Color32, ColorImage, RichText, TextureOptions};
-use mml_core::document::{Shape, ShapeKind};
-use mml_core::geometry::{Path, Point, Rect, Transform, simplify_polyline, smooth_polyline};
+use mml_core::brush::{self, BrushStyle, StrokePoint};
+use mml_core::document::{Shape, ShapeId, ShapeKind};
+use mml_core::geometry::{Path, Point, Rect, Transform};
+use mml_core::layer::{Layer, LayerId, Operation};
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 
 pub struct PairingState {
     pub open: bool,
@@ -18,6 +22,11 @@ pub struct PairingState {
     pub show_monitor: bool,
     pub monitor_qr: Option<egui::TextureHandle>,
     last_status: Option<std::time::Instant>,
+    /// Shapes made from tablet strokes, by session and stroke id, with
+    /// a fingerprint of the stroke they were made from.
+    owned: HashMap<(String, String), (ShapeId, u64)>,
+    /// Layer of each kind of stroke: filled or not, intensity.
+    layers: HashMap<(bool, u8), LayerId>,
 }
 
 impl Default for PairingState {
@@ -31,6 +40,8 @@ impl Default for PairingState {
             show_monitor: false,
             monitor_qr: None,
             last_status: None,
+            owned: HashMap::new(),
+            layers: HashMap::new(),
         }
     }
 }
@@ -103,6 +114,45 @@ fn status_json(app: &MyApp) -> String {
     .to_string()
 }
 
+/// Texts of the drawing page in the language of the application.
+fn page_labels() -> String {
+    let keys = [
+        "pen",
+        "eraser",
+        "select",
+        "line",
+        "marker",
+        "brush",
+        "width",
+        "light",
+        "medium",
+        "strong",
+        "undo",
+        "redo",
+        "clear",
+        "send",
+        "live",
+        "sent",
+        "hint",
+        "offline",
+        "keep_ratio",
+        "delete",
+        "intensity",
+        "style",
+        "rejected",
+    ];
+    let labels: serde_json::Map<String, serde_json::Value> = keys
+        .iter()
+        .map(|key| {
+            (
+                key.to_string(),
+                serde_json::Value::from(crate::i18n::tr_key(&format!("draw.{key}"))),
+            )
+        })
+        .collect();
+    serde_json::Value::Object(labels).to_string()
+}
+
 /// Receives strokes and keeps the design shown on the tablet current.
 pub fn poll(app: &mut MyApp) {
     let Some(server) = &app.pairing.server else {
@@ -139,55 +189,194 @@ pub fn poll(app: &mut MyApp) {
         return;
     };
     if app.pairing.shared_revision != app.revision {
-        server.update_view(&app.document);
+        let skip: Vec<ShapeId> = app.pairing.owned.values().map(|(id, _)| *id).collect();
+        server.update_view(&app.document, &skip);
+        server.update_labels(page_labels());
         app.pairing.shared_revision = app.revision;
     }
-    let mut batches = Vec::new();
-    while let Ok(strokes) = server.strokes.try_recv() {
-        batches.push(strokes);
+    let mut syncs = Vec::new();
+    while let Ok(sync) = server.strokes.try_recv() {
+        syncs.push(sync);
     }
-    if batches.is_empty() {
-        return;
+    // Only the latest state of each page matters.
+    let mut latest: HashMap<String, crate::pairing::Sync> = HashMap::new();
+    for sync in syncs {
+        latest.insert(sync.session.clone(), sync);
     }
     let area = server.area;
-    app.begin_edit("history.tablet");
-    let layer = app.layer_for(false);
-    let mut added = 0;
-    for stroke in batches.into_iter().flatten() {
-        let points: Vec<Point> = stroke
-            .iter()
-            .map(|[x, y]| Point::new(area.min.x + x, area.min.y + y))
-            .collect();
-        let smoothed = smooth_polyline(&points, 5);
-        let mut points = simplify_polyline(&smoothed, 0.05);
-        let closed = points.len() > 3 && points[0].distance(*points.last().unwrap()) < 1.5;
-        if closed {
-            points.pop();
+    for sync in latest.into_values() {
+        apply_sync(app, area, sync);
+    }
+}
+
+fn fingerprint(stroke: &crate::pairing::Stroke) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    stroke.style.hash(&mut hasher);
+    stroke.level.hash(&mut hasher);
+    stroke.width.to_bits().hash(&mut hasher);
+    for point in &stroke.points {
+        for value in point {
+            value.to_bits().hash(&mut hasher);
         }
-        let path = Path::new(points, closed);
-        let center = path.bounds().center();
-        let local = Path::new(
-            path.points.iter().map(|point| *point - center).collect(),
-            closed,
-        );
-        let mut shape = Shape::new(
-            tr("shape.tablet"),
-            layer,
-            ShapeKind::Paths { paths: vec![local] },
-        );
-        shape.transform = Transform::translate(center.x, center.y);
-        app.document.shapes.push(shape);
-        added += 1;
+    }
+    hasher.finish()
+}
+
+/// Share of the layer power or depth for each intensity.
+const LEVELS: [f64; 3] = [0.35, 0.65, 1.0];
+
+/// Layer receiving the strokes of one kind, created on first use with
+/// the power (laser) or depth (CNC) of its intensity.
+fn stroke_layer(app: &mut MyApp, filled: bool, level: u8) -> LayerId {
+    if let Some(id) = app.pairing.layers.get(&(filled, level))
+        && app.document.layer(*id).is_some()
+    {
+        return *id;
+    }
+    let share = LEVELS[(level.clamp(1, 3) - 1) as usize];
+    let mut operation = match (app.machine.kind, filled) {
+        (mml_core::machine::MachineKind::Laser, true) => Operation::LaserFill(Default::default()),
+        (mml_core::machine::MachineKind::Cnc, true) => Operation::CncPocket(Default::default()),
+        _ => app.default_vector_operation(),
+    };
+    match &mut operation {
+        Operation::LaserLine(params) => params.power = (params.power * share).round(),
+        Operation::LaserFill(params) => params.power = (params.power * share).round(),
+        Operation::CncProfile(params) => {
+            params.depth = (params.depth * share * 100.0).round() / 100.0
+        }
+        Operation::CncPocket(params) => {
+            params.depth = (params.depth * share * 100.0).round() / 100.0
+        }
+        _ => {}
+    }
+    let style = if filled {
+        tr("tablet.filled")
+    } else {
+        tr("tablet.lines")
+    };
+    let name = trf(
+        "tablet.layer",
+        &[
+            &style,
+            &tr(["tablet.light", "tablet.medium", "tablet.strong"]
+                [(level.clamp(1, 3) - 1) as usize]),
+        ],
+    );
+    let layer = Layer::new(name, app.document.next_layer_color(), operation);
+    let id = layer.id;
+    app.document.layers.push(layer);
+    app.pairing.layers.insert((filled, level), id);
+    id
+}
+
+fn stroke_shape(app: &mut MyApp, area: Rect, stroke: &crate::pairing::Stroke) -> Option<Shape> {
+    let points: Vec<StrokePoint> = stroke
+        .points
+        .iter()
+        .map(|[x, y, pressure]| StrokePoint {
+            at: Point::new(area.min.x + x, area.min.y + y),
+            pressure: *pressure,
+        })
+        .collect();
+    let paths = brush::outline(&points, stroke.style, stroke.width);
+    if paths.is_empty() || (stroke.style == BrushStyle::Line && paths[0].points.len() < 2) {
+        return None;
+    }
+    let filled = stroke.style != BrushStyle::Line;
+    let layer = stroke_layer(app, filled, stroke.level);
+    let mut bounds = Rect::EMPTY;
+    paths
+        .iter()
+        .flat_map(|path| &path.points)
+        .for_each(|point| bounds.include(*point));
+    let center = bounds.center();
+    let local: Vec<Path> = paths
+        .iter()
+        .map(|path| {
+            Path::new(
+                path.points.iter().map(|point| *point - center).collect(),
+                path.closed,
+            )
+        })
+        .collect();
+    let mut shape = Shape::new(tr("shape.tablet"), layer, ShapeKind::Paths { paths: local });
+    shape.transform = Transform::translate(center.x, center.y);
+    Some(shape)
+}
+
+/// Mirrors the strokes of one page: new strokes are added, changed ones
+/// (moved, resized, partly erased) replaced, erased ones removed. Shapes
+/// deleted or edited on the computer are left as they are until the
+/// tablet changes that stroke again.
+fn apply_sync(app: &mut MyApp, area: Rect, sync: crate::pairing::Sync) {
+    let session = sync.session.clone();
+    let listed: std::collections::HashSet<&str> = sync
+        .strokes
+        .iter()
+        .map(|stroke| stroke.id.as_str())
+        .collect();
+    let erased: Vec<(String, String)> = app
+        .pairing
+        .owned
+        .keys()
+        .filter(|(owner, id)| *owner == session && !listed.contains(id.as_str()))
+        .cloned()
+        .collect();
+    let changed: Vec<&crate::pairing::Stroke> = sync
+        .strokes
+        .iter()
+        .filter(|stroke| {
+            app.pairing
+                .owned
+                .get(&(session.clone(), stroke.id.clone()))
+                .is_none_or(|(_, print)| *print != fingerprint(stroke))
+        })
+        .collect();
+    if erased.is_empty() && changed.is_empty() {
+        return;
+    }
+    app.begin_edit("history.tablet");
+    for key in erased {
+        if let Some((shape_id, _)) = app.pairing.owned.remove(&key) {
+            app.document.shapes.retain(|shape| shape.id != shape_id);
+            app.selection.retain(|id| *id != shape_id);
+        }
+    }
+    for stroke in changed {
+        let key = (session.clone(), stroke.id.clone());
+        let previous = app.pairing.owned.get(&key).map(|(id, _)| *id);
+        let Some(mut shape) = stroke_shape(app, area, stroke) else {
+            continue;
+        };
+        let index =
+            previous.and_then(|id| app.document.shapes.iter().position(|shape| shape.id == id));
+        if let Some(index) = index {
+            shape.id = app.document.shapes[index].id;
+        }
+        let id = shape.id;
+        match index {
+            Some(index) => app.document.shapes[index] = shape,
+            None => app.document.shapes.push(shape),
+        }
+        app.pairing.owned.insert(key, (id, fingerprint(stroke)));
     }
     app.end_edit();
+    let count = app.pairing.owned.len();
     if let Some(server) = &mut app.pairing.server {
-        server.received += added;
+        server.received = count;
     }
 }
 
 pub fn show(app: &mut MyApp, ctx: &egui::Context) {
     if !app.pairing.open {
         return;
+    }
+    if let Some(server) = &app.pairing.server
+        && app.pairing.qr.is_none()
+    {
+        app.pairing.qr = qr_texture(ctx, &server.url);
+        app.pairing.monitor_qr = qr_texture(ctx, &server.monitor_url);
     }
     let mut open = true;
     let mut start = None;

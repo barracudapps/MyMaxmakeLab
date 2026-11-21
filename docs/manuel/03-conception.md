@@ -32,8 +32,24 @@ dossier synchronisé).
   dessin vectoriel.
 - **Code SVG** : collez du SVG ou le `<svg>` d'une page HTML.
 - **Tablette ou téléphone** : *Fichier › Appairer* affiche un QR code ; on
-  dessine au doigt ou au stylet sur une page web, les traits arrivent en
-  direct.
+  dessine au doigt ou au stylet sur une page web, et chaque changement
+  arrive en direct sur l'ordinateur.
+  - La page reste **fixe** : elle ne défile ni ne zoome sous le stylet, et
+    les doigts sont ignorés dès qu'un stylet a servi (paume posée).
+  - **Brosses** : *trait* (ligne centrale, pour graver ou découper un
+    trait), *marqueur* (largeur constante, rempli) et *pinceau* (largeur
+    selon la pression du stylet, rempli).
+  - **Intensité** légère, moyenne ou forte : chaque intensité va sur son
+    calque, avec 35 %, 65 % ou 100 % de la puissance (ou de la profondeur
+    en fraisage).
+  - **Gomme** : outil Gomme, ou bouton du stylet maintenu (S Pen, etc.) ;
+    elle efface seulement la partie touchée.
+  - **Sélection** : toucher un trait ou tracer un cadre, puis déplacer,
+    redimensionner (poignées des coins ou des côtés, proportions au choix),
+    changer l'intensité ou la largeur, supprimer. Le mouvement est suivi en
+    direct sur l'ordinateur.
+  - Annuler et rétablir sur la page ; une forme modifiée sur l'ordinateur
+    n'est plus touchée tant que le trait n'est pas changé sur la tablette.
 
 ## Organiser
 

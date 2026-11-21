@@ -2,88 +2,409 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>MyMaxmakeLab · Draw</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1e1f25">
+<title>MyMaxmakeLab</title>
 <style>
-  :root { --bg: #1e1f25; --card: #26272e; --text: #e8e6ec; --accent: #7c6cf2; --muted: #96949f; }
-  @media (prefers-color-scheme: light) { :root { --bg: #f6f4f0; --card: #fff; --text: #2b2a28; --muted: #76726c; } }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px -apple-system, system-ui, sans-serif; }
-  header { display: flex; gap: 8px; align-items: center; padding: 10px 12px; flex-wrap: wrap; }
-  header b { margin-right: auto; }
-  button { border: 0; border-radius: 18px; padding: 9px 16px; background: var(--card); color: var(--text); font: inherit; }
+  :root { --bg: #1e1f25; --card: #2b2c34; --text: #e8e6ec; --accent: #7c6cf2; --muted: #96949f; --danger: #de4a42; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f2f0ec; --card: #fff; --text: #2b2a28; --muted: #76726c; } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* The page never scrolls, zooms or bounces: only the drawing moves. */
+  html, body { position: fixed; inset: 0; margin: 0; overflow: hidden; overscroll-behavior: none;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    background: var(--bg); color: var(--text); font: 14px -apple-system, system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px 4px; }
+  .group { display: flex; gap: 2px; background: var(--card); border-radius: 12px; padding: 2px; }
+  button { border: 0; border-radius: 10px; padding: 8px 11px; background: transparent; color: var(--text); font: inherit; touch-action: manipulation; }
+  button.on { background: var(--accent); color: #fff; }
+  button:disabled { opacity: .35; }
   button.primary { background: var(--accent); color: #fff; }
-  #wrap { position: relative; margin: 0 12px 12px; border-radius: 14px; overflow: hidden; background: #fff; touch-action: none; }
+  button.danger { color: var(--danger); }
+  .level { width: 20px; height: 20px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+  label { display: flex; align-items: center; gap: 6px; background: var(--card); border-radius: 12px; padding: 4px 10px; }
+  input[type=range] { width: 90px; }
+  #status { color: var(--muted); font-size: 12px; padding: 0 12px 4px; min-height: 18px; }
+  #stage { position: relative; flex: 1; min-height: 0; }
+  #wrap { position: absolute; border-radius: 12px; overflow: hidden; background: #fff; touch-action: none; }
   #design, #pad { position: absolute; inset: 0; width: 100%; height: 100%; }
   #design { opacity: .45; pointer-events: none; }
-  #status { color: var(--muted); font-size: 13px; padding: 0 12px 8px; }
 </style>
 </head>
 <body>
-<header>
-  <b>MyMaxmakeLab</b>
-  <label><input id="pen" type="range" min="1" max="12" value="3"> pen</label>
-  <button id="undo">Undo</button>
-  <button id="clear">Clear</button>
-  <button id="send" class="primary">Send</button>
-</header>
-<div id="status">Draw with your finger or stylus. Strokes go to the computer when you press Send (or at once with Live).</div>
-<label style="padding:0 12px"><input id="live" type="checkbox" checked> Live</label>
-<div id="wrap"><img id="design" alt=""><canvas id="pad"></canvas></div>
+<div id="bar">
+  <div class="group">
+    <button id="tool-pen" class="on" data-l="pen">Pen</button>
+    <button id="tool-eraser" data-l="eraser">Eraser</button>
+    <button id="tool-select" data-l="select">Select</button>
+  </div>
+  <div class="group" id="styles">
+    <button data-style="line" class="on" data-l="line">Line</button>
+    <button data-style="marker" data-l="marker">Marker</button>
+    <button data-style="brush" data-l="brush">Brush</button>
+  </div>
+  <div class="group" id="levels">
+    <button data-level="1"><span class="level" style="background:#c4bcf9"></span></button>
+    <button data-level="2"><span class="level" style="background:#8f82f0"></span></button>
+    <button data-level="3" class="on"><span class="level" style="background:#4b3bc9"></span></button>
+  </div>
+  <label><span data-l="width">Width</span> <input id="width" type="range" min="0.2" max="10" step="0.1" value="1.5"> <span id="width-value"></span></label>
+  <div class="group">
+    <button id="undo" data-l="undo">Undo</button>
+    <button id="redo" data-l="redo">Redo</button>
+    <button id="delete" class="danger" data-l="delete" disabled>Delete</button>
+    <button id="clear" class="danger" data-l="clear">Clear</button>
+  </div>
+  <label id="ratio-label" hidden><input id="ratio" type="checkbox" checked> <span data-l="keep_ratio">Keep ratio</span></label>
+  <label><input id="live" type="checkbox" checked> <span data-l="live">Live</span></label>
+  <button id="send" class="primary" data-l="send">Send</button>
+</div>
+<div id="status"></div>
+<div id="stage"><div id="wrap"><img id="design" alt=""><canvas id="pad"></canvas></div></div>
 <script>
+"use strict";
 const token = new URLSearchParams(location.search).get("t") || "";
-const wrap = document.getElementById("wrap"), pad = document.getElementById("pad"), ctx = pad.getContext("2d");
-const design = document.getElementById("design"), status = document.getElementById("status");
-let strokes = [], current = null, area = { width: 100, height: 100 };
+const session = Math.random().toString(36).slice(2) + Date.now().toString(36);
+const $ = id => document.getElementById(id);
+const stage = $("stage"), wrap = $("wrap"), pad = $("pad"), ctx = pad.getContext("2d"), design = $("design");
+let labels = {
+  pen: "Pen", eraser: "Eraser", select: "Select", line: "Line", marker: "Marker", brush: "Brush", width: "Width",
+  undo: "Undo", redo: "Redo", clear: "Clear", delete: "Delete", send: "Send", live: "Live", keep_ratio: "Keep ratio",
+  sent: "Sent to the computer", rejected: "Not accepted", offline: "Computer not reachable",
+  hint: "Draw with the stylus; press its button to erase. Fingers are ignored once a stylus is used."
+};
+const L = key => labels[key] || key;
+const COLORS = { 1: "#c4bcf9", 2: "#8f82f0", 3: "#4b3bc9" };
+const MIN_SHARE = 0.15;
+
+let area = { width: 100, height: 100 };
+let strokes = [], history = [], future = [];
+let tool = "pen", style = "line", level = 3, nextId = 1;
+let current = null, erasing = null, drag = null, selection = new Set();
+let penSeen = false, eraserAt = null;
+
+/* ---------- layout and coordinates ---------- */
 function layout() {
-  const width = window.innerWidth - 24, height = window.innerHeight - wrap.getBoundingClientRect().top - 12;
-  const ratio = area.width / area.height;
+  const box = stage.getBoundingClientRect();
+  const width = box.width - 20, height = box.height - 12, ratio = area.width / area.height;
   let w = width, h = width / ratio;
   if (h > height) { h = height; w = h * ratio; }
-  wrap.style.width = w + "px"; wrap.style.height = h + "px";
-  pad.width = w * devicePixelRatio; pad.height = h * devicePixelRatio;
+  Object.assign(wrap.style, { width: w + "px", height: h + "px", left: (box.width - w) / 2 + "px", top: "0px" });
+  pad.width = Math.round(w * devicePixelRatio); pad.height = Math.round(h * devicePixelRatio);
   redraw();
 }
+const scale = () => pad.width / area.width;            /* device pixels per mm */
 function toMm(event) {
   const rect = pad.getBoundingClientRect();
-  return [ (event.clientX - rect.left) / rect.width * area.width, (1 - (event.clientY - rect.top) / rect.height) * area.height,
-           event.pressure || 0.5 ];
+  const pressure = event.pointerType === "pen" ? (event.pressure || 0.5) : 0.5;
+  return [(event.clientX - rect.left) / rect.width * area.width,
+          (1 - (event.clientY - rect.top) / rect.height) * area.height, pressure];
+}
+const px = ([x, y]) => [x * scale(), (area.height - y) * scale()];
+const mmPerCssPixel = () => area.width / pad.getBoundingClientRect().width;
+
+/* ---------- drawing ---------- */
+function drawStroke(stroke, highlight) {
+  ctx.strokeStyle = highlight ? "#f0a030" : COLORS[stroke.level];
+  ctx.lineCap = ctx.lineJoin = "round";
+  const points = stroke.points;
+  if (stroke.style === "brush") {
+    for (let i = 0; i < points.length; i++) {
+      const a = points[Math.max(0, i - 1)], b = points[i];
+      ctx.lineWidth = Math.max(1, stroke.width * (MIN_SHARE + (1 - MIN_SHARE) * b[2]) * scale());
+      ctx.beginPath(); ctx.moveTo(...px(a)); ctx.lineTo(...px(b)); ctx.stroke();
+    }
+    return;
+  }
+  ctx.lineWidth = stroke.style === "marker" ? Math.max(1, stroke.width * scale()) : 2 * devicePixelRatio;
+  ctx.beginPath();
+  points.forEach((point, i) => i ? ctx.lineTo(...px(point)) : ctx.moveTo(...px(point)));
+  if (points.length === 1) ctx.lineTo(...px(points[0]));
+  ctx.stroke();
+}
+function bounds(list) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const stroke of list) for (const [x, y] of stroke.points) {
+    minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+const selected = () => strokes.filter(stroke => selection.has(stroke.id));
+/* Handles of the selection box, in mm: corners then middles of sides. */
+function handles(box) {
+  const cx = (box.minX + box.maxX) / 2, cy = (box.minY + box.maxY) / 2;
+  return [
+    { at: [box.minX, box.minY], pivot: [box.maxX, box.maxY], axes: "xy" },
+    { at: [box.maxX, box.minY], pivot: [box.minX, box.maxY], axes: "xy" },
+    { at: [box.maxX, box.maxY], pivot: [box.minX, box.minY], axes: "xy" },
+    { at: [box.minX, box.maxY], pivot: [box.maxX, box.minY], axes: "xy" },
+    { at: [box.minX, cy], pivot: [box.maxX, cy], axes: "x" },
+    { at: [box.maxX, cy], pivot: [box.minX, cy], axes: "x" },
+    { at: [cx, box.minY], pivot: [cx, box.maxY], axes: "y" },
+    { at: [cx, box.maxY], pivot: [cx, box.minY], axes: "y" },
+  ];
 }
 function redraw() {
   ctx.clearRect(0, 0, pad.width, pad.height);
-  ctx.strokeStyle = "#7c6cf2"; ctx.lineCap = ctx.lineJoin = "round";
-  for (const stroke of strokes.concat(current ? [current] : [])) {
-    ctx.lineWidth = stroke.width * devicePixelRatio;
-    ctx.beginPath();
-    stroke.points.forEach(([x, y], index) => {
-      const px = x / area.width * pad.width, py = (1 - y / area.height) * pad.height;
-      index ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-    });
-    ctx.stroke();
+  for (const stroke of strokes) drawStroke(stroke, selection.has(stroke.id));
+  if (current) drawStroke(current, false);
+  if (selection.size && tool === "select") {
+    const box = bounds(selected());
+    const [x0, y0] = px([box.minX, box.maxY]), [x1, y1] = px([box.maxX, box.minY]);
+    ctx.setLineDash([6 * devicePixelRatio, 4 * devicePixelRatio]);
+    ctx.strokeStyle = "#7c6cf2"; ctx.lineWidth = devicePixelRatio;
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.setLineDash([]);
+    for (const handle of handles(box)) {
+      const [hx, hy] = px(handle.at), r = 7 * devicePixelRatio;
+      ctx.fillStyle = "#7c6cf2"; ctx.beginPath(); ctx.arc(hx, hy, r, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(hx, hy, r - 2.5 * devicePixelRatio, 0, 7); ctx.fill();
+    }
+  }
+  if (drag && drag.kind === "marquee") {
+    const [x0, y0] = px(drag.start), [x1, y1] = px(drag.now);
+    ctx.strokeStyle = "#7c6cf2"; ctx.lineWidth = devicePixelRatio; ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  }
+  if (eraserAt) {
+    const [ex, ey] = px(eraserAt.point);
+    ctx.strokeStyle = "#de4a42"; ctx.lineWidth = 1.5 * devicePixelRatio;
+    ctx.beginPath(); ctx.arc(ex, ey, eraserAt.radius * scale(), 0, 7); ctx.stroke();
   }
 }
-pad.addEventListener("pointerdown", event => { pad.setPointerCapture(event.pointerId); current = { width: +document.getElementById("pen").value, points: [toMm(event)], sent: false }; });
-pad.addEventListener("pointermove", event => { if (!current) return; for (const e of event.getCoalescedEvents ? event.getCoalescedEvents() : [event]) current.points.push(toMm(e)); redraw(); });
-pad.addEventListener("pointerup", () => { if (!current) return; strokes.push(current); current = null; redraw(); if (document.getElementById("live").checked) send(); });
-document.getElementById("undo").onclick = () => { strokes.pop(); redraw(); };
-document.getElementById("clear").onclick = () => { strokes = []; redraw(); };
-document.getElementById("send").onclick = send;
+
+/* ---------- history and sync ---------- */
+const snapshot = () => JSON.parse(JSON.stringify(strokes));
+function commit(before) {
+  history.push(before); if (history.length > 100) history.shift();
+  future = []; changed();
+}
+function changed() {
+  for (const id of [...selection]) if (!strokes.some(stroke => stroke.id === id)) selection.delete(id);
+  $("undo").disabled = !history.length; $("redo").disabled = !future.length;
+  $("delete").disabled = !selection.size;
+  redraw();
+  if ($("live").checked) schedule(120);
+}
+let timer = null, sending = false, again = false;
+function schedule(delay) { clearTimeout(timer); timer = setTimeout(send, delay); }
 async function send() {
-  const pending = strokes.filter(stroke => !stroke.sent);
-  if (!pending.length) return;
-  const response = await fetch("/strokes?t=" + token, { method: "POST", body: JSON.stringify({ strokes: pending.map(stroke => stroke.points.map(([x, y]) => [x, y])) }) });
-  if (response.ok) { pending.forEach(stroke => stroke.sent = true); status.textContent = pending.length + " stroke(s) sent"; }
-  else status.textContent = "Not accepted (" + response.status + ")";
+  if (sending) { again = true; return; }
+  sending = true;
+  try {
+    const body = JSON.stringify({ session, strokes: strokes.map(({ id, style, level, width, points }) =>
+      ({ id, style, level, width, points: points.map(([x, y, p]) => [+x.toFixed(3), +y.toFixed(3), +p.toFixed(2)]) })) });
+    const response = await fetch("/sync?t=" + token, { method: "POST", body });
+    $("status").textContent = response.ok ? L("sent") + " (" + strokes.length + ")" : L("rejected") + " (" + response.status + ")";
+  } catch (error) { $("status").textContent = L("offline"); }
+  sending = false;
+  if (again) { again = false; send(); }
+}
+
+/* ---------- eraser: removes the parts of strokes under it ---------- */
+function eraseAt(point, radius) {
+  const next = [];
+  let touched = false;
+  for (const stroke of strokes) {
+    const pieces = [[]];
+    for (const p of stroke.points) {
+      if (Math.hypot(p[0] - point[0], p[1] - point[1]) <= radius) { touched = true; if (pieces[pieces.length - 1].length) pieces.push([]); }
+      else pieces[pieces.length - 1].push(p);
+    }
+    const kept = pieces.filter(piece => piece.length >= (stroke.style === "line" ? 2 : 1));
+    if (kept.length === 1 && kept[0].length === stroke.points.length) { next.push(stroke); continue; }
+    /* Each remaining piece is a new stroke; the computer replaces the old one. */
+    kept.forEach(points => next.push({ ...stroke, id: "s" + nextId++, points }));
+  }
+  if (touched) strokes = next;
+  return touched;
+}
+const eraserRadius = () => Math.max(1.5, +$("width").value * 1.5);
+
+/* ---------- selection ---------- */
+function distanceToStroke(stroke, point) {
+  let best = Infinity;
+  const ps = stroke.points;
+  for (let i = 0; i < ps.length; i++) {
+    const a = ps[i], b = ps[Math.min(i + 1, ps.length - 1)];
+    const dx = b[0] - a[0], dy = b[1] - a[1], len = dx * dx + dy * dy;
+    const t = len ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / len)) : 0;
+    best = Math.min(best, Math.hypot(a[0] + t * dx - point[0], a[1] + t * dy - point[1]));
+  }
+  return best - (stroke.style === "line" ? 0 : stroke.width / 2);
+}
+function transformSelection(from, map, widthFactor) {
+  for (const stroke of strokes) {
+    if (!selection.has(stroke.id)) continue;
+    const original = from.get(stroke.id);
+    stroke.points = original.points.map(([x, y, p]) => [...map(x, y), p]);
+    stroke.width = Math.min(100, Math.max(0.05, original.width * widthFactor));
+  }
+}
+
+/* ---------- pointer handling ---------- */
+function isEraser(event) {
+  return tool === "eraser" || (event.pointerType === "pen" && ((event.buttons & 32) || (event.buttons & 2) || event.button === 5 || event.button === 2));
+}
+function ignored(event) {
+  if (event.pointerType === "pen") penSeen = true;
+  return penSeen && event.pointerType === "touch";    /* palm rejection */
+}
+pad.addEventListener("pointerdown", event => {
+  event.preventDefault();
+  if (ignored(event) || !event.isPrimary) return;
+  pad.setPointerCapture(event.pointerId);
+  const point = toMm(event);
+  if (isEraser(event)) {
+    erasing = snapshot();
+    eraserAt = { point, radius: eraserRadius() };
+    eraseAt(point, eraserAt.radius); redraw(); return;
+  }
+  if (tool === "select") { startSelect(point); return; }
+  current = { id: "s" + nextId++, style, level, width: +$("width").value, points: [point] };
+  redraw();
+});
+pad.addEventListener("pointermove", event => {
+  if (ignored(event)) return;
+  const coalesced = event.getCoalescedEvents ? event.getCoalescedEvents() : [];
+  const events = coalesced.length ? coalesced : [event];
+  if (erasing) {
+    for (const e of events) {
+      /* Erase along the way, not only where events land: a fast swipe
+         would otherwise jump over thin strokes. */
+      const from = eraserAt.point, to = toMm(e);
+      const steps = Math.max(1, Math.ceil(Math.hypot(to[0] - from[0], to[1] - from[1]) / (eraserAt.radius / 2)));
+      for (let i = 1; i <= steps; i++) {
+        eraseAt([from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps], eraserAt.radius);
+      }
+      eraserAt.point = to;
+    }
+    redraw(); return;
+  }
+  if (drag) { moveSelect(toMm(event)); return; }
+  if (current) { for (const e of events) current.points.push(toMm(e)); redraw(); return; }
+  if (event.pointerType === "pen" && isEraser(event)) { eraserAt = { point: toMm(event), radius: eraserRadius() }; redraw(); }
+  else if (eraserAt) { eraserAt = null; redraw(); }
+});
+function finish(event) {
+  if (erasing) { const before = erasing; erasing = null; eraserAt = null; commit(before); return; }
+  if (drag) { endSelect(); return; }
+  if (!current) return;
+  const before = snapshot();
+  strokes.push(current); current = null; commit(before);
+}
+pad.addEventListener("pointerup", finish);
+pad.addEventListener("pointercancel", finish);
+pad.addEventListener("pointerleave", event => { if (event.pointerType === "pen" && !erasing) { eraserAt = null; redraw(); } });
+pad.addEventListener("contextmenu", event => event.preventDefault());
+document.addEventListener("touchmove", event => event.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", event => event.preventDefault());
+document.addEventListener("dblclick", event => event.preventDefault());
+
+function startSelect(point) {
+  const tolerance = 10 * mmPerCssPixel();
+  if (selection.size) {
+    const box = bounds(selected());
+    const handle = handles(box).find(h => Math.hypot(h.at[0] - point[0], h.at[1] - point[1]) <= 2 * tolerance);
+    const from = new Map(selected().map(stroke => [stroke.id, JSON.parse(JSON.stringify(stroke))]));
+    if (handle) { drag = { kind: "scale", handle, start: point, from, before: snapshot() }; return; }
+    if (point[0] >= box.minX && point[0] <= box.maxX && point[1] >= box.minY && point[1] <= box.maxY) {
+      drag = { kind: "move", start: point, from, before: snapshot() }; return;
+    }
+  }
+  const hit = strokes.slice().reverse().find(stroke => distanceToStroke(stroke, point) <= tolerance);
+  if (hit) {
+    selection = new Set([hit.id]);
+    drag = { kind: "move", start: point, from: new Map([[hit.id, JSON.parse(JSON.stringify(hit))]]), before: snapshot() };
+  } else {
+    selection = new Set();
+    drag = { kind: "marquee", start: point, now: point };
+  }
+  changed();
+}
+let lastLive = 0;
+function moveSelect(point) {
+  if (drag.kind === "marquee") { drag.now = point; redraw(); return; }
+  if (drag.kind === "move") {
+    const dx = point[0] - drag.start[0], dy = point[1] - drag.start[1];
+    transformSelection(drag.from, (x, y) => [x + dx, y + dy], 1);
+  } else {
+    const { pivot, axes } = drag.handle;
+    const ratio = (now, start, origin) => Math.abs(start - origin) < 1e-6 ? 1 : (now - origin) / (start - origin);
+    let sx = axes === "y" ? 1 : ratio(point[0], drag.start[0], pivot[0]);
+    let sy = axes === "x" ? 1 : ratio(point[1], drag.start[1], pivot[1]);
+    const keep = $("ratio").checked;
+    if (keep && axes === "xy") { const s = Math.max(Math.abs(sx), Math.abs(sy)); sx = Math.sign(sx || 1) * s; sy = Math.sign(sy || 1) * s; }
+    if (keep && axes === "x") sy = Math.abs(sx);
+    if (keep && axes === "y") sx = Math.abs(sy);
+    const floor = v => Math.abs(v) < 0.02 ? 0.02 * Math.sign(v || 1) : v;
+    sx = floor(sx); sy = floor(sy);
+    transformSelection(drag.from, (x, y) => [pivot[0] + (x - pivot[0]) * sx, pivot[1] + (y - pivot[1]) * sy],
+                       keep && axes === "xy" ? Math.abs(sx) : 1);
+  }
+  redraw();
+  /* Live: the computer follows the move while the stylus drags. */
+  if ($("live").checked && performance.now() - lastLive > 300) { lastLive = performance.now(); send(); }
+}
+function endSelect() {
+  const finished = drag; drag = null;
+  if (finished.kind === "marquee") {
+    const minX = Math.min(finished.start[0], finished.now[0]), maxX = Math.max(finished.start[0], finished.now[0]);
+    const minY = Math.min(finished.start[1], finished.now[1]), maxY = Math.max(finished.start[1], finished.now[1]);
+    selection = new Set(strokes.filter(stroke => {
+      const box = bounds([stroke]);
+      return box.minX >= minX && box.maxX <= maxX && box.minY >= minY && box.maxY <= maxY;
+    }).map(stroke => stroke.id));
+    changed(); return;
+  }
+  commit(finished.before);
+}
+
+/* ---------- toolbar ---------- */
+function setTool(name) {
+  tool = name;
+  for (const other of ["pen", "eraser", "select"]) $("tool-" + other).classList.toggle("on", other === name);
+  $("ratio-label").hidden = name !== "select";
+  if (name !== "select") selection = new Set();
+  changed();
+}
+for (const name of ["pen", "eraser", "select"]) $("tool-" + name).onclick = () => setTool(name);
+document.querySelectorAll("#styles button").forEach(button => button.onclick = () => {
+  style = button.dataset.style;
+  document.querySelectorAll("#styles button").forEach(other => other.classList.toggle("on", other === button));
+  if (tool !== "pen") setTool("pen");
+});
+document.querySelectorAll("#levels button").forEach(button => button.onclick = () => {
+  level = +button.dataset.level;
+  document.querySelectorAll("#levels button").forEach(other => other.classList.toggle("on", other === button));
+  if (selection.size) { const before = snapshot(); selected().forEach(stroke => stroke.level = level); commit(before); }
+});
+const widthValue = () => $("width-value").textContent = (+$("width").value).toFixed(1) + " mm";
+$("width").oninput = widthValue;
+$("width").onchange = () => {
+  if (selection.size) { const before = snapshot(); selected().forEach(stroke => stroke.width = +$("width").value); commit(before); }
+};
+$("undo").onclick = () => { if (!history.length) return; future.push(snapshot()); strokes = history.pop(); changed(); };
+$("redo").onclick = () => { if (!future.length) return; history.push(snapshot()); strokes = future.pop(); changed(); };
+$("delete").onclick = () => { const before = snapshot(); strokes = strokes.filter(stroke => !selection.has(stroke.id)); selection = new Set(); commit(before); };
+$("clear").onclick = () => { if (!strokes.length) return; const before = snapshot(); strokes = []; selection = new Set(); commit(before); };
+$("send").onclick = send;
+$("live").onchange = () => { if ($("live").checked) send(); };
+
+function applyLabels() {
+  document.querySelectorAll("[data-l]").forEach(element => element.textContent = L(element.dataset.l));
+  if (!$("status").textContent) $("status").textContent = L("hint");
 }
 async function refresh() {
   try {
-    const info = await (await fetch("/area?t=" + token)).json();
-    if (info.width !== area.width || info.height !== area.height) { area = info; layout(); }
+    const info = await (await fetch("/area?t=" + token, { cache: "no-store" })).json();
+    if (info.labels && Object.keys(info.labels).length) { labels = { ...labels, ...info.labels }; applyLabels(); }
+    if (info.width !== area.width || info.height !== area.height) { area = { width: info.width, height: info.height }; layout(); }
     design.src = "/design.svg?t=" + token + "&v=" + Date.now();
-  } catch (error) { status.textContent = "Computer not reachable"; }
+  } catch (error) { $("status").textContent = L("offline"); }
 }
 window.addEventListener("resize", layout);
-layout(); refresh(); setInterval(refresh, 3000);
+new ResizeObserver(layout).observe(stage);
+widthValue(); applyLabels(); changed(); layout(); refresh(); setInterval(refresh, 3000);
 </script>
 </body>
 </html>

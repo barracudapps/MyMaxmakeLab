@@ -5,6 +5,7 @@
 //! corner of the bed, X to the right, Y to the back.
 
 pub mod attach;
+pub mod brush;
 pub mod document;
 pub mod geometry;
 pub mod history;

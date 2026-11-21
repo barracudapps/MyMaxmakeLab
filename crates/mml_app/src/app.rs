@@ -382,6 +382,18 @@ impl MyApp {
                     self.view3d.enabled = true;
                     self.view3d.orbit = true;
                 }
+                // Starts tablet pairing at once and prints its address.
+                "--pair" => {
+                    let bed = mml_core::geometry::Rect::from_points(
+                        Point::default(),
+                        Point::new(self.machine.width, self.machine.height),
+                    );
+                    if let Ok(server) = crate::pairing::Pairing::start(bed) {
+                        eprintln!("pairing: {}", server.url);
+                        self.pairing.server = Some(server);
+                        self.pairing.open = true;
+                    }
+                }
                 // Connects at start over the network: --connect host:port.
                 "--connect" => {
                     if let Some((host, port)) = iterator
