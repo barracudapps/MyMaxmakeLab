@@ -11,6 +11,7 @@ mod flow;
 mod i18n;
 mod icons;
 mod library;
+mod line_puzzle_dialog;
 mod machine_panel;
 mod makers_dialog;
 mod manual_probe;

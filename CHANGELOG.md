@@ -12,6 +12,10 @@ yet: GRBL is tested against simulated controllers.
   reporting the copy as up to date.
 
 ### Added
+- **Puzzle on lines**: a children's puzzle whose pieces follow the heavy
+  lines of a drawing or a picture; thin lines stay as a drawing to
+  engrave, dark patches of colour become pieces, small pieces join a
+  neighbour, with an optional tray to fit the pieces in.
 - When a HiMill is connected on another profile, the connection card
   offers the HiMill D1S profile in one click.
 

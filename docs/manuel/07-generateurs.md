@@ -35,6 +35,19 @@ seule annulation). La grille est placée pour éviter les toutes petites
 pièces le long du bord, et celles qui restent trop petites (moins de 30 %
 d'une pièce normale) sont réunies à leur voisine.
 
+**Puzzle sur traits** (puzzle pour enfants) : sélectionnez un dessin
+(vecteurs, ou une image : dessin scanné, coloriage, personnage en aplats)
+puis **Puzzle sur traits…** dans le panneau Sélection. Les traits au moins
+aussi épais que le seuil deviennent les coupes entre pièces, le contour du
+dessin fait le bord ; les traits plus fins (yeux, détails) restent du
+dessin à graver, et les grandes zones foncées (aplats) deviennent des
+pièces à part entière. Une zone plus petite que la *pièce minimale*
+rejoint sa voisine. En option, un **plateau** rectangulaire autour, à
+découper dans la même planche pour y encastrer les pièces ; le dessin
+vectoriel passe sur un calque *Gravure* exécuté avant les découpes.
+Le seuil dépend de la taille du dessin : réduit à 90 mm de large, un
+contour de dessin animé ne fait plus que 0,6 à 1 mm.
+
 ![Boîte, labyrinthes et puzzle](../images/makers.png)
 
 ## Motifs par style

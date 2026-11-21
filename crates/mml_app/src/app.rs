@@ -207,6 +207,7 @@ pub struct MyApp {
     pub sprue: Option<crate::sprue_dialog::SprueDialog>,
     pub paper: Option<crate::paper_dialog::PaperDialog>,
     pub nest: Option<crate::nest_dialog::NestDialog>,
+    pub line_puzzle: Option<crate::line_puzzle_dialog::LinePuzzleDialog>,
     pub shapes_library: crate::library::LibraryState,
     /// The start panel shows on an empty design until closed.
     pub start_panel: bool,
@@ -322,6 +323,7 @@ impl MyApp {
             sources: None,
             travel_applied: None,
             nest: None,
+            line_puzzle: None,
             paper: None,
             shapes_library: Default::default(),
             start_panel: true,
@@ -429,6 +431,7 @@ impl MyApp {
                     Some("sources") => {
                         self.sources = Some(crate::sources_dialog::SourcesDialog::new(self))
                     }
+                    Some("line_puzzle") => self.line_puzzle = Some(Default::default()),
                     Some("nest") => self.nest = Some(crate::nest_dialog::NestDialog::new(self)),
                     _ => {}
                 },

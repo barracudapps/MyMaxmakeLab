@@ -200,6 +200,13 @@ fn properties(app: &mut MyApp, ui: &mut egui::Ui) {
             app.makers = Some(crate::makers_dialog::MakersDialog::jigsaw_in_shape());
         }
         if ui
+            .button(tr("line_puzzle.button"))
+            .on_hover_text(tr("line_puzzle.intro"))
+            .clicked()
+        {
+            app.line_puzzle = Some(Default::default());
+        }
+        if ui
             .button(tr("nest.button"))
             .on_hover_text(tr("nest.intro"))
             .clicked()
@@ -1612,6 +1619,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::sprue_dialog::show(app, ctx);
     crate::paper_dialog::show(app, ctx);
     crate::nest_dialog::show(app, ctx);
+    crate::line_puzzle_dialog::show(app, ctx);
     crate::library::show(app, ctx);
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);

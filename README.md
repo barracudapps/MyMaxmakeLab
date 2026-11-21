@@ -151,7 +151,8 @@ multi-axis programs.
 - **Insert SVG code** typed or pasted (or the `<svg>` of an HTML snippet).
 - **Generators**: finger-jointed **box** sized for an object, **round box** with a living-hinge wall, **maze** (walls
   or corridors to mill), **jigsaw puzzle** (rectangle or **inside any
-  shape**), involute **gears**, **QR codes**
+  shape**), children's **puzzle on lines** (pieces follow the heavy lines
+  of a drawing or picture, with a tray), involute **gears**, **QR codes**
   and **Code 128** barcodes, a laser **test grid** (power × speed), random
   **ornaments** by style
   (Viking, Celtic, African, Maya, Greek, Japanese, Art Deco, Polynesian,
