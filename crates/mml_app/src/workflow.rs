@@ -815,7 +815,8 @@ fn add_outline(app: &mut MyApp, outline: Vec<Point>) {
     app.mode = Mode::Design;
 }
 
-/// Everyday controls: spindle idle run and proportional jog speed.
+/// Everyday controls: proportional jog speed and air assist (the
+/// spindle is next to the jog pad).
 pub fn basics_section(app: &mut MyApp, ui: &mut egui::Ui) {
     egui::CollapsingHeader::new(RichText::new(tr("basics.title")).strong())
         .default_open(false)
@@ -826,27 +827,6 @@ pub fn basics_section(app: &mut MyApp, ui: &mut egui::Ui) {
                 tr("basics.proportional"),
             )
             .on_hover_text(tr("basics.proportional_hint"));
-            if app.machine.kind == MachineKind::Cnc {
-                ui.horizontal(|ui| {
-                    ui.label(tr("basics.spindle"));
-                    ui.add(
-                        DragValue::new(&mut app.settings.idle_rpm)
-                            .range(0.0..=60_000.0)
-                            .suffix(" rpm")
-                            .speed(100.0),
-                    );
-                    if ui
-                        .add_enabled(idle, egui::Button::new(tr("basics.spindle_on")))
-                        .on_hover_text(tr("basics.spindle_hint"))
-                        .clicked()
-                    {
-                        app.device.line(format!("M3 S{:.0}", app.settings.idle_rpm));
-                    }
-                    if ui.button(tr("basics.spindle_off")).clicked() {
-                        app.device.line("M5");
-                    }
-                });
-            }
             ui.horizontal(|ui| {
                 if ui
                     .add_enabled(idle, egui::Button::new(tr("basics.air_on")))

@@ -88,6 +88,8 @@ pub struct DeviceState {
     /// Precision change held on the keyboard: +1 coarser (Shift), -1
     /// finer (Alt).
     pub jog_shift: i32,
+    /// Spindle started by hand from the jog card (M3 sent).
+    pub spindle_on: bool,
     /// Network search for Carvera machines in progress.
     discovery: Option<std::sync::mpsc::Receiver<Vec<Found>>>,
     pub discovered: Option<Vec<Found>>,
@@ -145,6 +147,7 @@ impl DeviceState {
             jog_pad: None,
             jog_keys: None,
             jog_shift: 0,
+            spindle_on: false,
             discovery: None,
             discovered: None,
             detect_usb: true,
@@ -207,6 +210,7 @@ impl DeviceState {
     }
 
     pub fn disconnect(&mut self) {
+        self.spindle_on = false;
         self.controller = None;
         self.connecting = false;
         self.banner = None;
@@ -216,6 +220,17 @@ impl DeviceState {
     }
 
     pub fn send(&mut self, command: Command) {
+        // A job, a stop or a reset leaves the spindle to the program or
+        // stops it: the hand-started spindle is no longer ours to show.
+        if matches!(
+            command,
+            Command::StartJob { .. }
+                | Command::Stop
+                | Command::EmergencyStop
+                | Command::Realtime(realtime::SOFT_RESET)
+        ) {
+            self.spindle_on = false;
+        }
         if let Some(controller) = &self.controller {
             controller.send(command);
         }
@@ -338,6 +353,7 @@ impl DeviceState {
                 }
                 Event::Disconnected { reason } => {
                     self.homing = None;
+                    self.spindle_on = false;
                     self.controller = None;
                     self.connecting = false;
                     self.banner = None;
@@ -928,6 +944,9 @@ fn jog(app: &mut MyApp, ui: &mut egui::Ui) {
                 );
             }
         });
+        if app.machine.kind == mml_core::machine::MachineKind::Cnc {
+            spindle_row(app, ui);
+        }
         ui.collapsing(tr("jog.keys_title"), |ui| {
             egui::Grid::new("jog-keys").num_columns(2).show(ui, |ui| {
                 for (keys, action) in [
@@ -1007,6 +1026,81 @@ pub fn jog_keyboard(app: &mut MyApp, ctx: &egui::Context) {
     app.settings.jog_step = JOG_LEVELS[level].0;
 }
 
+/// True while the spindle turns: reported by the controller, or started
+/// here and not stopped (controllers without spindle speed report).
+pub fn spindle_turning(app: &MyApp) -> bool {
+    let reported = app
+        .device
+        .status
+        .as_ref()
+        .is_some_and(|status| status.spindle > 0.0);
+    reported || app.device.spindle_on
+}
+
+/// Spindle on / off next to the jog pad: the tool turns while it
+/// approaches the material (it cuts a little instead of breaking) and
+/// for manual work with the jog.
+fn spindle_row(app: &mut MyApp, ui: &mut egui::Ui) {
+    ui.separator();
+    let turning = spindle_turning(app);
+    ui.horizontal_wrapped(|ui| {
+        if turning {
+            let speed = app
+                .device
+                .status
+                .as_ref()
+                .map_or(app.settings.idle_rpm, |status| status.spindle);
+            ui.label(
+                RichText::new(trf("spindle.turning", &[&format!("{speed:.0}")]))
+                    .strong()
+                    .color(crate::theme::WARNING),
+            );
+            let stop = egui::Button::new(
+                RichText::new(tr("spindle.stop"))
+                    .color(Color32::WHITE)
+                    .strong(),
+            )
+            .fill(crate::theme::DANGER);
+            if ui.add(stop).clicked() {
+                app.device.line("M5");
+                app.device.spindle_on = false;
+            }
+        } else {
+            ui.label(tr("spindle.label"));
+            ui.add(
+                DragValue::new(&mut app.settings.idle_rpm)
+                    .range(100.0..=60_000.0)
+                    .suffix(" rpm")
+                    .speed(100.0),
+            );
+            let idle = app.device.state() == MachineState::Idle;
+            if ui
+                .add_enabled(idle, egui::Button::new(tr("spindle.start")))
+                .on_hover_text(tr("spindle.start_hint"))
+                .clicked()
+            {
+                app.device.line(format!("M3 S{:.0}", app.settings.idle_rpm));
+                // Jogs sent next wait until the spindle is up to speed.
+                app.device.line(format!("G4 P{SPIN_UP:.1}"));
+                app.device.spindle_on = true;
+            }
+        }
+    });
+    let hint = if turning {
+        tr("spindle.turning_hint")
+    } else {
+        tr("spindle.hint")
+    };
+    ui.label(RichText::new(hint).weak().small());
+}
+
+/// Seconds the spindle takes to reach its speed.
+const SPIN_UP: f64 = 3.0;
+/// Jog speed limits while the spindle turns, mm/min: the tool may be
+/// cutting, so it never rushes into the material.
+const CUTTING_JOG: f64 = 1000.0;
+const CUTTING_PLUNGE: f64 = 300.0;
+
 /// Runs the jog from what is held this frame: a short press moves one
 /// step on release, a press longer than 300 ms moves until released.
 /// Called every frame whatever is shown, so letting go always stops.
@@ -1019,7 +1113,17 @@ pub fn drive_jog(app: &mut MyApp) {
         pad.or(keys)
     };
     let step = effective_step(app);
-    let feed = step_feed(app, step);
+    let mut feed = step_feed(app, step);
+    if spindle_turning(app) {
+        let going_down = pressed
+            .or(app.device.hold.map(|(direction, _, _)| direction))
+            .is_some_and(|direction| direction[2] < 0.0);
+        feed = feed.min(if going_down {
+            CUTTING_PLUNGE
+        } else {
+            CUTTING_JOG
+        });
+    }
     if pad.is_none() && keys.is_none() {
         app.device.jog_shift = 0;
     }

@@ -49,6 +49,35 @@ d'autant, si bien qu'une gravure et un fraisage du même dessin tombent au
 même endroit. Pour le mesurer : gravez un point au laser, amenez la pointe
 d'une fraise exactement dessus, et entrez la différence de position.
 
+## Déplacer la tête
+
+La carte **Déplacer la tête** de l'étape Machine a un pavé de flèches, Z+
+et Z−. Un clic ou un appui bref avance d'un pas ; maintenu plus de 0,3 s,
+la tête avance jusqu'au relâchement.
+
+**Précision** : Micro (0,01 mm), Fin (0,1), Normal (1), Rapide (10), Très
+rapide (50). Le niveau règle le pas et la vitesse quand on maintient : en
+Micro et Fin la tête avance lentement et s'arrête pile.
+
+| Clavier | Action |
+|---|---|
+| `←` `→` `↑` `↓` | X et Y (deux flèches : diagonale) |
+| `Page ↑` / `Page ↓` | Z |
+| `1` … `5` | niveau de précision |
+| `+` / `−` | niveau plus grossier / plus fin |
+| `⇧` / `⌥` maintenus | un niveau plus grossier / plus fin le temps de l'appui |
+
+Relâcher une touche arrête toujours la tête, même si l'on change d'onglet
+entre-temps.
+
+**Broche** (fraiseuse) : *Faire tourner* démarre la broche à la vitesse
+choisie et attend 3 s qu'elle soit lancée. Faites tourner la fraise avant
+d'approcher la matière : au contact elle coupe un peu au lieu de casser.
+Cela permet aussi d'usiner à la main avec les flèches. Tant que la broche
+tourne, les déplacements sont limités à 1000 mm/min (300 mm/min en
+descente). Un travail, un arrêt ou un arrêt d'urgence reprennent la main
+sur la broche.
+
 ## Réglages du contrôleur et mode avancé
 
 Le **mode avancé** (préférences) affiche la console, les macros et
