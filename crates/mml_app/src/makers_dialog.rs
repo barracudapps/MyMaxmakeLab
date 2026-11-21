@@ -407,6 +407,85 @@ fn fill_layer(app: &mut MyApp) -> mml_core::LayerId {
     id
 }
 
+/// Scan offset test: one small square per speed, filled back and forth
+/// with fine lines on its own layer, the speed engraved beside it. A
+/// wrong offset shows as ragged left and right edges; the offset to
+/// enter is the width of that raggedness.
+pub fn create_scan_test(app: &mut MyApp) {
+    use mml_core::geometry::Point;
+    use mml_core::layer::{FillParams, Layer, LineParams, Operation};
+    let family = mml_io::hershey_families()
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    app.begin_edit("history.add");
+    app.selection.clear();
+    let labels = Layer::new(
+        tr("makers.grid_labels"),
+        app.document.next_layer_color(),
+        Operation::LaserLine(LineParams {
+            power: 20.0,
+            speed: 1500.0,
+            ..LineParams::default()
+        }),
+    );
+    let label_layer = labels.id;
+    app.document.layers.push(labels);
+    for (index, speed) in [1000.0, 2000.0, 3000.0, 4500.0, 6000.0]
+        .into_iter()
+        .enumerate()
+    {
+        let layer = Layer::new(
+            format!("{speed:.0} mm/min"),
+            app.document.next_layer_color(),
+            Operation::LaserFill(FillParams {
+                speed,
+                power: 30.0,
+                interval: 0.25,
+                bidirectional: true,
+                overscan: 3.0,
+                ..FillParams::default()
+            }),
+        );
+        let id = layer.id;
+        app.document.layers.push(layer);
+        let y = index as f64 * 14.0;
+        let square = Path::new(
+            vec![
+                Point::new(0.0, y),
+                Point::new(20.0, y),
+                Point::new(20.0, y + 10.0),
+                Point::new(0.0, y + 10.0),
+            ],
+            true,
+        );
+        let shape = Shape::new(
+            format!("{speed:.0}"),
+            id,
+            ShapeKind::Paths {
+                paths: vec![square],
+            },
+        );
+        app.selection.push(shape.id);
+        app.document.shapes.push(shape);
+        let mut text = mml_io::hershey_text(&format!("{speed:.0}"), &family, 4.0, 1.2);
+        for point in text.iter_mut().flat_map(|path| path.points.iter_mut()) {
+            point.x += 24.0;
+            point.y += y + 3.0;
+        }
+        let label = Shape::new(
+            format!("{speed:.0}"),
+            label_layer,
+            ShapeKind::Paths { paths: text },
+        );
+        app.selection.push(label.id);
+        app.document.shapes.push(label);
+    }
+    app.end_edit();
+    app.canvas.request_fit();
+    app.notify(tr("scan.pattern_done"), crate::app::Level::Info);
+}
+
 /// One fill layer per square with its own power and speed, labels
 /// engraved lightly next to the rows and above the columns.
 fn create_test_grid(app: &mut MyApp, params: &test_grid::TestGridParams) {

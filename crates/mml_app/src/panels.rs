@@ -1827,6 +1827,7 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
         return;
     };
     let mut open = true;
+    let mut scan_test = false;
     let mut apply = false;
     let mut read = false;
     egui::Window::new(tr("machine.title"))
@@ -1954,6 +1955,56 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
                         ui.end_row();
                     }
                 });
+            if profile.kind == MachineKind::Laser || profile.laser_mode {
+                egui::CollapsingHeader::new(tr("scan.title"))
+                    .id_salt("scan-offsets")
+                    .show(ui, |ui| {
+                        ui.add(egui::Label::new(RichText::new(tr("scan.intro")).weak()).wrap());
+                        let mut remove = None;
+                        for (index, (speed, offset)) in profile.scan_offsets.iter_mut().enumerate()
+                        {
+                            ui.horizontal(|ui| {
+                                ui.add(
+                                    DragValue::new(speed)
+                                        .range(10.0..=100_000.0)
+                                        .suffix(" mm/min")
+                                        .speed(10.0),
+                                );
+                                ui.add(
+                                    DragValue::new(offset)
+                                        .range(-5.0..=5.0)
+                                        .suffix(" mm")
+                                        .speed(0.005)
+                                        .max_decimals(3),
+                                );
+                                if ui.small_button("×").clicked() {
+                                    remove = Some(index);
+                                }
+                            });
+                        }
+                        if let Some(index) = remove {
+                            profile.scan_offsets.remove(index);
+                        }
+                        ui.horizontal(|ui| {
+                            if ui.button(tr("scan.add")).clicked() {
+                                let speed = profile
+                                    .scan_offsets
+                                    .iter()
+                                    .map(|(speed, _)| *speed)
+                                    .fold(0.0, f64::max)
+                                    + 1000.0;
+                                profile.scan_offsets.push((speed, 0.0));
+                            }
+                            if ui
+                                .button(tr("scan.pattern"))
+                                .on_hover_text(tr("scan.pattern_hint"))
+                                .clicked()
+                            {
+                                scan_test = true;
+                            }
+                        });
+                    });
+            }
             ui.label(tr("machine.start_gcode"));
             ui.add(
                 egui::TextEdit::multiline(&mut profile.start_gcode)
@@ -1979,6 +2030,9 @@ fn machine_dialog(app: &mut MyApp, ctx: &egui::Context) {
                     .clicked();
             });
         });
+    if scan_test {
+        crate::makers_dialog::create_scan_test(app);
+    }
     if read {
         let device = &app.device;
         if let Some(profile) = &mut app.machine_dialog {

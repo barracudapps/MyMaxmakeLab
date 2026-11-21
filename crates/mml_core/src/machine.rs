@@ -44,6 +44,47 @@ pub struct MachineProfile {
     pub holder_diameter: f64,
     /// Tool setter used to measure the real stick-out of each tool.
     pub tool_setter: ToolSetter,
+    /// Laser scan offset: at each speed (mm/min), how far the lines
+    /// burnt right to left land from those burnt left to right, mm.
+    /// Measured once on a test pattern; bidirectional fills and
+    /// pictures are corrected by it.
+    pub scan_offsets: Vec<(f64, f64)>,
+}
+
+impl MachineProfile {
+    /// Scan offset at `speed`, interpolated in the table and held at
+    /// its ends; 0 without a table.
+    pub fn scan_offset(&self, speed: f64) -> f64 {
+        let mut table: Vec<(f64, f64)> = self
+            .scan_offsets
+            .iter()
+            .copied()
+            .filter(|(s, o)| s.is_finite() && o.is_finite())
+            .collect();
+        table.sort_by(|a, b| a.0.total_cmp(&b.0));
+        match table.as_slice() {
+            [] => 0.0,
+            [only] => only.1,
+            _ => {
+                let first = table[0];
+                let last = table[table.len() - 1];
+                if speed <= first.0 {
+                    return first.1;
+                }
+                if speed >= last.0 {
+                    return last.1;
+                }
+                let index = table.iter().position(|(s, _)| *s >= speed).unwrap_or(1);
+                let (a, b) = (table[index - 1], table[index]);
+                let t = if b.0 > a.0 {
+                    (speed - a.0) / (b.0 - a.0)
+                } else {
+                    0.0
+                };
+                a.1 + (b.1 - a.1) * t
+            }
+        }
+    }
 }
 
 /// Measures how far an installed tool really sticks out of the collet.
@@ -171,6 +212,7 @@ impl MachineProfile {
             trunnion: None,
             holder_diameter: 20.0,
             tool_setter: ToolSetter::default(),
+            scan_offsets: Vec::new(),
         }
     }
 
@@ -226,6 +268,17 @@ impl MachineProfile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scan_offset_is_interpolated_and_held_at_the_ends() {
+        let mut profile = MachineProfile::generic_laser();
+        assert_eq!(profile.scan_offset(3000.0), 0.0);
+        profile.scan_offsets = vec![(6000.0, 0.3), (1000.0, 0.05)];
+        assert!((profile.scan_offset(3500.0) - 0.175).abs() < 1e-9);
+        assert_eq!(profile.scan_offset(500.0), 0.05);
+        assert_eq!(profile.scan_offset(9000.0), 0.3);
+    }
+
 
     #[test]
     fn trunnion_turns_each_face_to_the_tool_and_back() {

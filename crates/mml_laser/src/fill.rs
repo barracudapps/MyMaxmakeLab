@@ -95,7 +95,16 @@ pub fn emit_fill(
                 .iter()
                 .flatten()
                 .fold(Rect::EMPTY, |rect, path| rect.union(path.bounds()));
-            scan(writer, head, &rotated, bounds, &to_world, params, power);
+            scan(
+                writer,
+                head,
+                &rotated,
+                bounds,
+                &to_world,
+                params,
+                power,
+                settings.scan_offset,
+            );
         }
     }
     writer.tool_off();
@@ -248,6 +257,7 @@ fn burn_curves(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn scan(
     writer: &mut GcodeWriter,
     head: &mut Point,
@@ -256,6 +266,7 @@ fn scan(
     to_world: &Transform,
     params: &FillParams,
     power: f64,
+    scan_offset: f64,
 ) {
     let interval = params.interval.max(0.01);
     let rows = (bounds.height() / interval).floor() as usize + 1;
@@ -278,6 +289,15 @@ fn scan(
             }
         }
         let sign = if forward { 1.0 } else { -1.0 };
+        // Only bidirectional scans need the correction.
+        let shift = if params.bidirectional {
+            -sign * scan_offset / 2.0
+        } else {
+            0.0
+        };
+        for interval in &mut intervals {
+            *interval = (interval.0 + shift, interval.1 + shift);
+        }
         let entry = to_world.apply(Point::new(intervals[0].0 - sign * params.overscan, y));
         if started {
             writer.linear(entry.x, entry.y, params.speed, Some(0.0));
@@ -338,6 +358,7 @@ mod tests {
             let settings = LaserSettings {
                 max_s: 1000.0,
                 dynamic_power: true,
+                scan_offset: 0.0,
             };
             emit_fill(
                 &mut writer,
@@ -364,5 +385,44 @@ mod tests {
                 "{pattern:?} {bounds:?}"
             );
         }
+    }
+
+    #[test]
+    fn scan_offset_moves_forward_and_return_lines_apart() {
+        let shapes = vec![vec![square(0.0, 0.0, 10.0)]];
+        let params = FillParams {
+            interval: 1.0,
+            bidirectional: true,
+            overscan: 0.0,
+            ..FillParams::default()
+        };
+        let burns = |offset: f64| {
+            let mut writer = GcodeWriter::new();
+            let settings = LaserSettings {
+                max_s: 1000.0,
+                dynamic_power: true,
+                scan_offset: offset,
+            };
+            emit_fill(
+                &mut writer,
+                &mut Point::default(),
+                shapes.clone(),
+                &params,
+                &settings,
+            );
+            mml_gcode::parse(&writer.finish())
+                .motions
+                .iter()
+                .filter(|m| m.is_cutting())
+                .map(|m| (m.from[0], m.to[0]))
+                .collect::<Vec<_>>()
+        };
+        let plain = burns(0.0);
+        let corrected = burns(0.4);
+        assert_eq!(plain.len(), corrected.len());
+        // First line left to right starts 0.2 mm earlier, the next one
+        // (right to left) 0.2 mm later.
+        assert!((corrected[0].0 - (plain[0].0 - 0.2)).abs() < 1e-6);
+        assert!((corrected[1].0 - (plain[1].0 + 0.2)).abs() < 1e-6);
     }
 }

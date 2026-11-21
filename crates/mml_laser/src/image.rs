@@ -131,7 +131,12 @@ pub fn emit_image(
             };
             let last = powers.iter().rposition(|&power| power > 0.0).unwrap();
             let y = (row as f64 + 0.5) * step;
-            let point = |x: f64| grid.to_world.apply(Point::new(x, y));
+            let shift = if params.bidirectional {
+                (if forward { -0.5 } else { 0.5 }) * settings.scan_offset
+            } else {
+                0.0
+            };
+            let point = |x: f64| grid.to_world.apply(Point::new(x + shift, y));
             // Runs of equal power as (start column, end column, power).
             let mut runs = Vec::new();
             let mut start = first;
@@ -386,6 +391,7 @@ mod tests {
         let settings = LaserSettings {
             max_s: 1000.0,
             dynamic_power: true,
+            scan_offset: 0.0,
         };
         emit_image(
             &mut writer,
@@ -430,6 +436,7 @@ mod tests {
             let settings = LaserSettings {
                 max_s: 1000.0,
                 dynamic_power: true,
+                scan_offset: 0.0,
             };
             emit_image(
                 &mut writer,

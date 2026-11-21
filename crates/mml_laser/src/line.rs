@@ -134,6 +134,7 @@ mod tests {
         let settings = LaserSettings {
             max_s: 1000.0,
             dynamic_power: true,
+            scan_offset: 0.0,
         };
         emit_line(
             &mut writer,
@@ -173,6 +174,7 @@ mod tests {
         let settings = LaserSettings {
             max_s: 1000.0,
             dynamic_power: true,
+            scan_offset: 0.0,
         };
         let mut writer = GcodeWriter::new();
         let mut head = Point::default();

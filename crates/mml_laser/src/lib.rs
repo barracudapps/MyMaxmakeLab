@@ -17,6 +17,10 @@ pub struct LaserSettings {
     pub max_s: f64,
     /// Use M4 so GRBL scales power with the actual speed.
     pub dynamic_power: bool,
+    /// Scan offset at the speed of the operation, mm: forward lines are
+    /// moved back by half of it and return lines forward by half, so
+    /// both land on the same edge.
+    pub scan_offset: f64,
 }
 
 impl LaserSettings {

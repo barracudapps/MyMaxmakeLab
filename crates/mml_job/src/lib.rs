@@ -188,6 +188,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     let laser = LaserSettings {
         max_s: machine.max_s,
         dynamic_power: machine.laser_mode,
+        scan_offset: 0.0,
     };
     let cnc = CncSettings {
         safe_z: machine.safe_z,
@@ -290,6 +291,10 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
                 if vectors.iter().flatten().any(|path| !path.closed) {
                     warnings.push(JobWarning::OpenPathsNotFilled(name.clone()));
                 }
+                let laser = LaserSettings {
+                    scan_offset: machine.scan_offset(params.speed),
+                    ..laser
+                };
                 mml_laser::emit_fill(&mut writer, &mut head, vectors, params, &laser)
             }
             Operation::LaserImage(params) => {
@@ -300,6 +305,10 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
                     .iter()
                     .filter(|shape| matches!(shape.kind, ShapeKind::Image { .. }))
                 {
+                    let laser = LaserSettings {
+                        scan_offset: machine.scan_offset(params.speed),
+                        ..laser
+                    };
                     mml_laser::emit_image(&mut writer, &mut head, shape, params, &laser);
                 }
             }
