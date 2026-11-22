@@ -7,6 +7,7 @@ mod clock;
 mod deco;
 mod esoteric;
 mod mixed;
+mod models3d;
 mod puzzles;
 mod puzzles3d;
 mod science;
@@ -139,6 +140,22 @@ pub fn catalog() -> &'static [Sample] {
             hybrid: false,
             difficulty: 2,
             build: puzzles3d::dragon,
+        },
+        Sample {
+            id: "triceratops",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: models3d::triceratops,
+        },
+        Sample {
+            id: "galleon",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: models3d::galleon,
         },
         Sample {
             id: "globe",

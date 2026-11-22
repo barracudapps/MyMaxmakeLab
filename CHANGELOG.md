@@ -7,6 +7,11 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Two more 3D puzzles** to slot together from 3 mm plywood: a
+  triceratops (body, frill, two pairs of legs) and a galleon (hull and
+  masts in one part, square sails slid onto the masts, two cradles).
+
 ## [0.1.15] - 2026-11-22
 
 ### Added

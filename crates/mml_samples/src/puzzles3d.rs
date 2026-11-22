@@ -66,7 +66,7 @@ pub fn vertical_extent(path: &Path, x: f64) -> Option<(f64, f64)> {
 }
 
 /// Slot `THICKNESS` wide centred on `x`, from `from` to `to` in y.
-fn vertical_slot(x: f64, from: f64, to: f64) -> Vec<Path> {
+pub(crate) fn vertical_slot(x: f64, from: f64, to: f64) -> Vec<Path> {
     vec![rect(
         x - THICKNESS / 2.0,
         from.min(to),
@@ -76,7 +76,7 @@ fn vertical_slot(x: f64, from: f64, to: f64) -> Vec<Path> {
 }
 
 /// The largest closed path of an area.
-fn outline_of(area: Vec<Path>) -> Path {
+pub(crate) fn outline_of(area: Vec<Path>) -> Path {
     area.into_iter()
         .max_by(|a, b| a.signed_area().abs().total_cmp(&b.signed_area().abs()))
         .expect("an area has an outline")
@@ -109,7 +109,7 @@ pub struct Crossing {
 
 /// Leg pair seen from the front, `half` wide, standing on y = 0, its
 /// top bar `top` high and the gap between the legs `crotch` high.
-fn legs(half: f64, crotch: f64, top: f64) -> Path {
+pub(crate) fn legs(half: f64, crotch: f64, top: f64) -> Path {
     polygon(&[
         (-half, 0.0),
         (-half + 16.0, 0.0),

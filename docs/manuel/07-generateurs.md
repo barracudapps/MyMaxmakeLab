@@ -72,6 +72,8 @@ l'assemblage.
 | Labyrinthe à bille | CNC | couloirs à la fraise de 6 mm, contour, couvercle en plexiglas |
 | Tour de Hanoï | CNC | socle et sept disques en contreplaqué de 12 mm |
 | Dragon 3D à emboîter | laser | corps, ailes et deux paires de pattes à fentes croisées, écailles gravées |
+| Tricératops 3D à emboîter | laser | corps, collerette et deux paires de pattes, peau gravée |
+| Galion 3D à emboîter | laser | coque et mâts d'une pièce, deux voiles carrées enfilées sur les mâts, deux berceaux |
 | Globe à lamelles | laser | sphère de 11 cm : 5 anneaux et 8 lamelles qui s'emboîtent |
 | Awalé | CNC + laser | décor gravé au laser, puis douze trous, deux greniers et contour à la fraise de 6 mm ; règles du jeu dans le guide |
 | Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
