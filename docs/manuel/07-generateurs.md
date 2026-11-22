@@ -71,6 +71,8 @@ l'assemblage.
 | Peigne d'ajustement CNC | CNC | encoches de 5,8 à 6,6 mm avec dégagements d'angle, trous pour tourillons de 6 et 8 mm au dixième |
 | Labyrinthe à bille | CNC | couloirs à la fraise de 6 mm, contour, couvercle en plexiglas |
 | Tour de Hanoï | CNC | socle et sept disques en contreplaqué de 12 mm |
+| Dragon 3D à emboîter | laser | corps, ailes et deux paires de pattes à fentes croisées, écailles gravées |
+| Globe à lamelles | laser | sphère de 11 cm : 5 anneaux et 8 lamelles qui s'emboîtent |
 | Awalé | CNC + laser | décor gravé au laser, puis douze trous, deux greniers et contour à la fraise de 6 mm ; règles du jeu dans le guide |
 | Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
 | Taquin | laser | 15 carreaux numérotés et leur cadre |
@@ -80,6 +82,9 @@ l'assemblage.
 | Vide-poche à rose des vents | CNC + laser | poche et contour à la fraise, rose des vents gravée au fond de la poche (mise au point 6 mm plus bas) |
 | Toupies à illusions | CNC + laser | disque de Benham, spirale et anneaux gravés au laser, axes et disques à la fraise |
 | Cadran solaire horizontal | CNC + laser | lignes d'heures calculées pour 47° N gravées au laser, cadran, style et fente à la fraise |
+| Médaillons de géométrie sacrée | laser | fleur de vie, cube de Métatron, arbre de vie |
+| Pierres de runes | CNC | les 24 runes du futhark ancien à la fraise en V sur des palets, plus une rune blanche |
+| Planche de spiritisme | laser | alphabet en arc, chiffres, oui / non / au revoir dans la langue du guide, et sa goutte |
 | Horloge à balancier | CNC | toutes les pièces d'une horloge murale à poids : platines, rouage (5 × 4 × 3), échappement à ancre de Graham, tambour à rochet, minuterie, cadran, aiguilles, balancier de 56 cm |
 
 Dans le guide, **Préparer cette étape** ne garde actifs que les calques

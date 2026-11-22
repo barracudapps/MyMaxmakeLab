@@ -5,8 +5,10 @@
 
 mod clock;
 mod deco;
+mod esoteric;
 mod mixed;
 mod puzzles;
+mod puzzles3d;
 mod science;
 pub mod shapes;
 mod tests_projects;
@@ -26,15 +28,17 @@ pub enum Category {
     Puzzle,
     Decoration,
     Science,
+    Esoteric,
     Mechanism,
 }
 
 impl Category {
-    pub const ALL: [Category; 5] = [
+    pub const ALL: [Category; 6] = [
         Self::MachineTest,
         Self::Puzzle,
         Self::Decoration,
         Self::Science,
+        Self::Esoteric,
         Self::Mechanism,
     ];
 
@@ -44,6 +48,7 @@ impl Category {
             Self::Puzzle => "category.puzzle",
             Self::Decoration => "category.deco",
             Self::Science => "category.science",
+            Self::Esoteric => "category.esoteric",
             Self::Mechanism => "category.mechanism",
         }
     }
@@ -128,6 +133,22 @@ pub fn catalog() -> &'static [Sample] {
             build: puzzles::hanoi,
         },
         Sample {
+            id: "dragon",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: puzzles3d::dragon,
+        },
+        Sample {
+            id: "globe",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: puzzles3d::slotted_globe,
+        },
+        Sample {
             id: "awale",
             category: Category::Puzzle,
             machine: Cnc,
@@ -198,6 +219,30 @@ pub fn catalog() -> &'static [Sample] {
             hybrid: true,
             difficulty: 2,
             build: science::sundial,
+        },
+        Sample {
+            id: "sacred_geometry",
+            category: Category::Esoteric,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 1,
+            build: esoteric::sacred_geometry,
+        },
+        Sample {
+            id: "runes",
+            category: Category::Esoteric,
+            machine: Cnc,
+            hybrid: false,
+            difficulty: 1,
+            build: esoteric::runes,
+        },
+        Sample {
+            id: "spirit_board",
+            category: Category::Esoteric,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 1,
+            build: esoteric::spirit_board,
         },
         Sample {
             id: "pendulum_clock",

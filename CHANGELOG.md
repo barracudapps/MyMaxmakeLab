@@ -7,6 +7,14 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Five more sample projects**: two 3D puzzles slotted together from
+  3 mm plywood (a dragon with engraved scales, a globe of rings and
+  ribs), and esoteric objects: sacred geometry medallions (flower of
+  life, Metatron's cube, tree of life), rune stones V-carved with the 24
+  runes of the elder futhark, and a talking board whose words follow
+  the language of the guide.
+
 ## [0.1.14] - 2026-11-22
 
 ### Added

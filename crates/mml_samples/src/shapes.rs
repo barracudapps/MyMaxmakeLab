@@ -195,7 +195,7 @@ pub const BOARD_AT: (f64, f64) = (10.0, 10.0);
 
 /// Shares `parts` out between as many boards as needed, each nested
 /// from the board corner; a part too big for an empty board is left
-/// out (none of ours is).
+/// out (none of ours is: debug builds and tests fail on it).
 pub fn boards(parts: Vec<Part>, spacing: f64) -> Vec<Vec<Part>> {
     let params = NestParams {
         sheet: BOARD,
@@ -219,6 +219,7 @@ pub fn boards(parts: Vec<Part>, spacing: f64) -> Vec<Vec<Part>> {
             }
         }
         if board.is_empty() {
+            debug_assert!(false, "{} part(s) too big for a board", rest.len());
             break;
         }
         result.push(board);
