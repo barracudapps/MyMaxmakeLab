@@ -423,6 +423,7 @@ body): `git log` is the technical changelog. See
 - [x] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
 - [x] Resume an interrupted job, kerf compensation, combined shapes
 - [x] Import from Fusion, LightBurn and MaxmakeLAB libraries; nesting on a sheet; puzzle inside any shape
+- [x] Sample projects with step-by-step guides: CNC and laser tests, puzzles, decorations, a pendulum clock
 - [x] Keyboard jog with precision levels, spindle next to the jog pad, homing diagnosis, durations learned from past jobs
 - [x] Maxmake HiMill D1S profile, bed taken from the controller travel
 - [ ] File transfer to the machine memory (HiMill SD card)
@@ -440,7 +441,8 @@ gravure en V, styles de gravure laser, polices intégrées, texte en arc, 4e axe
 (relief enroulé, pièce complète ébauchée sur plusieurs faces puis finie en continu), contrôle des
 mouvements par caméra, Makera Carvera (découverte Wi-Fi, changeur d'outils),
 réparation de G-code, moule, faces 5 axes, générateurs (boîte, labyrinthe,
-puzzle, motifs par style), grappes à ponts automatiques, détection des
+puzzle, motifs par style), projets exemples guidés pas à pas (tests CNC et
+laser, casse-têtes, déco, horloge à balancier), grappes à ponts automatiques, détection des
 machines, production sur plusieurs machines, serveur MCP pour les
 assistants IA et mises à jour automatiques. Sans palpeur, l'origine se
 relève à la main (bloc, cylindre, trapèze) ; le homing ne tourne que bouton

@@ -79,6 +79,17 @@ pub fn set_language(language: Language) {
     CURRENT.store(language as u8, Ordering::Relaxed);
 }
 
+/// Two-letter code of the interface language.
+pub fn code() -> &'static str {
+    match Language::ALL[CURRENT.load(Ordering::Relaxed) as usize] {
+        Language::English => "en",
+        Language::French => "fr",
+        Language::German => "de",
+        Language::Italian => "it",
+        Language::Spanish => "es",
+    }
+}
+
 pub fn tr(key: &'static str) -> &'static str {
     let tables = tables();
     let index = CURRENT.load(Ordering::Relaxed) as usize;

@@ -591,6 +591,9 @@ fn state_color(state: MachineState) -> Color32 {
 
 pub fn run_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     use crate::theme::card;
+    if app.document.prepared_step().is_some() {
+        card(ui, |ui| crate::guide_panel::run_card(app, ui));
+    }
     card(ui, |ui| connection(app, ui));
     if !app.device.is_connected() {
         card(ui, |ui| job_card(app, ui));

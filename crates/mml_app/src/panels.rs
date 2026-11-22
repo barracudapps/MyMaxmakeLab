@@ -62,6 +62,9 @@ fn passes(ui: &mut egui::Ui, value: &mut u32) -> bool {
 
 pub fn design_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     use crate::theme::card;
+    if app.document.guide.is_some() {
+        card(ui, |ui| crate::guide_panel::guide_card(app, ui));
+    }
     card(ui, |ui| properties(app, ui));
     card(ui, |ui| layers(app, ui));
     card(ui, |ui| operation_editor(app, ui));
@@ -69,6 +72,9 @@ pub fn design_panel(app: &mut MyApp, ui: &mut egui::Ui) {
 
 pub fn prepare_panel(app: &mut MyApp, ui: &mut egui::Ui) {
     use crate::theme::card;
+    if app.document.guide.is_some() {
+        card(ui, |ui| crate::guide_panel::guide_card(app, ui));
+    }
     card(ui, |ui| job_summary(app, ui));
     let external = app
         .job
@@ -1620,6 +1626,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::paper_dialog::show(app, ctx);
     crate::nest_dialog::show(app, ctx);
     crate::line_puzzle_dialog::show(app, ctx);
+    crate::samples_dialog::show(app, ctx);
     crate::library::show(app, ctx);
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);

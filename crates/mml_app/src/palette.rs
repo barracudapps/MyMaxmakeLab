@@ -40,6 +40,7 @@ enum Action {
     Nest,
     Sources,
     LinePuzzle,
+    Samples,
 }
 
 /// Menu entries reused as command names, so the palette speaks the
@@ -68,7 +69,7 @@ const COMMANDS: [(&str, Action); 21] = [
     ("palette.camera", Action::Camera),
 ];
 
-const EXTRA: [(&str, Action); 7] = [
+const EXTRA: [(&str, Action); 8] = [
     ("menu.machine_settings", Action::MachineSettings),
     ("update.check", Action::Updates),
     ("paper.title", Action::Paper),
@@ -76,6 +77,7 @@ const EXTRA: [(&str, Action); 7] = [
     ("nest.title", Action::Nest),
     ("sources.menu", Action::Sources),
     ("line_puzzle.title", Action::LinePuzzle),
+    ("samples.title", Action::Samples),
 ];
 
 /// Lower case without accents, so "prepa" finds "Préparation".
@@ -151,6 +153,7 @@ fn run(app: &mut MyApp, action: Action) {
         Action::Nest => app.nest = Some(crate::nest_dialog::NestDialog::new(app)),
         Action::Sources => app.sources = Some(crate::sources_dialog::SourcesDialog::new(app)),
         Action::LinePuzzle => app.line_puzzle = Some(Default::default()),
+        Action::Samples => app.samples_open = true,
     }
 }
 

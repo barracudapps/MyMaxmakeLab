@@ -19,6 +19,7 @@ mml_job.workspace = true
 mml_io.workspace = true
 mml_materials.workspace = true
 mml_device.workspace = true
+mml_samples.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 image.workspace = true

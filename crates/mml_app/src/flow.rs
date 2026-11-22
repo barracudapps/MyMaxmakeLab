@@ -99,6 +99,7 @@ fn start_panel(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
                     ("start.library", "start.library_hint", 1),
                     ("start.text", "start.text_hint", 2),
                     ("start.makers", "start.makers_hint", 3),
+                    ("start.samples", "start.samples_hint", 7),
                     ("start.tablet", "start.tablet_hint", 4),
                     ("start.paper", "start.paper_hint", 5),
                     ("start.open", "start.open_hint", 6),
@@ -119,6 +120,7 @@ fn start_panel(app: &mut MyApp, ui: &mut egui::Ui, canvas: egui::Rect) {
                             3 => app.makers = Some(Default::default()),
                             4 => app.pairing.open = true,
                             5 => app.paper = Some(crate::paper_dialog::PaperDialog::new(app)),
+                            7 => app.samples_open = true,
                             _ => app.open_dialog(),
                         }
                     }

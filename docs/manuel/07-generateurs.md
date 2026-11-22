@@ -56,6 +56,42 @@ comme une signature, reste gravée sans être découpée.
 
 ![Boîte, labyrinthes et puzzle](../images/makers.png)
 
+## Projets exemples
+
+**Fichier › Projets exemples…** (ou le panneau de démarrage) : des projets
+prêts à usiner, chacun avec son **guide pas à pas** dans le panneau de
+droite : matériel, outils, puis une étape par outil et par matériau, et
+l'assemblage.
+
+| Projet | Machine | Contenu |
+|---|---|---|
+| Pièce de calibration CNC | CNC | poches, trous, contour et règle de cotes connues, à mesurer pour régler la machine (pas par mm, jeu, diamètre de fraise) |
+| Réglages laser | laser | grille puissance × vitesse, peigne de fentes (emboîtement), bande de 10 carrés pour mesurer la largeur du trait |
+| Labyrinthe à bille | CNC | couloirs à la fraise de 6 mm, contour, couvercle en plexiglas |
+| Tour de Hanoï | CNC | socle et sept disques en contreplaqué de 12 mm |
+| Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
+| Taquin | laser | 15 carreaux numérotés et leur cadre |
+| Sous-verres | laser | quatre motifs gravés (viking, celte, japonais, art déco) |
+| Décorations de Noël | laser | étoiles, boules gravées, flocons |
+| Plaque de porte | CNC | mot sculpté à la fraise en V, filet, contour |
+| Horloge à balancier | CNC | toutes les pièces d'une horloge murale à poids : platines, rouage (5 × 4 × 3), échappement à ancre de Graham, tambour à rochet, minuterie, cadran, aiguilles, balancier de 56 cm |
+
+Dans le guide, **Préparer cette étape** ne garde actifs que les calques
+de l'étape : le travail ne contient qu'un outil et qu'un matériau. Un
+changement de fraise est donc toujours une nouvelle étape, avec un
+nouveau palpage du Z (jamais une pause au milieu d'un travail, où le
+zéro serait faux). L'étape en cours reste affichée dans l'onglet
+Machine, avec un bouton pour préparer la suivante. Les pièces
+nombreuses sont réparties sur des planches de 260 × 180 mm (la course
+de la HiMill), une étape par planche ; le rectangle gris « Planche »
+montre où poser le brut. Choisissez le placement « Zéro machine » pour
+que toutes les étapes restent alignées.
+
+Les avances et puissances sont des valeurs de départ (petite CNC dans
+le contreplaqué, laser diode d'environ 10 W) : réglez-les avec les deux
+projets de test. L'horloge est calculée mais n'a pas encore été
+construite : ses palettes d'ancre sont à ajuster à la lime.
+
 ## Motifs par style
 
 **Édition › Générer un motif…** : viking, celte, africain, maya / aztèque,

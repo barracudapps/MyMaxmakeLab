@@ -7,6 +7,16 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Sample projects** (*File › Sample projects…*): CNC calibration part,
+  laser settings test, marble maze, Tower of Hanoi, pentominoes, fifteen
+  puzzle, coasters, Christmas decorations, V-carved door sign and a
+  weight-driven pendulum clock with every part. Each comes with a
+  step-by-step guide: stock, tools, one step per tool and material
+  (*Prepare this step* keeps only its layers, so a cutter change always
+  means a new Z probe), assembly and use. The current step stays in view
+  on the Run tab.
+
 ## [0.1.12] - 2026-11-22
 
 ### Fixed

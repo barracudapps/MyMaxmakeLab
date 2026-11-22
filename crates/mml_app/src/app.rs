@@ -208,6 +208,7 @@ pub struct MyApp {
     pub paper: Option<crate::paper_dialog::PaperDialog>,
     pub nest: Option<crate::nest_dialog::NestDialog>,
     pub line_puzzle: Option<crate::line_puzzle_dialog::LinePuzzleDialog>,
+    pub samples_open: bool,
     pub shapes_library: crate::library::LibraryState,
     /// The start panel shows on an empty design until closed.
     pub start_panel: bool,
@@ -324,6 +325,7 @@ impl MyApp {
             travel_applied: None,
             nest: None,
             line_puzzle: None,
+            samples_open: false,
             paper: None,
             shapes_library: Default::default(),
             start_panel: true,
@@ -432,9 +434,16 @@ impl MyApp {
                         self.sources = Some(crate::sources_dialog::SourcesDialog::new(self))
                     }
                     Some("line_puzzle") => self.line_puzzle = Some(Default::default()),
+                    Some("samples") => self.samples_open = true,
                     Some("nest") => self.nest = Some(crate::nest_dialog::NestDialog::new(self)),
                     _ => {}
                 },
+                // Opens a sample project: --sample cnc_calibration.
+                "--sample" => {
+                    if let Some(sample) = iterator.next().as_deref().and_then(mml_samples::find) {
+                        crate::samples_dialog::open_sample(self, sample);
+                    }
+                }
                 "--orbit" => {
                     self.view3d.enabled = true;
                     self.view3d.orbit = true;
@@ -680,6 +689,25 @@ impl MyApp {
         self.saved_revision = self.revision;
         self.canvas.request_fit();
         self.mode = Mode::Design;
+    }
+
+    /// Replaces the document of this tab by a ready-made one, unsaved
+    /// and with nothing to undo (a sample project).
+    pub fn load_document(&mut self, document: Document) {
+        self.new_project();
+        self.document = document;
+        self.current_layer = self
+            .document
+            .layers
+            .iter()
+            .find(|layer| layer.output)
+            .or(self.document.layers.first())
+            .map(|layer| layer.id)
+            .unwrap_or(self.current_layer);
+        self.anchor = self.document.clone();
+        self.revision += 1;
+        self.saved_revision = self.revision;
+        self.canvas.request_fit();
     }
 
     pub fn open_dialog(&mut self) {
@@ -1762,6 +1790,9 @@ impl MyApp {
                     }
                     if ui.button(tr("menu.open")).clicked() {
                         self.open_dialog();
+                    }
+                    if ui.button(tr("menu.samples")).clicked() {
+                        self.samples_open = true;
                     }
                     if ui.button(tr("start.reopen")).clicked() {
                         self.start_panel = true;
