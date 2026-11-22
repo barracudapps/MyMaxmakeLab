@@ -20,6 +20,7 @@ mml_relief = { path = "crates/mml_relief" }
 mml_io = { path = "crates/mml_io" }
 mml_materials = { path = "crates/mml_materials" }
 mml_device = { path = "crates/mml_device" }
+mml_samples = { path = "crates/mml_samples" }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 thiserror = "2"

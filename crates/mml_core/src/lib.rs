@@ -8,6 +8,7 @@ pub mod attach;
 pub mod brush;
 pub mod document;
 pub mod geometry;
+pub mod guide;
 pub mod history;
 pub mod layer;
 pub mod machine;

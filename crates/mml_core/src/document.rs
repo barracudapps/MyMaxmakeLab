@@ -192,6 +192,9 @@ fn rounded_rectangle(width: f64, height: f64, corner_radius: f64) -> Path {
 pub struct Document {
     pub layers: Vec<Layer>,
     pub shapes: Vec<Shape>,
+    /// Instructions of a ready-made project, step by step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guide: Option<crate::guide::Guide>,
 }
 
 impl Default for Document {
@@ -203,6 +206,7 @@ impl Default for Document {
                 Operation::LaserLine(LineParams::default()),
             )],
             shapes: Vec::new(),
+            guide: None,
         }
     }
 }

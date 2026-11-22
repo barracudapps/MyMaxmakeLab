@@ -1649,6 +1649,7 @@ dependencies = [
  "mml_materials",
  "mml_probe",
  "mml_relief",
+ "mml_samples",
  "qrcode",
  "rfd",
  "serde",
@@ -1767,6 +1768,15 @@ dependencies = [
  "mml_gcode",
  "rayon",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "mml_samples"
+version = "0.1.0"
+dependencies = [
+ "mml_core",
+ "mml_io",
+ "mml_job",
 ]
 
 [[package]]
