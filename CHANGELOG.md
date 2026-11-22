@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-11-22
+
 ### Added
 - **Five more sample projects**: two 3D puzzles slotted together from
   3 mm plywood (a dragon with engraved scales, a globe of rings and
@@ -190,7 +192,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.14...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.15...HEAD
+[0.1.15]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.14...v0.1.15
 [0.1.14]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.11...v0.1.12
