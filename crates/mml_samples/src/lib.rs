@@ -5,7 +5,9 @@
 
 mod clock;
 mod deco;
+mod mixed;
 mod puzzles;
+mod science;
 pub mod shapes;
 mod tests_projects;
 pub mod text;
@@ -23,14 +25,16 @@ pub enum Category {
     MachineTest,
     Puzzle,
     Decoration,
+    Science,
     Mechanism,
 }
 
 impl Category {
-    pub const ALL: [Category; 4] = [
+    pub const ALL: [Category; 5] = [
         Self::MachineTest,
         Self::Puzzle,
         Self::Decoration,
+        Self::Science,
         Self::Mechanism,
     ];
 
@@ -39,6 +43,7 @@ impl Category {
             Self::MachineTest => "category.test",
             Self::Puzzle => "category.puzzle",
             Self::Decoration => "category.deco",
+            Self::Science => "category.science",
             Self::Mechanism => "category.mechanism",
         }
     }
@@ -49,6 +54,8 @@ pub struct Sample {
     pub id: &'static str,
     pub category: Category,
     pub machine: MachineKind,
+    /// Needs a router with a laser head (`machine` is then `Cnc`).
+    pub hybrid: bool,
     /// 1 easy to 3 demanding.
     pub difficulty: u8,
     build: fn(&str) -> Document,
@@ -76,6 +83,7 @@ pub fn catalog() -> &'static [Sample] {
             id: "cnc_calibration",
             category: Category::MachineTest,
             machine: Cnc,
+            hybrid: false,
             difficulty: 1,
             build: tests_projects::cnc_calibration,
         },
@@ -83,13 +91,31 @@ pub fn catalog() -> &'static [Sample] {
             id: "laser_tests",
             category: Category::MachineTest,
             machine: Laser,
+            hybrid: false,
             difficulty: 1,
             build: tests_projects::laser_tests,
+        },
+        Sample {
+            id: "hybrid_alignment",
+            category: Category::MachineTest,
+            machine: Cnc,
+            hybrid: true,
+            difficulty: 2,
+            build: mixed::hybrid_alignment,
+        },
+        Sample {
+            id: "fit_test",
+            category: Category::MachineTest,
+            machine: Cnc,
+            hybrid: false,
+            difficulty: 1,
+            build: tests_projects::fit_test,
         },
         Sample {
             id: "marble_maze",
             category: Category::Puzzle,
             machine: Cnc,
+            hybrid: false,
             difficulty: 2,
             build: puzzles::marble_maze,
         },
@@ -97,13 +123,23 @@ pub fn catalog() -> &'static [Sample] {
             id: "hanoi",
             category: Category::Puzzle,
             machine: Cnc,
+            hybrid: false,
             difficulty: 1,
             build: puzzles::hanoi,
+        },
+        Sample {
+            id: "awale",
+            category: Category::Puzzle,
+            machine: Cnc,
+            hybrid: true,
+            difficulty: 2,
+            build: mixed::awale,
         },
         Sample {
             id: "pentominoes",
             category: Category::Puzzle,
             machine: Laser,
+            hybrid: false,
             difficulty: 1,
             build: puzzles::pentominoes,
         },
@@ -111,6 +147,7 @@ pub fn catalog() -> &'static [Sample] {
             id: "sliding_puzzle",
             category: Category::Puzzle,
             machine: Laser,
+            hybrid: false,
             difficulty: 1,
             build: puzzles::sliding_puzzle,
         },
@@ -118,6 +155,7 @@ pub fn catalog() -> &'static [Sample] {
             id: "coasters",
             category: Category::Decoration,
             machine: Laser,
+            hybrid: false,
             difficulty: 1,
             build: deco::coasters,
         },
@@ -125,6 +163,7 @@ pub fn catalog() -> &'static [Sample] {
             id: "christmas",
             category: Category::Decoration,
             machine: Laser,
+            hybrid: false,
             difficulty: 1,
             build: deco::christmas,
         },
@@ -132,13 +171,39 @@ pub fn catalog() -> &'static [Sample] {
             id: "door_sign",
             category: Category::Decoration,
             machine: Cnc,
+            hybrid: false,
             difficulty: 2,
             build: deco::door_sign,
+        },
+        Sample {
+            id: "valet_tray",
+            category: Category::Decoration,
+            machine: Cnc,
+            hybrid: true,
+            difficulty: 2,
+            build: mixed::valet_tray,
+        },
+        Sample {
+            id: "benham_tops",
+            category: Category::Science,
+            machine: Cnc,
+            hybrid: true,
+            difficulty: 1,
+            build: science::benham_tops,
+        },
+        Sample {
+            id: "sundial",
+            category: Category::Science,
+            machine: Cnc,
+            hybrid: true,
+            difficulty: 2,
+            build: science::sundial,
         },
         Sample {
             id: "pendulum_clock",
             category: Category::Mechanism,
             machine: Cnc,
+            hybrid: false,
             difficulty: 3,
             build: clock::pendulum_clock,
         },
@@ -424,13 +489,23 @@ impl Builder {
         }
     }
 
-    pub fn finish(mut self, machine: MachineKind) -> Document {
+    pub fn finish(self, machine: MachineKind) -> Document {
+        self.finish_guide(machine, false)
+    }
+
+    /// For a router with a laser head: each step runs one of them.
+    pub fn finish_hybrid(self) -> Document {
+        self.finish_guide(MachineKind::Cnc, true)
+    }
+
+    fn finish_guide(mut self, machine: MachineKind, hybrid: bool) -> Document {
         let prefix = self.prefix;
         let language = self.language;
         self.document.guide = Some(Guide {
             title: self.t("title"),
             summary: self.t("summary"),
             machine,
+            hybrid,
             materials: text::lines(language, &format!("{prefix}.materials")),
             tools: text::lines(language, &format!("{prefix}.tools")),
             steps: self.steps,
@@ -517,6 +592,28 @@ mod tests {
                         bounds
                     );
                 }
+                assert_eq!(guide.hybrid, sample.hybrid, "{}", sample.id);
+                // One head per step: the spindle and the laser never
+                // share a job, and only hybrid projects use both.
+                let mut families = Vec::new();
+                for step in &guide.steps {
+                    let laser: Vec<bool> = step
+                        .layers
+                        .iter()
+                        .filter_map(|id| document.layer(*id))
+                        .map(|layer| layer.operation.is_laser())
+                        .collect();
+                    assert!(
+                        laser.windows(2).all(|pair| pair[0] == pair[1]),
+                        "{}: {} mixes the laser and the spindle",
+                        sample.id,
+                        step.title
+                    );
+                    families.extend(laser.first().copied());
+                }
+                families.sort();
+                families.dedup();
+                assert_eq!(families.len() == 2, sample.hybrid, "{}", sample.id);
                 // One tool per step on a router: a change of cutter
                 // means a new step and a new Z zero.
                 if sample.machine == MachineKind::Cnc {
@@ -554,7 +651,13 @@ mod tests {
         for sample in catalog() {
             let mut document = sample.build("fr");
             let machine = match sample.machine {
-                MachineKind::Cnc => mml_core::MachineProfile::maxmake_himill_d1s(),
+                MachineKind::Cnc => mml_core::MachineProfile {
+                    // The laser head of a hybrid project, offset from
+                    // the spindle axis.
+                    laser_mode: sample.hybrid,
+                    laser_offset: if sample.hybrid { [2.0, -1.5] } else { [0.0; 2] },
+                    ..mml_core::MachineProfile::maxmake_himill_d1s()
+                },
                 MachineKind::Laser => mml_core::MachineProfile::generic_laser(),
             };
             let steps = document.guide.as_ref().unwrap().steps.len();

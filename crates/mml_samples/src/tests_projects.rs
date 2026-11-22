@@ -166,6 +166,82 @@ pub fn laser_tests(language: &str) -> Document {
     b.finish(MachineKind::Laser)
 }
 
+/// Fit test for a router: notches for 6 mm boards with relieved
+/// corners (dog bones) and holes for 6 and 8 mm dowels, each a tenth of
+/// a millimetre apart, to find the clearance that fits.
+pub fn fit_test(language: &str) -> Document {
+    let mut b = Builder::new(text_language(language), "fit_test");
+    b.stock(170.0, 70.0);
+    let stock = 6.0;
+    let through = stock + 0.3;
+    let tool = 3.175;
+    let engrave = b.layer(b.t("layer.engrave"), settings::v_line(0.4));
+    let holes = b.layer(
+        b.t("layer.holes"),
+        settings::profile(tool, through, ProfileSide::Inside, 0),
+    );
+    let outline = b.layer(
+        b.t("layer.outline"),
+        settings::profile(tool, through, ProfileSide::Outside, 4),
+    );
+    let (left, bottom, width, height) = (15.0, 15.0, 160.0, 60.0);
+    let top = bottom + height;
+    let depth = 15.0;
+    // Dog bone: the cutter goes on along the corner's bisector until
+    // its edge reaches the corner. The circle it then removes, a little
+    // larger than the cutter, is centred inside the notch and bites
+    // into both walls.
+    let relief = tool / 2.0 + 0.1;
+    let diagonal = relief / 2f64.sqrt();
+    let mut cut_away = Vec::new();
+    let mut labels = Vec::new();
+    for index in 0..5 {
+        let notch = 5.8 + index as f64 * 0.2;
+        let centre = 27.0 + index as f64 * 16.0;
+        let (x0, x1) = (centre - notch / 2.0, centre + notch / 2.0);
+        cut_away.push(vec![rect(x0, top - depth, notch, depth + 2.0)]);
+        cut_away.push(vec![circle(
+            point(x0 + diagonal, top - depth + diagonal),
+            relief,
+        )]);
+        cut_away.push(vec![circle(
+            point(x1 - diagonal, top - depth + diagonal),
+            relief,
+        )]);
+        labels.extend(stroke_text(
+            &format!("{notch:.1}"),
+            3.0,
+            point(centre, top - depth - 7.0),
+        ));
+    }
+    let mut shapes = vec![vec![rect(left, bottom, width, height)]];
+    shapes.extend(cut_away);
+    let comb = difference(shapes);
+    let mut hole_paths = Vec::new();
+    for (row, (nominal, y)) in [(6.0, 58.0), (8.0, 34.0)].into_iter().enumerate() {
+        for index in 0..5 {
+            let diameter = nominal - 0.2 + index as f64 * 0.1;
+            let x = 107.0 + index as f64 * 14.0;
+            hole_paths.push(circle(point(x, y), diameter / 2.0));
+            let below = if row == 0 { 7.5 } else { 8.5 };
+            labels.extend(stroke_text(
+                &format!("{diameter:.1}"),
+                2.5,
+                point(x, y - below),
+            ));
+        }
+    }
+    labels.extend(stroke_text("MyMaxmakeLab", 4.0, point(55.0, 24.0)));
+    b.add(engrave, b.t("layer.engrave"), labels);
+    b.add(holes, b.t("layer.holes"), hole_paths);
+    b.add(outline, b.t("layer.outline"), comb);
+    b.step("s1", Vec::new());
+    b.step("s2", vec![engrave]);
+    b.step("s3", vec![holes, outline]);
+    b.step("s4", Vec::new());
+    b.finish(MachineKind::Cnc)
+}
+
 /// The language code as a static string for the builder.
 pub(crate) fn text_language(language: &str) -> &'static str {
     crate::text::supported(language)

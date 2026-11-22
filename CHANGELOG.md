@@ -7,6 +7,16 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Six more sample projects**, four of them for a router with a laser
+  head (CNC + laser): an alignment test whose milled scales and laser
+  verniers read the laser offset to 0.1 mm, an awale board, a valet
+  tray with a compass rose burnt at the bottom of its pocket, spinning
+  tops with optical illusions (Benham's disc) and a horizontal sundial;
+  plus a CNC fit test (notches with dog bones, dowel holes). Their
+  guides walk through each head change, laser or milling mode, homing
+  and focus, the board never moving.
+
 ## [0.1.13] - 2026-11-22
 
 ### Added

@@ -15,6 +15,10 @@ pub struct Guide {
     pub summary: String,
     /// Machine the project was designed for.
     pub machine: MachineKind,
+    /// The project also needs a laser head on that router: its steps
+    /// alternate between the spindle and the laser.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hybrid: bool,
     /// Stock and supplies (wood, dowels, screws...).
     #[serde(default)]
     pub materials: Vec<String>,
@@ -135,6 +139,7 @@ mod tests {
             title: "t".into(),
             summary: String::new(),
             machine: MachineKind::Laser,
+            hybrid: false,
             materials: Vec::new(),
             tools: Vec::new(),
             steps: vec![

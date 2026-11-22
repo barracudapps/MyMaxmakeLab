@@ -47,7 +47,9 @@ pub fn guide_card(app: &mut MyApp, ui: &mut egui::Ui) {
         .show(ui, |ui| {
             ui.label(RichText::new(&guide.title).strong().size(15.0));
             ui.add(egui::Label::new(RichText::new(&guide.summary).weak()).wrap());
-            if let Some(warning) = crate::samples_dialog::machine_mismatch(app, guide.machine) {
+            if let Some(warning) =
+                crate::samples_dialog::machine_mismatch(app, guide.machine, guide.hybrid)
+            {
                 ui.colored_label(crate::theme::WARNING, warning);
             }
             egui::CollapsingHeader::new(tr("guide.materials"))

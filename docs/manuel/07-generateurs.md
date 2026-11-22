@@ -67,13 +67,19 @@ l'assemblage.
 |---|---|---|
 | Pièce de calibration CNC | CNC | poches, trous, contour et règle de cotes connues, à mesurer pour régler la machine (pas par mm, jeu, diamètre de fraise) |
 | Réglages laser | laser | grille puissance × vitesse, peigne de fentes (emboîtement), bande de 10 carrés pour mesurer la largeur du trait |
+| Alignement CNC / laser | CNC + laser | échelles fraisées et verniers gravés au laser : lisent au dixième de millimètre le « Décalage du laser » |
+| Peigne d'ajustement CNC | CNC | encoches de 5,8 à 6,6 mm avec dégagements d'angle, trous pour tourillons de 6 et 8 mm au dixième |
 | Labyrinthe à bille | CNC | couloirs à la fraise de 6 mm, contour, couvercle en plexiglas |
 | Tour de Hanoï | CNC | socle et sept disques en contreplaqué de 12 mm |
+| Awalé | CNC + laser | décor gravé au laser, puis douze trous, deux greniers et contour à la fraise de 6 mm ; règles du jeu dans le guide |
 | Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
 | Taquin | laser | 15 carreaux numérotés et leur cadre |
 | Sous-verres | laser | quatre motifs gravés (viking, celte, japonais, art déco) |
 | Décorations de Noël | laser | étoiles, boules gravées, flocons |
 | Plaque de porte | CNC | mot sculpté à la fraise en V, filet, contour |
+| Vide-poche à rose des vents | CNC + laser | poche et contour à la fraise, rose des vents gravée au fond de la poche (mise au point 6 mm plus bas) |
+| Toupies à illusions | CNC + laser | disque de Benham, spirale et anneaux gravés au laser, axes et disques à la fraise |
+| Cadran solaire horizontal | CNC + laser | lignes d'heures calculées pour 47° N gravées au laser, cadran, style et fente à la fraise |
 | Horloge à balancier | CNC | toutes les pièces d'une horloge murale à poids : platines, rouage (5 × 4 × 3), échappement à ancre de Graham, tambour à rochet, minuterie, cadran, aiguilles, balancier de 56 cm |
 
 Dans le guide, **Préparer cette étape** ne garde actifs que les calques
@@ -86,6 +92,14 @@ nombreuses sont réparties sur des planches de 260 × 180 mm (la course
 de la HiMill), une étape par planche ; le rectangle gris « Planche »
 montre où poser le brut. Choisissez le placement « Zéro machine » pour
 que toutes les étapes restent alignées.
+
+Les projets **CNC + laser** demandent une CNC avec module laser (cochez
+« Mode laser » dans **Machine › Réglages de la machine…**). Chaque étape
+n'utilise qu'une tête ; le guide détaille le changement de tête, le
+passage du contrôleur en mode laser ou fraisage, le homing à refaire et
+la mise au point. La planche ne bouge pas d'un bout à l'autre : réglez
+d'abord le « Décalage du laser » avec le projet d'alignement, pour que
+la gravure tombe pile sur l'usinage.
 
 Les avances et puissances sont des valeurs de départ (petite CNC dans
 le contreplaqué, laser diode d'environ 10 W) : réglez-les avec les deux

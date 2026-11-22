@@ -36,6 +36,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                             ui.horizontal(|ui| {
                                 ui.label(RichText::new(sample.title(language)).strong());
                                 let machine = match sample.machine {
+                                    _ if sample.hybrid => tr("samples.hybrid"),
                                     MachineKind::Cnc => tr("samples.cnc"),
                                     MachineKind::Laser => tr("samples.laser"),
                                 };
@@ -85,13 +86,17 @@ pub fn open_sample(app: &mut MyApp, sample: &Sample) {
         trf("samples.opened", &[&sample.title(language)]),
         Level::Info,
     );
-    if let Some(warning) = machine_mismatch(app, sample.machine) {
+    if let Some(warning) = machine_mismatch(app, sample.machine, sample.hybrid) {
         app.notify(warning.to_owned(), Level::Warning);
     }
 }
 
-/// Why the current machine does not suit a project made for `kind`.
-pub fn machine_mismatch(app: &MyApp, kind: MachineKind) -> Option<&'static str> {
+/// Why the current machine does not suit a project made for `kind`
+/// (with a laser head as well when `hybrid`).
+pub fn machine_mismatch(app: &MyApp, kind: MachineKind, hybrid: bool) -> Option<&'static str> {
+    if hybrid && !(app.machine.kind == MachineKind::Cnc && app.machine.laser_mode) {
+        return Some(tr("samples.needs_hybrid"));
+    }
     match (kind, app.machine.kind) {
         (MachineKind::Cnc, MachineKind::Laser) => Some(tr("samples.needs_cnc")),
         (MachineKind::Laser, MachineKind::Cnc) if !app.machine.laser_mode => {
