@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-11-22
+
 ### Added
 - **Six more sample projects**, four of them for a router with a laser
   head (CNC + laser): an alignment test whose milled scales and laser
@@ -180,7 +182,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.13...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.14...HEAD
+[0.1.14]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.10...v0.1.11
