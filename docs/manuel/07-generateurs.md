@@ -46,7 +46,13 @@ rejoint sa voisine. En option, un **plateau** rectangulaire autour, à
 découper dans la même planche pour y encastrer les pièces ; le dessin
 vectoriel passe sur un calque *Gravure* exécuté avant les découpes.
 Le seuil dépend de la taille du dessin : réduit à 90 mm de large, un
-contour de dessin animé ne fait plus que 0,6 à 1 mm.
+contour de dessin animé ne fait plus que 0,6 à 1 mm. Pour une image, le
+seuil est **mesuré automatiquement** sur ses contours à la sélection
+(bouton **Mesurer** pour recommencer après un changement de taille) :
+chaque contour noir devient une coupe, et la *pièce minimale* fait le
+tri entre les pièces et les détails. Les zones claires mais colorées
+(peau, objets pâles) font partie du dessin ; une petite marque isolée,
+comme une signature, reste gravée sans être découpée.
 
 ![Boîte, labyrinthes et puzzle](../images/makers.png)
 

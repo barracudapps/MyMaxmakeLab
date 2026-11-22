@@ -5,7 +5,7 @@
 use crate::app::{Level, MyApp};
 use crate::i18n::{tr, trf};
 use eframe::egui::{self, DragValue, RichText};
-use mml_core::document::{Shape, ShapeKind};
+use mml_core::document::{Shape, ShapeId, ShapeKind};
 use mml_core::layer::{Layer, Operation};
 use mml_core::makers::line_puzzle::{self, LinePuzzleParams, Mask};
 
@@ -15,6 +15,10 @@ pub struct LinePuzzleDialog {
     margin: f64,
     /// Put the vector drawing on an engraving layer.
     engrave: bool,
+    /// Selection whose picture lines were last measured, so the heavy
+    /// line follows a newly selected picture but not a typed value.
+    measured: Vec<ShapeId>,
+    heavy_edited: bool,
 }
 
 impl Default for LinePuzzleDialog {
@@ -25,8 +29,54 @@ impl Default for LinePuzzleDialog {
             tray: true,
             margin: params.frame.unwrap_or(12.0),
             engrave: true,
+            measured: Vec::new(),
+            heavy_edited: false,
         }
     }
+}
+
+/// The selected shapes, in document order.
+fn selected_drawing(app: &MyApp) -> Vec<Shape> {
+    app.document
+        .shapes
+        .iter()
+        .filter(|shape| app.selection.contains(&shape.id))
+        .cloned()
+        .collect()
+}
+
+/// The drawing on the grid the puzzle is cut from.
+fn drawing_mask(drawing: &[Shape], params: &LinePuzzleParams) -> Option<Mask> {
+    let mut bounds = mml_core::geometry::Rect::EMPTY;
+    for shape in drawing {
+        bounds = bounds.union(shape.bounds());
+    }
+    if drawing.is_empty() || bounds.is_empty() {
+        return None;
+    }
+    let margin = params.frame.unwrap_or(0.0) + params.heavy * 2.0 + 2.0;
+    let mut mask = Mask::covering(bounds, margin);
+    for shape in drawing {
+        mask.add_shape(shape, params.heavy * 1.25);
+    }
+    Some(mask)
+}
+
+/// Heavy line fitting the outlines of the selected pictures: a bit
+/// wider than their measured lines, so every outline is a cut and the
+/// detail is left to the smallest-piece merge. Vectors have no width of
+/// their own to measure (it comes from this very setting).
+fn measured_heavy(drawing: &[Shape], params: &LinePuzzleParams) -> Option<f64> {
+    if !drawing.iter().any(Shape::is_image) {
+        return None;
+    }
+    let pictures: Vec<Shape> = drawing
+        .iter()
+        .filter(|shape| shape.is_image())
+        .cloned()
+        .collect();
+    let width = drawing_mask(&pictures, params)?.line_width()?;
+    Some(((width * 1.3) / 0.05).round().max(1.0) * 0.05)
 }
 
 /// A layer that cuts along lines: the current one if it does, else the
@@ -68,7 +118,19 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
         return;
     };
     let selected = app.selection.len();
+    if !dialog.heavy_edited && dialog.measured != app.selection {
+        dialog.measured = app.selection.clone();
+        let drawing = selected_drawing(app);
+        let dialog = app.line_puzzle.as_mut().expect("dialog checked above");
+        if let Some(heavy) = measured_heavy(&drawing, &dialog.params) {
+            dialog.params.heavy = heavy.clamp(0.1, 20.0);
+        }
+    }
+    let Some(dialog) = &mut app.line_puzzle else {
+        return;
+    };
     let mut open = true;
+    let mut measure = false;
     let mut create = false;
     egui::Window::new(tr("line_puzzle.title"))
         .open(&mut open)
@@ -83,12 +145,21 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                 .show(ui, |ui| {
                     ui.label(tr("line_puzzle.heavy"))
                         .on_hover_text(tr("line_puzzle.heavy_hint"));
-                    ui.add(
-                        DragValue::new(&mut dialog.params.heavy)
-                            .range(0.3..=20.0)
-                            .suffix(" mm")
-                            .speed(0.05),
-                    );
+                    ui.horizontal(|ui| {
+                        let heavy = ui.add(
+                            DragValue::new(&mut dialog.params.heavy)
+                                .range(0.1..=20.0)
+                                .suffix(" mm")
+                                .speed(0.05),
+                        );
+                        if heavy.changed() {
+                            dialog.heavy_edited = true;
+                        }
+                        measure = ui
+                            .button(tr("line_puzzle.measure"))
+                            .on_hover_text(tr("line_puzzle.measure_hint"))
+                            .clicked();
+                    });
                     ui.end_row();
                     ui.label(tr("line_puzzle.min_piece"))
                         .on_hover_text(tr("line_puzzle.min_piece_hint"));
@@ -121,6 +192,22 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
                     .clicked();
             });
         });
+    if measure {
+        let drawing = selected_drawing(app);
+        let dialog = app.line_puzzle.as_mut().expect("dialog shown");
+        match measured_heavy(&drawing, &dialog.params) {
+            Some(heavy) => {
+                dialog.params.heavy = heavy.clamp(0.1, 20.0);
+                dialog.heavy_edited = false;
+                dialog.measured = app.selection.clone();
+            }
+            None => app.notify(tr("line_puzzle.measure_none"), Level::Warning),
+        }
+        return;
+    }
+    let Some(dialog) = &mut app.line_puzzle else {
+        return;
+    };
     if create {
         let params = LinePuzzleParams {
             frame: dialog.tray.then_some(dialog.margin),
@@ -135,25 +222,10 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
 }
 
 fn run(app: &mut MyApp, params: LinePuzzleParams, engrave: bool) {
-    let drawing: Vec<Shape> = app
-        .document
-        .shapes
-        .iter()
-        .filter(|shape| app.selection.contains(&shape.id))
-        .cloned()
-        .collect();
-    let mut bounds = mml_core::geometry::Rect::EMPTY;
-    for shape in &drawing {
-        bounds = bounds.union(shape.bounds());
-    }
-    if drawing.is_empty() || bounds.is_empty() {
+    let drawing = selected_drawing(app);
+    let Some(mask) = drawing_mask(&drawing, &params) else {
         return;
-    }
-    let margin = params.frame.unwrap_or(0.0) + params.heavy * 2.0 + 2.0;
-    let mut mask = Mask::covering(bounds, margin);
-    for shape in &drawing {
-        mask.add_shape(shape, params.heavy * 1.25);
-    }
+    };
     let Some(puzzle) = line_puzzle::generate(&mask, &params) else {
         app.notify(tr("line_puzzle.nothing"), Level::Warning);
         return;

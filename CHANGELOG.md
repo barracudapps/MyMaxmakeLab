@@ -7,6 +7,15 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- **Puzzle on lines** with colour pictures: thin outlines are no longer
+  missed, light colours (skin, pale objects) stay inside the puzzle, and
+  a small isolated mark such as a signature stays engraved but uncut.
+
+### Added
+- **Puzzle on lines** measures the outlines of a selected picture and
+  sets the heavy line to match (*Measure* button to do it again).
+
 ## [0.1.11] - 2026-11-21
 
 ### Fixed

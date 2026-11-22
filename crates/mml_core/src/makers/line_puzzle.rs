@@ -40,14 +40,21 @@ pub struct LinePuzzle {
     pub frame: Option<Path>,
 }
 
-/// The drawing on a fine grid: dark cells are ink.
+/// The drawing on a fine grid: dark cells are ink, body cells are
+/// covered by the drawing at all (ink, or the colours of a picture).
 pub struct Mask {
     origin: Point,
     cell: f64,
     width: usize,
     height: usize,
     dark: Vec<bool>,
+    body: Vec<bool>,
 }
+
+/// Grey below which a picture is ink.
+const INK: u8 = 128;
+/// Grey below which a picture is drawn on (lighter is the paper).
+const PAPER: u8 = 240;
 
 impl Mask {
     /// An empty grid over `bounds` and `margin` around it, about 600
@@ -64,6 +71,7 @@ impl Mask {
             width,
             height,
             dark: vec![false; width * height],
+            body: vec![false; width * height],
         }
     }
 
@@ -137,6 +145,7 @@ impl Mask {
                 let (x, y) = (x as usize, y as usize);
                 if self.centre(x, y).distance(point) <= radius.max(self.cell * 0.5) {
                     self.dark[y * self.width + x] = true;
+                    self.body[y * self.width + x] = true;
                 }
             }
         }
@@ -144,7 +153,9 @@ impl Mask {
 
     /// Adds a shape as ink: closed outlines filled (even-odd), open
     /// lines drawn `line_width` wide, pictures dark where below half
-    /// grey.
+    /// grey and part of the drawing where not paper white. A cell of a
+    /// picture takes its darkest pixel, so lines thinner than a cell
+    /// are not lost between two samples.
     pub fn add_shape(&mut self, shape: &Shape, line_width: f64) {
         if let ShapeKind::Image {
             image,
@@ -155,22 +166,42 @@ impl Mask {
             let Some(inverse) = shape.transform.inverse() else {
                 return;
             };
+            // Samples per cell side, enough to see every pixel.
+            let (sx, sy) = shape.transform.scale_factors();
+            let pixel = (width / image.width as f64 * sx.abs())
+                .min(height / image.height as f64 * sy.abs())
+                .max(1e-6);
+            let samples = ((self.cell / pixel).ceil() as usize + 1).clamp(1, 8);
             let (columns, rows) = self.range(shape.bounds());
             for y in rows.clone() {
                 for x in columns.clone() {
                     if x >= self.width || y >= self.height {
                         continue;
                     }
-                    let local = inverse.apply(self.centre(x, y));
-                    let u = (local.x + width / 2.0) / width;
-                    let v = (height / 2.0 - local.y) / height;
-                    if !(0.0..1.0).contains(&u) || !(0.0..1.0).contains(&v) {
-                        continue;
+                    let centre = self.centre(x, y);
+                    let mut darkest = u8::MAX;
+                    for j in 0..samples {
+                        for i in 0..samples {
+                            let offset =
+                                |k: usize| ((k as f64 + 0.5) / samples as f64 - 0.5) * self.cell;
+                            let local = inverse
+                                .apply(Point::new(centre.x + offset(i), centre.y + offset(j)));
+                            let u = (local.x + width / 2.0) / width;
+                            let v = (height / 2.0 - local.y) / height;
+                            if !(0.0..1.0).contains(&u) || !(0.0..1.0).contains(&v) {
+                                continue;
+                            }
+                            let px = ((u * image.width as f64) as u32).min(image.width - 1);
+                            let py = ((v * image.height as f64) as u32).min(image.height - 1);
+                            darkest = darkest.min(image.pixel(px, py));
+                        }
                     }
-                    let px = ((u * image.width as f64) as u32).min(image.width - 1);
-                    let py = ((v * image.height as f64) as u32).min(image.height - 1);
-                    if image.pixel(px, py) < 128 {
-                        self.dark[y * self.width + x] = true;
+                    let index = y * self.width + x;
+                    if darkest < INK {
+                        self.dark[index] = true;
+                    }
+                    if darkest < PAPER {
+                        self.body[index] = true;
                     }
                 }
             }
@@ -193,6 +224,7 @@ impl Mask {
             if 2.0 * area / perimeter.max(1e-9) <= 3.0 * line_width {
                 for index in inside {
                     self.dark[index] = true;
+                    self.body[index] = true;
                 }
             } else {
                 stroked.extend(paths.iter().filter(|path| path.closed));
@@ -206,6 +238,33 @@ impl Mask {
                 }
             }
         }
+    }
+}
+
+impl Mask {
+    /// Typical width of the ink lines, mm: twice the distance to the
+    /// paper along the middle of the lines (cells at least as far from
+    /// it as their neighbours), median over the drawing. Wide patches of
+    /// colour are left out. `None` without lines.
+    pub fn line_width(&self) -> Option<f64> {
+        let (width, height) = (self.width, self.height);
+        let background: Vec<bool> = self.dark.iter().map(|dark| !dark).collect();
+        let distance = distance_to(&background, width, height);
+        let widest = (3.0 / self.cell) as f32;
+        let mut widths: Vec<f32> = (0..width * height)
+            .filter(|index| self.dark[*index] && distance[*index] <= widest)
+            .filter(|index| {
+                neighbours(*index, width, height).all(|next| distance[next] <= distance[*index])
+            })
+            .map(|index| distance[index])
+            .collect();
+        if widths.len() < 20 {
+            return None;
+        }
+        let middle = widths.len() / 2;
+        let (_, median, _) = widths.select_nth_unstable_by(middle, f32::total_cmp);
+        // A line one cell wide is at distance 1 from the paper.
+        Some((2.0 * *median as f64 - 1.0) * self.cell)
     }
 }
 
@@ -333,16 +392,16 @@ pub fn generate(mask: &Mask, params: &LinePuzzleParams) -> Option<LinePuzzle> {
     let heavy: Vec<bool> = (0..count)
         .map(|index| mask.dark[index] && to_core[index] <= half + 1.0 && !area[index])
         .collect();
-    // Silhouette: the ink closed over small gaps, holes filled.
+    // Silhouette: the drawing closed over small gaps, holes filled.
     let gap = half.max(1.0) + 1.0;
-    let to_ink = distance_to(&mask.dark, width, height);
+    let to_ink = distance_to(&mask.body, width, height);
     let grown: Vec<bool> = to_ink.iter().map(|d| *d <= gap).collect();
     let not_grown: Vec<bool> = grown.iter().map(|g| !g).collect();
     let to_outside_grown = distance_to(&not_grown, width, height);
     let closed: Vec<bool> = (0..count)
         .map(|index| grown[index] && to_outside_grown[index] > gap)
-        .zip(mask.dark.iter())
-        .map(|(inside, dark)| inside || *dark)
+        .zip(mask.body.iter())
+        .map(|(inside, body)| inside || *body)
         .collect();
     let mut outside = vec![false; count];
     let mut queue = VecDeque::new();
@@ -417,6 +476,7 @@ pub fn generate(mask: &Mask, params: &LinePuzzleParams) -> Option<LinePuzzle> {
     let mut order: Vec<usize> = (0..sizes.len()).collect();
     order.sort_by_key(|label| sizes[*label]);
     let mut contacts: HashMap<(usize, usize), usize> = HashMap::new();
+    let mut dropped: HashSet<usize> = HashSet::new();
     for index in 0..count {
         let label = labels[index];
         if label == usize::MAX {
@@ -441,16 +501,27 @@ pub fn generate(mask: &Mask, params: &LinePuzzleParams) -> Option<LinePuzzle> {
                 best = Some((b, touching));
             }
         }
-        if let Some((neighbour, _)) = best {
-            parent[own] = neighbour;
-            merged[neighbour] += merged[own];
+        match best {
+            Some((neighbour, _)) => {
+                parent[own] = neighbour;
+                merged[neighbour] += merged[own];
+            }
+            // A speck touching nothing (a signature, a stray mark) is no
+            // piece: it stays in the drawing, uncut.
+            None => {
+                dropped.insert(own);
+            }
         }
     }
     let piece_of = |label: usize, parent: &mut Vec<usize>| -> i64 {
         if label == usize::MAX {
+            return -1;
+        }
+        let own = root(parent, label);
+        if dropped.contains(&own) {
             -1
         } else {
-            root(parent, label) as i64
+            own as i64
         }
     };
     let final_labels: Vec<i64> = labels
@@ -564,7 +635,7 @@ pub fn generate(mask: &Mask, params: &LinePuzzleParams) -> Option<LinePuzzle> {
         let mut bounds = Rect::EMPTY;
         for y in 0..height {
             for x in 0..width {
-                if silhouette[y * width + x] {
+                if final_labels[y * width + x] >= 0 {
                     bounds.include(mask.centre(x, y));
                 }
             }
@@ -683,5 +754,67 @@ mod tests {
         // The corner nook (about 8 mm²) is not a piece of its own.
         assert_eq!(puzzle.pieces, 4);
         assert!(puzzle.frame.is_none());
+    }
+
+    #[test]
+    fn pictures_keep_thin_outlines_light_colours_and_drop_specks() {
+        // 800 x 600 px over 200 x 150 mm (4 px per mm): a light grey
+        // rectangle with a 2 px black outline split by a 2 px line, and a
+        // tiny ring far from it (a signature).
+        let (columns, rows) = (800u32, 600u32);
+        let mut pixels = vec![255u8; (columns * rows) as usize];
+        let mut paint = |x: u32, y: u32, grey: u8| pixels[(y * columns + x) as usize] = grey;
+        for y in 100..500 {
+            for x in 100..700 {
+                let edge =
+                    !(102..698).contains(&x) || !(102..498).contains(&y) || (399..401).contains(&x);
+                paint(x, y, if edge { 0 } else { 200 });
+            }
+        }
+        for y in 20..32 {
+            for x in 20..32 {
+                if !(22..30).contains(&x) || !(22..30).contains(&y) {
+                    paint(x, y, 0);
+                }
+            }
+        }
+        let image = crate::document::RasterImage {
+            width: columns,
+            height: rows,
+            pixels,
+        };
+        let picture = Shape::new(
+            "picture",
+            LayerId::new(),
+            ShapeKind::Image {
+                image: std::sync::Arc::new(image),
+                width: 200.0,
+                height: 150.0,
+            },
+        );
+        let mut mask = Mask::covering(picture.bounds(), 5.0);
+        mask.add_shape(&picture, 1.0);
+        // Lines of 0.5 mm, finer than a cell: about one cell wide.
+        let line = mask.line_width().unwrap();
+        assert!(line > 0.2 && line < 0.8, "{line}");
+        let puzzle = generate(
+            &mask,
+            &LinePuzzleParams {
+                heavy: line * 1.3,
+                min_piece: 12.0,
+                frame: Some(10.0),
+            },
+        )
+        .unwrap();
+        assert_eq!(puzzle.pieces, 2);
+        // The ring is no piece and the tray ignores it: it fits the
+        // 150 x 100 mm rectangle and its 10 mm margin.
+        let frame = puzzle.frame.unwrap().bounds();
+        assert!((frame.width() - 170.0).abs() < 2.0, "{frame:?}");
+        assert!((frame.height() - 120.0).abs() < 2.0, "{frame:?}");
+        for cut in &puzzle.cuts {
+            let bounds = cut.bounds();
+            assert!(bounds.min.x > -80.0 && bounds.max.y < 55.0, "{bounds:?}");
+        }
     }
 }
