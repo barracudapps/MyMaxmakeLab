@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-11-22
+
 ### Fixed
 - **Puzzle on lines** with colour pictures: thin outlines are no longer
   missed, light colours (skin, pale objects) stay inside the puzzle, and
@@ -156,7 +158,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.11...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.12...HEAD
+[0.1.12]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.8...v0.1.9
