@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-11-22
+
 ### Added
 - **Sample projects** (*File › Sample projects…*): CNC calibration part,
   laser settings test, marble maze, Tower of Hanoi, pentominoes, fifteen
@@ -168,7 +170,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.12...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.13...HEAD
+[0.1.13]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.9...v0.1.10
