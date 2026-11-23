@@ -1,5 +1,6 @@
 //! Turns a document into the program streamed to the machine.
 
+mod relief;
 mod vcarve;
 
 use mml_cnc::CncSettings;
@@ -295,7 +296,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             .collect();
         let takes_images = matches!(
             layer.operation,
-            Operation::LaserImage(_) | Operation::CncVCarve(_)
+            Operation::LaserImage(_) | Operation::CncVCarve(_) | Operation::CncRelief(_)
         );
         if has_images && !takes_images {
             warnings.push(JobWarning::ImageOnVectorLayer(name.clone()));
@@ -345,6 +346,12 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             }
             Operation::CncVCarve(params) => {
                 vcarve::emit_vcarve(&mut writer, &shapes, params, machine.safe_z)
+            }
+            Operation::CncRelief(params) => {
+                if vectors.iter().flatten().any(|path| !path.closed) {
+                    warnings.push(JobWarning::OpenPathsNotFilled(name.clone()));
+                }
+                relief::emit_relief(&mut writer, &shapes, params, machine.safe_z)
             }
         }
     }

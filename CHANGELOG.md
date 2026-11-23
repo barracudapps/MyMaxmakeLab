@@ -7,6 +7,17 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Relief carving from drawings**: a new CNC operation, "3D relief". In
+  its layer, an outer contour is the carved area and the shapes inside
+  it stand up as rounded motifs above the background (edge rounding,
+  depth, ball or flat cutter, roughing with the same tool). The cutter
+  never leaves the outer contour. Pictures on the layer are carved as
+  height maps.
+- **Relief medallions** sample project: a sun, the triple moon, a
+  six-petal rosette and the tree of life carved in relief in hardwood
+  with a 3.175 mm ball end mill, then cut out.
+
 ## [0.1.16] - 2026-11-23
 
 ### Added

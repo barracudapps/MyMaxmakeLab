@@ -570,7 +570,7 @@ fn layers(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.label(RichText::new(tr("layers.order_hint")).weak().small());
 }
 
-fn all_operations() -> [Operation; 6] {
+fn all_operations() -> [Operation; 7] {
     [
         Operation::LaserLine(LineParams::default()),
         Operation::LaserFill(FillParams::default()),
@@ -578,6 +578,7 @@ fn all_operations() -> [Operation; 6] {
         Operation::CncProfile(CncProfileParams::default()),
         Operation::CncPocket(CncPocketParams::default()),
         Operation::CncVCarve(mml_core::layer::VCarveParams::default()),
+        Operation::CncRelief(mml_core::layer::CncReliefParams::default()),
     ]
 }
 
@@ -959,11 +960,70 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                 changed |= number(ui, &mut params.spindle, 0.0..=60_000.0, " rpm", 100.0);
                 ui.end_row();
             }
+            Operation::CncRelief(params) => {
+                use mml_core::layer::ReliefTool;
+                ui.label(tr("op.relief_tool"));
+                ui.horizontal(|ui| {
+                    for (tool, key) in [
+                        (ReliefTool::Ball, "op.relief_ball"),
+                        (ReliefTool::Flat, "op.relief_flat"),
+                    ] {
+                        changed |= ui
+                            .selectable_value(&mut params.tool, tool, tr(key))
+                            .changed();
+                    }
+                });
+                ui.end_row();
+                ui.label(tr("op.tool_diameter"));
+                changed |= number(ui, &mut params.tool_diameter, 0.1..=50.0, " mm", 0.01);
+                ui.end_row();
+                ui.label(tr("op.relief_depth"));
+                changed |= number(ui, &mut params.depth, 0.05..=50.0, " mm", 0.05);
+                ui.end_row();
+                ui.label(tr("op.relief_rounding"))
+                    .on_hover_text(tr("op.relief_rounding_hint"));
+                changed |= number(ui, &mut params.rounding, 0.0..=50.0, " mm", 0.05);
+                ui.end_row();
+                ui.label(tr("op.stepover"));
+                let mut stepover = params.stepover * 100.0;
+                if ui
+                    .add(egui::Slider::new(&mut stepover, 2.0..=90.0).suffix(" %"))
+                    .changed()
+                {
+                    params.stepover = stepover / 100.0;
+                    changed = true;
+                }
+                ui.end_row();
+                ui.label(tr("op.relief_roughing"))
+                    .on_hover_text(tr("op.relief_roughing_hint"));
+                changed |= ui.checkbox(&mut params.roughing, "").changed();
+                ui.end_row();
+                if params.roughing {
+                    ui.label(tr("op.pass_depth"));
+                    changed |= number(ui, &mut params.pass_depth, 0.05..=20.0, " mm", 0.05);
+                    ui.end_row();
+                    ui.label(tr("op.relief_allowance"));
+                    changed |= number(ui, &mut params.allowance, 0.0..=5.0, " mm", 0.05);
+                    ui.end_row();
+                }
+                ui.label(tr("op.feed"));
+                changed |= number(ui, &mut params.feed, 1.0..=20_000.0, " mm/min", 10.0);
+                ui.end_row();
+                ui.label(tr("op.plunge"));
+                changed |= number(ui, &mut params.plunge, 1.0..=5_000.0, " mm/min", 5.0);
+                ui.end_row();
+                ui.label(tr("op.spindle"));
+                changed |= number(ui, &mut params.spindle, 0.0..=60_000.0, " rpm", 100.0);
+                ui.end_row();
+            }
         });
     // Below the grid: grid cells never wrap, a long hint there would
     // stop the panel from getting narrower.
     if matches!(operation, Operation::CncVCarve(_)) {
         ui.add(egui::Label::new(RichText::new(tr("op.vcarve_hint")).weak().small()).wrap());
+    }
+    if matches!(operation, Operation::CncRelief(_)) {
+        ui.add(egui::Label::new(RichText::new(tr("op.relief_hint")).weak().small()).wrap());
     }
     if changed {
         app.document.layers[index].operation = operation;
@@ -1035,6 +1095,18 @@ fn apply_tool(operation: &mut Operation, tool: &mml_materials::Tool) {
             params.feed = tool.feed;
             params.plunge = tool.plunge;
             params.spindle = tool.spindle;
+        }
+        Operation::CncRelief(params) => {
+            params.tool = match tool.kind {
+                ToolKind::FlatEndMill => mml_core::layer::ReliefTool::Flat,
+                _ => mml_core::layer::ReliefTool::Ball,
+            };
+            params.tool_diameter = tool.diameter;
+            params.feed = tool.feed;
+            params.plunge = tool.plunge;
+            params.spindle = tool.spindle;
+            params.pass_depth = tool.stepdown;
+            params.stepover = tool.stepover;
         }
         _ => {}
     }
@@ -1151,11 +1223,18 @@ fn tool_picker(app: &mut MyApp, ui: &mut egui::Ui, operation: &mut Operation, ch
         return;
     }
     let wants_v = matches!(operation, Operation::CncVCarve(_));
+    let relief = matches!(operation, Operation::CncRelief(_));
     let tools: Vec<mml_materials::Tool> = app
         .library
         .tools
         .iter()
-        .filter(|tool| matches!(tool.kind, ToolKind::VBit { .. }) == wants_v)
+        .filter(|tool| {
+            if relief {
+                matches!(tool.kind, ToolKind::BallEndMill | ToolKind::FlatEndMill)
+            } else {
+                matches!(tool.kind, ToolKind::VBit { .. }) == wants_v
+            }
+        })
         .cloned()
         .collect();
     ui.horizontal_wrapped(|ui| {

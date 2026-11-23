@@ -254,6 +254,14 @@ pub fn catalog() -> &'static [Sample] {
             build: esoteric::runes,
         },
         Sample {
+            id: "relief_medallions",
+            category: Category::Esoteric,
+            machine: Cnc,
+            hybrid: false,
+            difficulty: 2,
+            build: esoteric::relief_medallions,
+        },
+        Sample {
             id: "spirit_board",
             category: Category::Esoteric,
             machine: Laser,
@@ -337,6 +345,23 @@ pub(crate) mod settings {
             tabs: 0,
             tab_width: 4.0,
             tab_height: 1.0,
+        })
+    }
+
+    /// Relief with a 3.175 mm ball end mill, roughed with the same tool.
+    pub fn relief(depth: f64, rounding: f64) -> Operation {
+        Operation::CncRelief(mml_core::layer::CncReliefParams {
+            tool: mml_core::layer::ReliefTool::Ball,
+            tool_diameter: 3.175,
+            depth,
+            rounding,
+            stepover: 0.15,
+            roughing: true,
+            pass_depth: 1.0,
+            allowance: 0.3,
+            feed: 1000.0,
+            plunge: 250.0,
+            spindle: 14000.0,
         })
     }
 

@@ -13,6 +13,13 @@
 - **Gravure en V** : vraie gravure en V du texte et des dessins (la
   profondeur suit la largeur du trait), images gravées plus profond là où
   elles sont sombres.
+- **Relief** à la fraise boule (ou plate) sur des formes du dessin : un
+  contour extérieur délimite la zone creusée, les contours à l'intérieur
+  ressortent en motifs aux bords arrondis (en quart de cercle, sur la
+  largeur « Arrondi des bords »), ceux à l'intérieur d'un motif sont
+  recreusés. Ébauche par niveaux avec la même fraise puis finition ; la
+  fraise ne sort jamais du contour extérieur. Les images y deviennent un
+  relief, plus profond là où elles sont sombres.
 
 ## Bibliothèque d'outils et suggestion
 

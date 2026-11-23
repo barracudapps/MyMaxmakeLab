@@ -190,6 +190,10 @@ multi-axis programs.
   and holding **tabs**; **pockets** from the centre out; even pass depths.
 - **V-bit engraving**: true V-carving of text and drawings (depth follows the
   stroke width) and pictures engraved deeper where darker.
+- **Relief from drawings**: closed shapes inside an outer contour stand up
+  as rounded motifs above a background carved with a ball end mill
+  (roughing then finishing, the cutter never leaves the outer contour);
+  pictures become height maps.
 - **3D model → G-code**: drop an STL or OBJ, choose the face, size, depth and
   tool, get roughing and finishing passes computed by drop-cutter (no gouge).
 - **4-axis**: wrap a relief around a cylinder, or machine the whole part
@@ -423,7 +427,7 @@ body): `git log` is the technical changelog. See
 - [x] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
 - [x] Resume an interrupted job, kerf compensation, combined shapes
 - [x] Import from Fusion, LightBurn and MaxmakeLAB libraries; nesting on a sheet; puzzle inside any shape
-- [x] Sample projects with step-by-step guides: CNC, laser and CNC + laser tests, puzzles and games (3D dragon, triceratops and galleon, slotted globe), decorations, optical illusions, a sundial, esoteric objects (sacred geometry, runes, talking board), a pendulum clock
+- [x] Sample projects with step-by-step guides: CNC, laser and CNC + laser tests, puzzles and games (3D dragon, triceratops and galleon, slotted globe), decorations, optical illusions, a sundial, esoteric objects (sacred geometry, runes, relief medallions, talking board), a pendulum clock
 - [x] Keyboard jog with precision levels, spindle next to the jog pad, homing diagnosis, durations learned from past jobs
 - [x] Maxmake HiMill D1S profile, bed taken from the controller travel
 - [ ] File transfer to the machine memory (HiMill SD card)

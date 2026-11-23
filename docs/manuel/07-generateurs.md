@@ -86,6 +86,7 @@ l'assemblage.
 | Cadran solaire horizontal | CNC + laser | lignes d'heures calculées pour 47° N gravées au laser, cadran, style et fente à la fraise |
 | Médaillons de géométrie sacrée | laser | fleur de vie, cube de Métatron, arbre de vie |
 | Pierres de runes | CNC | les 24 runes du futhark ancien à la fraise en V sur des palets, plus une rune blanche |
+| Médaillons en relief | CNC | soleil, triple lune, rosace à six pétales et arbre de vie qui ressortent, bombés, d'un fond creusé à la fraise boule, dans du bois dur |
 | Planche de spiritisme | laser | alphabet en arc, chiffres, oui / non / au revoir dans la langue du guide, et sa goutte |
 | Horloge à balancier | CNC | toutes les pièces d'une horloge murale à poids : platines, rouage (5 × 4 × 3), échappement à ancre de Graham, tambour à rochet, minuterie, cadran, aiguilles, balancier de 56 cm |
 

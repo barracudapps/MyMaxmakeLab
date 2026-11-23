@@ -81,6 +81,10 @@ pub enum Operation {
     /// Engraving with a V-bit: V-carving of vectors (depth follows the
     /// stroke width) or of pictures (depth follows darkness).
     CncVCarve(VCarveParams),
+    /// 3D relief with a ball (or flat) end mill: closed shapes inside
+    /// an outer contour stand up, rounded, above a carved background;
+    /// pictures are carved deeper where they are darker.
+    CncRelief(CncReliefParams),
 }
 
 impl Operation {
@@ -96,6 +100,14 @@ impl Operation {
             Operation::CncVCarve(params) => {
                 crate::stats::tool_label("V-bit", params.tool_diameter, Some(params.angle))
             }
+            Operation::CncRelief(params) => crate::stats::tool_label(
+                match params.tool {
+                    ReliefTool::Ball => "Ball end mill",
+                    ReliefTool::Flat => "End mill",
+                },
+                params.tool_diameter,
+                None,
+            ),
             _ => "Laser".into(),
         }
     }
@@ -115,6 +127,7 @@ impl Operation {
             Self::CncProfile(_) => "op.cnc_profile",
             Self::CncPocket(_) => "op.cnc_pocket",
             Self::CncVCarve(_) => "op.cnc_vcarve",
+            Self::CncRelief(_) => "op.cnc_relief",
         }
     }
 }
@@ -403,6 +416,55 @@ impl Default for VCarveParams {
             feed: 800.0,
             plunge: 200.0,
             spindle: 16000.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReliefTool {
+    Ball,
+    Flat,
+}
+
+/// Relief carving. In the shapes of the layer, an outer contour is the
+/// carved area, contours inside it are raised motifs, contours inside
+/// those are carved again (holes), and so on.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CncReliefParams {
+    pub tool: ReliefTool,
+    pub tool_diameter: f64,
+    /// Depth of the background below the stock top, mm.
+    pub depth: f64,
+    /// Width over which the edge of a motif rises from the background
+    /// to the top, mm, in a quarter circle; motifs narrower than twice
+    /// this stay domed below the top. 0 gives straight walls.
+    pub rounding: f64,
+    /// Fraction of the tool diameter between finishing lines.
+    pub stepover: f64,
+    /// Roughing levels first (same tool), leaving `allowance`.
+    pub roughing: bool,
+    pub pass_depth: f64,
+    pub allowance: f64,
+    pub feed: f64,
+    pub plunge: f64,
+    pub spindle: f64,
+}
+
+impl Default for CncReliefParams {
+    fn default() -> Self {
+        Self {
+            tool: ReliefTool::Ball,
+            tool_diameter: 3.175,
+            depth: 3.0,
+            rounding: 3.0,
+            stepover: 0.12,
+            roughing: true,
+            pass_depth: 1.0,
+            allowance: 0.3,
+            feed: 1200.0,
+            plunge: 300.0,
+            spindle: 12000.0,
         }
     }
 }

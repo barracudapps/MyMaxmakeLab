@@ -73,6 +73,7 @@ fn tool_diameter(app: &MyApp) -> f64 {
             Operation::CncProfile(params) => Some(params.tool_diameter),
             Operation::CncPocket(params) => Some(params.tool_diameter),
             Operation::CncVCarve(params) => Some(params.tool_diameter),
+            Operation::CncRelief(params) => Some(params.tool_diameter),
             _ => None,
         })
         .fold(0.0, f64::max)

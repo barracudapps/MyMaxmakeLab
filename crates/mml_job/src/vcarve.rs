@@ -28,7 +28,7 @@ fn relief_params(params: &VCarveParams, safe_z: f64) -> ReliefParams {
 
 /// Two-pass chamfer distance transform (1, √2), in cells, from every
 /// inside cell to the nearest outside cell.
-fn distance_to_outside(inside: &[bool], columns: usize, rows: usize) -> Vec<f64> {
+pub(crate) fn distance_to_outside(inside: &[bool], columns: usize, rows: usize) -> Vec<f64> {
     let mut distance: Vec<f64> = inside
         .iter()
         .map(|&cell| if cell { f64::INFINITY } else { 0.0 })

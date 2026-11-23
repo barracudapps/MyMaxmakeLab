@@ -6,6 +6,7 @@ use crate::tests_projects::text_language;
 use crate::{BoardOps, Builder, settings};
 use mml_core::geometry::{Path, Point, Transform};
 use mml_core::layer::ProfileSide;
+use mml_core::region::{Boolean, combine};
 use mml_core::{Document, MachineKind};
 
 /// Flower of life: 19 circles of `radius` on a hexagonal grid.
@@ -139,6 +140,131 @@ pub fn sacred_geometry(language: &str) -> Document {
     b.step("s2", Vec::new());
     b.finish(MachineKind::Laser)
 }
+
+/// Raised sun: a disc and twelve separate rays.
+fn relief_sun() -> Vec<Path> {
+    let centre = point(0.0, 0.0);
+    let mut shapes = vec![vec![circle(centre, 11.0)]];
+    for angle in (0..12).map(|index| index as f64 * 30.0) {
+        shapes.push(vec![Path::new(
+            vec![
+                polar(centre, 14.5, angle - 6.5),
+                polar(centre, 27.0, angle),
+                polar(centre, 14.5, angle + 6.5),
+            ],
+            true,
+        )]);
+    }
+    union(shapes)
+}
+
+/// Triple moon: waxing crescent, full moon, waning crescent, the
+/// crescents' backs turned to the full moon.
+fn relief_triple_moon() -> Vec<Path> {
+    let crescent = |side: f64| {
+        difference(vec![
+            vec![circle(point(24.0 * side, 0.0), 9.0)],
+            vec![circle(point(27.5 * side, 0.0), 8.5)],
+        ])
+    };
+    let mut shapes = vec![vec![circle(point(0.0, 0.0), 9.0)]];
+    shapes.push(crescent(-1.0));
+    shapes.push(crescent(1.0));
+    // Three small stars above and below.
+    for (x, y) in [(0.0, 20.0), (-12.0, -19.0), (12.0, -19.0)] {
+        shapes.push(vec![star(point(x, y), 4.2, 1.8)]);
+    }
+    union(shapes)
+}
+
+/// Five-pointed star, `outer` and `inner` radii, a point upwards.
+fn star(centre: Point, outer: f64, inner: f64) -> Path {
+    let points = (0..10)
+        .map(|index| {
+            let radius = if index % 2 == 0 { outer } else { inner };
+            polar(centre, radius, 90.0 + index as f64 * 36.0)
+        })
+        .collect();
+    Path::new(points, true)
+}
+
+/// Hexafoil (daisy wheel, an old protective mark carved on beams and
+/// chests): six petals drawn with the compass, kept apart for the tool,
+/// inside a ring.
+fn relief_hexafoil() -> Vec<Path> {
+    let centre = point(0.0, 0.0);
+    let radius = 28.0;
+    let mut shapes = Vec::new();
+    for angle in (0..6).map(|index| index as f64 * 60.0 + 30.0) {
+        // The two circles through the centre and the petal tip.
+        let petal = combine(
+            &[
+                vec![circle(polar(centre, radius, angle - 60.0), radius)],
+                vec![circle(polar(centre, radius, angle + 60.0), radius)],
+            ],
+            Boolean::Intersection,
+        )
+        .unwrap_or_default();
+        shapes.push(mml_core::region::offset_paths(&petal, -1.3));
+    }
+    shapes.push(vec![circle(centre, 33.5), circle(centre, 30.5)]);
+    shapes.push(vec![circle(centre, 3.0)]);
+    union(shapes)
+}
+
+/// Tree of life in relief: the ten sephirot as bosses joined by the 22
+/// paths as ridges.
+fn relief_tree_of_life() -> Vec<Path> {
+    let lines = tree_of_life(point(0.0, 0.0), 12.0, 4.8);
+    let (paths, rings): (Vec<Path>, Vec<Path>) = lines.into_iter().partition(|path| !path.closed);
+    let mut shapes: Vec<Vec<Path>> = paths
+        .iter()
+        .map(|path| mml_core::region::offset_paths(std::slice::from_ref(path), 1.3))
+        .collect();
+    // Only the outer circle of each sephira.
+    shapes.extend(rings.into_iter().step_by(2).map(|ring| vec![ring]));
+    union(shapes)
+}
+
+/// Four medallions carved in relief in hardwood: a raised sun, the
+/// triple moon, a hexafoil and the tree of life, then cut out.
+pub fn relief_medallions(language: &str) -> Document {
+    let mut b = Builder::new(text_language(language), "relief_medallions");
+    b.stock(190.0, 190.0);
+    let thickness = 15.0;
+    let relief = b.layer(b.t("layer.relief"), settings::relief(3.0, 2.5));
+    let outline = b.layer(
+        b.t("layer.outline"),
+        settings::profile(6.0, thickness + 0.3, ProfileSide::Outside, 4),
+    );
+    let designs: [(&str, Vec<Path>); 4] = [
+        ("part.sun", relief_sun()),
+        ("part.moon", relief_triple_moon()),
+        ("part.hexafoil", relief_hexafoil()),
+        ("part.tree", relief_tree_of_life()),
+    ];
+    for (index, (key, motifs)) in designs.into_iter().enumerate() {
+        let centre = point(
+            60.0 + (index % 2) as f64 * 90.0,
+            150.0 - (index / 2) as f64 * 90.0,
+        );
+        // The carved area, a rim at full height around it, then the
+        // motifs standing inside.
+        let mut paths = vec![circle(centre, RELIEF_AREA)];
+        paths.extend(translate(&motifs, centre.x, centre.y));
+        b.add(relief, b.t(key), paths);
+        b.add(outline, b.t(key), vec![circle(centre, 40.0)]);
+    }
+    b.step("s1", Vec::new());
+    b.step("s2", vec![relief]);
+    b.step("s3", vec![outline]);
+    b.step("s4", Vec::new());
+    b.step("s5", Vec::new());
+    b.finish(MachineKind::Cnc)
+}
+
+/// Radius of the carved area of a relief medallion.
+const RELIEF_AREA: f64 = 37.0;
 
 /// Pen strokes, each a polyline.
 pub type Strokes = &'static [&'static [(f64, f64)]];
@@ -496,6 +622,29 @@ pub fn spirit_board(language: &str) -> Document {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn relief_motifs_leave_room_for_the_ball_inside_the_area() {
+        // A 3.175 mm ball must pass between the motifs and the edge of
+        // the carved area.
+        for motifs in [
+            relief_sun(),
+            relief_triple_moon(),
+            relief_hexafoil(),
+            relief_tree_of_life(),
+        ] {
+            assert!(!motifs.is_empty());
+            for path in &motifs {
+                for point in &path.points {
+                    assert!(point.length() <= RELIEF_AREA - 3.2, "{point:?}");
+                }
+            }
+        }
+        // The petals joined by the centre boss, and the ring (outside
+        // and inside).
+        assert_eq!(relief_hexafoil().len(), 3);
+        assert_eq!(relief_sun().len(), 13);
+    }
 
     #[test]
     fn runes_fit_their_stones() {
