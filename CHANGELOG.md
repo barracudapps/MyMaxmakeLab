@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-11-23
+
 ### Added
 - **Two more 3D puzzles** to slot together from 3 mm plywood: a
   triceratops (body, frill, two pairs of legs) and a galleon (hull and
@@ -197,7 +199,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.15...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.16...HEAD
+[0.1.16]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.14...v0.1.15
 [0.1.14]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.12...v0.1.13
