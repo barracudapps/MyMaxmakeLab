@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-11-25
+
 ### Added
 - **Layered decorations**: five sample projects of 3 mm plywood sheets
   glued in a stack, each opening onto the ones behind: a moose framing
@@ -231,7 +233,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.17...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.18...HEAD
+[0.1.18]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.16...v0.1.17
 [0.1.16]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.14...v0.1.15
