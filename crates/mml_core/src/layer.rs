@@ -440,6 +440,11 @@ pub struct CncReliefParams {
     /// to the top, mm, in a quarter circle; motifs narrower than twice
     /// this stay domed below the top. 0 gives straight walls.
     pub rounding: f64,
+    /// Width over which the carved background goes down from the outer
+    /// contour to its full depth, mm, in a quarter circle: a bowl when
+    /// it reaches the middle (cups of a game, a dish). 0 gives a flat
+    /// background.
+    pub dish: f64,
     /// Fraction of the tool diameter between finishing lines.
     pub stepover: f64,
     /// Roughing levels first (same tool), leaving `allowance`.
@@ -458,6 +463,7 @@ impl Default for CncReliefParams {
             tool_diameter: 3.175,
             depth: 3.0,
             rounding: 3.0,
+            dish: 0.0,
             stepover: 0.12,
             roughing: true,
             pass_depth: 1.0,

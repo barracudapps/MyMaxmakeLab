@@ -19,7 +19,8 @@
   largeur « Arrondi des bords »), ceux à l'intérieur d'un motif sont
   recreusés. Ébauche par niveaux avec la même fraise puis finition ; la
   fraise ne sort jamais du contour extérieur. Les images y deviennent un
-  relief, plus profond là où elles sont sombres.
+  relief, plus profond là où elles sont sombres. **Fond arrondi** creuse
+  le fond en cuvette depuis le contour extérieur (trous d'un jeu, coupelle).
 
 ## Bibliothèque d'outils et suggestion
 

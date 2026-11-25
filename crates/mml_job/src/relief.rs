@@ -97,11 +97,19 @@ pub fn vector_field(paths: &[Path], params: &CncReliefParams) -> Option<HeightFi
         .map(|&count| count >= 2 && count % 2 == 0)
         .collect();
     let distance = distance_to_outside(&motif, columns, rows);
+    // Distance from the outer contour, for a dished background.
+    let carved: Vec<bool> = count.iter().map(|&count| count > 0).collect();
+    let from_edge = distance_to_outside(&carved, columns, rows);
     let heights = (0..columns * rows)
         .map(|cell| {
             Some(match count[cell] {
                 0 => wall(params),
-                count if count % 2 == 1 => -params.depth,
+                count if count % 2 == 1 => {
+                    // Quarter circle down from the contour: the cell
+                    // centre is half a step in.
+                    let depth = edge_profile((from_edge[cell] - 0.5).max(0.0) * step, params.dish);
+                    -params.depth * depth
+                }
                 _ => {
                     -params.depth
                         + params.depth * edge_profile(distance[cell] * step, params.rounding)
@@ -220,6 +228,24 @@ mod tests {
         // Close to its edge it is still rising.
         let near = height_at(&field, 14.8, 0.0).unwrap();
         assert!(near < -0.5 && near > -3.0, "{near}");
+    }
+
+    #[test]
+    fn a_dish_goes_down_from_its_edge_to_the_middle() {
+        let params = CncReliefParams {
+            depth: 8.0,
+            dish: 12.0,
+            ..CncReliefParams::default()
+        };
+        let field = vector_field(&[circle(0.0, 0.0, 12.0)], &params).unwrap();
+        let middle = height_at(&field, 0.0, 0.0).unwrap();
+        assert!((middle + 8.0).abs() < 0.3, "{middle}");
+        // Halfway out it is already deep (quarter circle), near the rim
+        // it is shallow.
+        let half = height_at(&field, 6.0, 0.0).unwrap();
+        assert!(half < -6.0 && half > -8.0, "{half}");
+        let rim = height_at(&field, 11.5, 0.0).unwrap();
+        assert!(rim > -3.5, "{rim}");
     }
 
     #[test]

@@ -121,14 +121,16 @@ fn zigzag(x0: f64, x1: f64, y: f64, height: f64) -> Vec<Path> {
 }
 
 /// Awale (oware) board in 18 mm wood: the laser decorates the top, then
-/// the spindle digs the twelve cups and the two stores and cuts it out.
+/// a ball end mill digs the twelve cups and the two stores as rounded
+/// bowls (the seeds come out with a fingertip) and a flat one cuts it
+/// out.
 pub fn awale(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "awale");
     b.stock(260.0, 110.0);
     let thickness = 18.0;
     let rings = b.layer(b.t("layer.rings"), settings::laser_line());
     let bands = b.layer(b.t("layer.bands"), laser_fill_dark());
-    let cups = b.layer(b.t("layer.cups"), settings::pocket(6.0, 9.0));
+    let cups = b.layer(b.t("layer.cups"), settings::bowls(9.0, 14.0));
     let outline = b.layer(
         b.t("layer.outline"),
         settings::profile(6.0, thickness + 0.3, ProfileSide::Outside, 4),
@@ -163,9 +165,10 @@ pub fn awale(language: &str) -> Document {
     );
     b.step("s1", Vec::new());
     b.step("s2", vec![rings, bands]);
-    b.step("s3", vec![cups, outline]);
-    b.step("s4", Vec::new());
+    b.step("s3", vec![cups]);
+    b.step("s4", vec![outline]);
     b.step("s5", Vec::new());
+    b.step("s6", Vec::new());
     b.finish_hybrid()
 }
 

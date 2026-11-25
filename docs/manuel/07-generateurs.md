@@ -78,9 +78,12 @@ l'assemblage.
 | Rhinocéros 3D et tortue 3D | laser | mêmes flancs et entretoises que l'ours ; la tortue a une carapace bombée de 4 cm de large |
 | Fusée 3D | laser | corps à hublots croisé avec l'étage d'ailerons, debout sur quatre ailerons |
 | Avion 3D | laser | aile et empennage glissés à travers le fuselage, train d'atterrissage emboîté sous le ventre |
+| Book nook : la ruelle | laser | boîte à créneaux à glisser entre les livres : façades en deux couches, passerelle à tenons traversants, pavés, guirlandes, ville au fond |
+| Cale-livres forêt et cerfs | laser | montant, base et équerre à tenons, forêt et cerf découpés |
+| Coffre à code (cryptex) | laser | quatre molettes à lettres, cames à encoche et pêne coulissant ; le code se choisit au collage |
 | Sapin de Noël 3D | laser | deux sapins croisés, boules découpées, guirlandes gravées, étoile sur la pointe |
 | Globe à lamelles | laser | sphère de 11 cm : 5 anneaux et 8 lamelles qui s'emboîtent |
-| Awalé | CNC + laser | décor gravé au laser, puis douze trous, deux greniers et contour à la fraise de 6 mm ; règles du jeu dans le guide |
+| Awalé | CNC + laser | décor gravé au laser, douze trous et deux greniers creusés en cuvette à la fraise boule de 6 mm (les graines se ramassent du bout des doigts), contour à la fraise plate ; règles du jeu dans le guide |
 | Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
 | Taquin | laser | 15 carreaux numérotés et leur cadre |
 | Élan en forêt, Ours au coucher de soleil, Chouette au clair de lune | laser | décors à couches : cinq ou six feuilles collées, la silhouette de l'animal encadre des montagnes, des sapins, un ciel découpé ; trous d'alignement et numéros gravés cachés |

@@ -984,6 +984,10 @@ fn operation_editor(app: &mut MyApp, ui: &mut egui::Ui) {
                     .on_hover_text(tr("op.relief_rounding_hint"));
                 changed |= number(ui, &mut params.rounding, 0.0..=50.0, " mm", 0.05);
                 ui.end_row();
+                ui.label(tr("op.relief_dish"))
+                    .on_hover_text(tr("op.relief_dish_hint"));
+                changed |= number(ui, &mut params.dish, 0.0..=200.0, " mm", 0.1);
+                ui.end_row();
                 ui.label(tr("op.stepover"));
                 let mut stepover = params.stepover * 100.0;
                 if ui

@@ -231,7 +231,12 @@ pub fn triceratops(language: &str) -> Document {
 }
 
 /// Laser boards for a slot-together model, then the assembly steps.
-pub(crate) fn cut_and_finish(mut b: Builder, parts: Vec<Part>) -> Document {
+pub(crate) fn cut_and_finish(b: Builder, parts: Vec<Part>) -> Document {
+    cut_then_steps(b, parts, 3)
+}
+
+/// Step `s1`, the boards, then the hand steps `s2` to `s{last}`.
+pub(crate) fn cut_then_steps(mut b: Builder, parts: Vec<Part>, last: usize) -> Document {
     b.step("s1", Vec::new());
     b.cut_boards(
         boards(parts, 4.0),
@@ -243,8 +248,9 @@ pub(crate) fn cut_and_finish(mut b: Builder, parts: Vec<Part>) -> Document {
         },
         "board",
     );
-    b.step("s2", Vec::new());
-    b.step("s3", Vec::new());
+    for step in 2..=last {
+        b.step(&format!("s{step}"), Vec::new());
+    }
     b.finish(MachineKind::Laser)
 }
 

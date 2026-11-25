@@ -26,51 +26,52 @@ fn relief_params(params: &VCarveParams, safe_z: f64) -> ReliefParams {
     }
 }
 
-/// Two-pass chamfer distance transform (1, √2), in cells, from every
-/// inside cell to the nearest outside cell.
+/// Two-pass chamfer distance transform on a 5 × 5 neighbourhood
+/// (steps of 1, √2 and √5 cells: within about 2 % of the true distance,
+/// so round shapes stay round), in cells, from every inside cell to the
+/// nearest outside cell.
 pub(crate) fn distance_to_outside(inside: &[bool], columns: usize, rows: usize) -> Vec<f64> {
     let mut distance: Vec<f64> = inside
         .iter()
         .map(|&cell| if cell { f64::INFINITY } else { 0.0 })
         .collect();
-    let diagonal = std::f64::consts::SQRT_2;
-    let index = |column: usize, row: usize| row * columns + column;
-    for row in 0..rows {
-        for column in 0..columns {
-            let mut best = distance[index(column, row)];
-            if column > 0 {
-                best = best.min(distance[index(column - 1, row)] + 1.0);
-            }
-            if row > 0 {
-                best = best.min(distance[index(column, row - 1)] + 1.0);
-                if column > 0 {
-                    best = best.min(distance[index(column - 1, row - 1)] + diagonal);
+    let (diagonal, knight) = (std::f64::consts::SQRT_2, 5f64.sqrt());
+    // Neighbours already visited by a forward scan; the backward scan
+    // uses the opposite ones.
+    let forward: [(i64, i64, f64); 8] = [
+        (-1, 0, 1.0),
+        (0, -1, 1.0),
+        (-1, -1, diagonal),
+        (1, -1, diagonal),
+        (-1, -2, knight),
+        (1, -2, knight),
+        (-2, -1, knight),
+        (2, -1, knight),
+    ];
+    let (width, height) = (columns as i64, rows as i64);
+    let mut pass = |order: &mut dyn Iterator<Item = (i64, i64)>, sign: i64| {
+        for (column, row) in order {
+            let here = (row * width + column) as usize;
+            let mut best = distance[here];
+            for (dx, dy, cost) in forward {
+                let (x, y) = (column + sign * dx, row + sign * dy);
+                if x >= 0 && y >= 0 && x < width && y < height {
+                    best = best.min(distance[(y * width + x) as usize] + cost);
                 }
-                if column + 1 < columns {
-                    best = best.min(distance[index(column + 1, row - 1)] + diagonal);
-                }
             }
-            distance[index(column, row)] = best;
+            distance[here] = best;
         }
-    }
-    for row in (0..rows).rev() {
-        for column in (0..columns).rev() {
-            let mut best = distance[index(column, row)];
-            if column + 1 < columns {
-                best = best.min(distance[index(column + 1, row)] + 1.0);
-            }
-            if row + 1 < rows {
-                best = best.min(distance[index(column, row + 1)] + 1.0);
-                if column + 1 < columns {
-                    best = best.min(distance[index(column + 1, row + 1)] + diagonal);
-                }
-                if column > 0 {
-                    best = best.min(distance[index(column - 1, row + 1)] + diagonal);
-                }
-            }
-            distance[index(column, row)] = best;
-        }
-    }
+    };
+    pass(
+        &mut (0..height).flat_map(|row| (0..width).map(move |column| (column, row))),
+        1,
+    );
+    pass(
+        &mut (0..height)
+            .rev()
+            .flat_map(|row| (0..width).rev().map(move |column| (column, row))),
+        -1,
+    );
     distance
 }
 

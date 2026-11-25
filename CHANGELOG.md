@@ -7,6 +7,25 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Three bigger projects over several boards**: a book nook (an alley
+  at night in a finger-jointed box to slide between books, with house
+  fronts in two layers, a bridge whose tabs go through the walls, a
+  cobbled floor and string lights), a pair of bookends with a forest and
+  a stag cut out, and a code box (cryptex): four letter dials on the
+  lid turn cams underneath, and a sliding bolt frees the lid only when
+  the four notches face its fingers; the code is chosen when gluing.
+  All three can be resized to your plywood.
+- The 3D relief operation can carve a **rounded bottom**: the background
+  goes down from the outer contour in a quarter circle, into bowls.
+
+### Changed
+- The awale's pits and stores are carved as rounded bowls with a 6 mm
+  ball end mill, so the seeds come out with a fingertip; the outline is
+  cut in a step of its own with the flat end mill.
+- V-carving and relief use a finer distance measure (5 × 5 chamfer):
+  round shapes no longer come out slightly faceted.
+
 ## [0.1.19] - 2026-11-25
 
 ### Added

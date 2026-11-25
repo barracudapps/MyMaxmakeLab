@@ -6,6 +6,7 @@
 mod animals3d;
 mod art;
 mod clock;
+mod complex3d;
 mod deco;
 mod esoteric;
 pub mod fit;
@@ -277,6 +278,33 @@ pub fn catalog() -> &'static [Sample] {
             resizable: true,
             difficulty: 2,
             build: animals3d::airplane_3d,
+        },
+        Sample {
+            id: "book_nook",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: complex3d::book_nook,
+        },
+        Sample {
+            id: "bookends",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 2,
+            build: complex3d::bookends,
+        },
+        Sample {
+            id: "code_box",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: complex3d::code_box,
         },
         Sample {
             id: "globe",
@@ -581,12 +609,32 @@ pub(crate) mod settings {
             tool_diameter: 3.175,
             depth,
             rounding,
+            dish: 0.0,
             stepover: 0.15,
             roughing: true,
             pass_depth: 1.0,
             allowance: 0.3,
             feed: 1000.0,
             plunge: 250.0,
+            spindle: 14000.0,
+        })
+    }
+
+    /// Bowls `depth` deep with a 6 mm ball end mill: each contour is
+    /// carved as a dish going down over `dish` mm from its edge.
+    pub fn bowls(depth: f64, dish: f64) -> Operation {
+        Operation::CncRelief(mml_core::layer::CncReliefParams {
+            tool: mml_core::layer::ReliefTool::Ball,
+            tool_diameter: 6.0,
+            depth,
+            rounding: 0.0,
+            dish,
+            stepover: 0.15,
+            roughing: true,
+            pass_depth: 1.5,
+            allowance: 0.3,
+            feed: 1200.0,
+            plunge: 300.0,
             spindle: 14000.0,
         })
     }
