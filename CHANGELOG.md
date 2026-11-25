@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.19] - 2026-11-25
+
 ### Added
 - **Resize the laser-cut puzzles and layered decorations to your
   stock**: opening one of these samples asks for the plywood thickness,
@@ -250,7 +252,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.18...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.19...HEAD
+[0.1.19]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.18...v0.1.19
 [0.1.18]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.16...v0.1.17
 [0.1.16]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.15...v0.1.16
