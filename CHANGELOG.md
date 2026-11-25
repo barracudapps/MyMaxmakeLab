@@ -7,6 +7,19 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Layered decorations**: five sample projects of 3 mm plywood sheets
+  glued in a stack, each opening onto the ones behind: a moose framing
+  mountains, firs and two stags, a bear at sunset, an owl in the
+  moonlight, a round Christmas bauble with a leaping deer, and a
+  stepped mandala. Every sheet keeps a frame, pin holes line them up
+  and hidden engraved numbers give the order.
+- **Three more 3D puzzles**: a bear and a wolf standing on their four
+  legs (two full side views held apart by rounded spacers) and a 3D fir
+  tree with its star.
+- The animal outlines come from public domain (CC0) drawings from
+  Openclipart, credited in `crates/mml_samples/art/CREDITS.md`.
+
 ## [0.1.17] - 2026-11-23
 
 ### Added

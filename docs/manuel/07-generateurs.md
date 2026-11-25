@@ -74,10 +74,15 @@ l'assemblage.
 | Dragon 3D à emboîter | laser | corps, ailes et deux paires de pattes à fentes croisées, écailles gravées |
 | Tricératops 3D à emboîter | laser | corps, collerette et deux paires de pattes, peau gravée |
 | Galion 3D à emboîter | laser | coque et mâts d'une pièce, deux voiles carrées enfilées sur les mâts, deux berceaux |
+| Ours 3D et loup 3D à emboîter | laser | deux flancs (la silhouette complète, debout sur ses quatre pattes) tenus par trois entretoises bombées qui forment le dos |
+| Sapin de Noël 3D | laser | deux sapins croisés, boules découpées, guirlandes gravées, étoile sur la pointe |
 | Globe à lamelles | laser | sphère de 11 cm : 5 anneaux et 8 lamelles qui s'emboîtent |
 | Awalé | CNC + laser | décor gravé au laser, puis douze trous, deux greniers et contour à la fraise de 6 mm ; règles du jeu dans le guide |
 | Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
 | Taquin | laser | 15 carreaux numérotés et leur cadre |
+| Élan en forêt, Ours au coucher de soleil, Chouette au clair de lune | laser | décors à couches : cinq ou six feuilles collées, la silhouette de l'animal encadre des montagnes, des sapins, un ciel découpé ; trous d'alignement et numéros gravés cachés |
+| Boule de Noël à couches | laser | cinq couches rondes, étoiles, collines et sapins, cerf bondissant |
+| Mandala à couches | laser | six disques festonnés, la même fleur élargie de 2 mm à chaque couche, en gradins |
 | Sous-verres | laser | quatre motifs gravés (viking, celte, japonais, art déco) |
 | Décorations de Noël | laser | étoiles, boules gravées, flocons |
 | Plaque de porte | CNC | mot sculpté à la fraise en V, filet, contour |
@@ -89,6 +94,9 @@ l'assemblage.
 | Médaillons en relief | CNC | soleil, triple lune, rosace à six pétales et arbre de vie qui ressortent, bombés, d'un fond creusé à la fraise boule, dans du bois dur |
 | Planche de spiritisme | laser | alphabet en arc, chiffres, oui / non / au revoir dans la langue du guide, et sa goutte |
 | Horloge à balancier | CNC | toutes les pièces d'une horloge murale à poids : platines, rouage (5 × 4 × 3), échappement à ancre de Graham, tambour à rochet, minuterie, cadran, aiguilles, balancier de 56 cm |
+
+Les silhouettes d'animaux de ces projets viennent de dessins du domaine
+public (CC0) d'Openclipart, listés dans `crates/mml_samples/art/CREDITS.md`.
 
 Dans le guide, **Préparer cette étape** ne garde actifs que les calques
 de l'étape : le travail ne contient qu'un outil et qu'un matériau. Un

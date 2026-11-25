@@ -3,9 +3,12 @@
 //! tool and material, assembly). They are generated, not stored, so
 //! they always match the current file format and makers.
 
+mod animals3d;
+mod art;
 mod clock;
 mod deco;
 mod esoteric;
+mod layered;
 mod mixed;
 mod models3d;
 mod puzzles;
@@ -158,6 +161,30 @@ pub fn catalog() -> &'static [Sample] {
             build: models3d::galleon,
         },
         Sample {
+            id: "bear_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: animals3d::bear_3d,
+        },
+        Sample {
+            id: "wolf_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: animals3d::wolf_3d,
+        },
+        Sample {
+            id: "fir_tree_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 1,
+            build: animals3d::fir_tree_3d,
+        },
+        Sample {
             id: "globe",
             category: Category::Puzzle,
             machine: Laser,
@@ -268,6 +295,46 @@ pub fn catalog() -> &'static [Sample] {
             hybrid: false,
             difficulty: 1,
             build: esoteric::spirit_board,
+        },
+        Sample {
+            id: "moose_forest",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered::moose_forest,
+        },
+        Sample {
+            id: "bear_sunset",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered::bear_sunset,
+        },
+        Sample {
+            id: "owl_moon",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered::owl_moon,
+        },
+        Sample {
+            id: "christmas_bauble",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 1,
+            build: layered::christmas_bauble,
+        },
+        Sample {
+            id: "layered_mandala",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 1,
+            build: layered::layered_mandala,
         },
         Sample {
             id: "pendulum_clock",
@@ -448,6 +515,11 @@ impl Builder {
 
     pub fn tf(&self, key: &str, values: &[&str]) -> String {
         text::format(self.language, &format!("{}.{key}", self.prefix), values)
+    }
+
+    /// Shared text with its `{0}`… filled in (`common.key`).
+    pub fn common_format(&self, key: &str, values: &[&str]) -> String {
+        text::format(self.language, &format!("common.{key}"), values)
     }
 
     /// Shared text (`common.key`).

@@ -1774,6 +1774,7 @@ dependencies = [
 name = "mml_samples"
 version = "0.1.0"
 dependencies = [
+ "geo",
  "mml_core",
  "mml_io",
  "mml_job",

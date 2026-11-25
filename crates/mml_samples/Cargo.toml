@@ -10,6 +10,7 @@ rust-version.workspace = true
 [dependencies]
 mml_core.workspace = true
 mml_io.workspace = true
+geo = "0.33"
 
 [dev-dependencies]
 mml_job.workspace = true

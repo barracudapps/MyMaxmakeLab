@@ -427,7 +427,7 @@ body): `git log` is the technical changelog. See
 - [x] Scan offset for fast bidirectional fills, probe cycles that find the centre of a hole or a block
 - [x] Resume an interrupted job, kerf compensation, combined shapes
 - [x] Import from Fusion, LightBurn and MaxmakeLAB libraries; nesting on a sheet; puzzle inside any shape
-- [x] Sample projects with step-by-step guides: CNC, laser and CNC + laser tests, puzzles and games (3D dragon, triceratops and galleon, slotted globe), decorations, optical illusions, a sundial, esoteric objects (sacred geometry, runes, relief medallions, talking board), a pendulum clock
+- [x] Sample projects with step-by-step guides: CNC, laser and CNC + laser tests, puzzles and games (3D dragon, triceratops, galleon, bear, wolf and fir tree, slotted globe), decorations (layered moose, bear, owl, bauble and mandala), optical illusions, a sundial, esoteric objects (sacred geometry, runes, relief medallions, talking board), a pendulum clock
 - [x] Keyboard jog with precision levels, spindle next to the jog pad, homing diagnosis, durations learned from past jobs
 - [x] Maxmake HiMill D1S profile, bed taken from the controller travel
 - [ ] File transfer to the machine memory (HiMill SD card)
