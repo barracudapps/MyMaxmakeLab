@@ -75,12 +75,19 @@ l'assemblage.
 | Tricératops 3D à emboîter | laser | corps, collerette et deux paires de pattes, peau gravée |
 | Galion 3D à emboîter | laser | coque et mâts d'une pièce, deux voiles carrées enfilées sur les mâts, deux berceaux |
 | Ours 3D et loup 3D à emboîter | laser | deux flancs (la silhouette complète, debout sur ses quatre pattes) tenus par trois entretoises bombées qui forment le dos |
+| Rhinocéros 3D et tortue 3D | laser | mêmes flancs et entretoises que l'ours ; la tortue a une carapace bombée de 4 cm de large |
+| Fusée 3D | laser | corps à hublots croisé avec l'étage d'ailerons, debout sur quatre ailerons |
+| Avion 3D | laser | aile et empennage glissés à travers le fuselage, train d'atterrissage emboîté sous le ventre |
 | Sapin de Noël 3D | laser | deux sapins croisés, boules découpées, guirlandes gravées, étoile sur la pointe |
 | Globe à lamelles | laser | sphère de 11 cm : 5 anneaux et 8 lamelles qui s'emboîtent |
 | Awalé | CNC + laser | décor gravé au laser, puis douze trous, deux greniers et contour à la fraise de 6 mm ; règles du jeu dans le guide |
 | Pentominos | laser | 12 pièces gravées et leur plateau 6 × 10 |
 | Taquin | laser | 15 carreaux numérotés et leur cadre |
 | Élan en forêt, Ours au coucher de soleil, Chouette au clair de lune | laser | décors à couches : cinq ou six feuilles collées, la silhouette de l'animal encadre des montagnes, des sapins, un ciel découpé ; trous d'alignement et numéros gravés cachés |
+| Baleine et fonds marins, Manchot sur la banquise | laser | décors à couches : banc de poissons, algues et corail ; aurores boréales, icebergs et manchots |
+| Ville la nuit | laser | fenêtre en arc, six couches : lune, immeubles aux fenêtres découpées, arbres et réverbères |
+| Hublot sur l'espace | laser | étoiles, planète à anneau, fusée et sa traînée, boulons gravés sur le cadre |
+| Citrouille d'Halloween | laser | lune et chauves-souris, arbres morts, maison hantée et tombes |
 | Boule de Noël à couches | laser | cinq couches rondes, étoiles, collines et sapins, cerf bondissant |
 | Mandala à couches | laser | six disques festonnés, la même fleur élargie de 2 mm à chaque couche, en gradins |
 | Sous-verres | laser | quatre motifs gravés (viking, celte, japonais, art déco) |

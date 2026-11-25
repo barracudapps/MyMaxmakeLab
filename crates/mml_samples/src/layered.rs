@@ -161,6 +161,7 @@ pub fn stack(outline: Vec<Path>, scene: Vec<Vec<Path>>, names: Vec<String>) -> S
 /// Sheets from their areas, back to front: one piece each, pin holes
 /// through the frame, a number where the next sheet hides it.
 pub fn assemble(outline: &[Path], areas: Vec<Vec<Path>>, names: Vec<String>) -> Stack {
+    assert_eq!(areas.len(), names.len(), "one name per sheet");
     let pins = pin_holes(outline);
     let label_at = label_point(outline);
     let count = areas.len();
@@ -246,7 +247,7 @@ fn label_point(outline: &[Path]) -> Point {
 
 /// Cuts the sheets of a stack, a few per board, with the guide steps
 /// around: preparing, the boards, then gluing and finishing.
-fn cut_stack(mut b: Builder, stack: Stack) -> Document {
+pub(crate) fn cut_stack(mut b: Builder, stack: Stack) -> Document {
     b.step("s1", Vec::new());
     b.cut_boards(
         boards(stack.sheets, 4.0),
@@ -264,7 +265,7 @@ fn cut_stack(mut b: Builder, stack: Stack) -> Document {
 }
 
 /// Names of the sheets, back to front: "1 — back", "2", …, "N — front".
-fn sheet_names(b: &Builder, count: usize) -> Vec<String> {
+pub(crate) fn sheet_names(b: &Builder, count: usize) -> Vec<String> {
     (1..=count)
         .map(|number| {
             let key = match number {
@@ -306,7 +307,7 @@ fn mandala_flower(centre: Point) -> Vec<Path> {
     union(shapes)
 }
 
-fn mandala_stack(names: Vec<String>) -> Stack {
+pub(crate) fn mandala_stack(names: Vec<String>) -> Stack {
     let centre = point(0.0, 0.0);
     let outline = vec![rosette(centre, MANDALA - 2.5, MANDALA, 24, 0.0)];
     let flower = mandala_flower(centre);
@@ -329,7 +330,7 @@ pub fn moose_forest(language: &str) -> Document {
     cut_stack(b, moose_stack(names))
 }
 
-fn moose_stack(names: Vec<String>) -> Stack {
+pub(crate) fn moose_stack(names: Vec<String>) -> Stack {
     let outline = crate::art::silhouette(crate::art::MOOSE, MOOSE_HEIGHT, false);
     // The scene fills the body and neck, the part wider than the frame.
     let inner = offset_paths(&outline, -FRAME);
@@ -410,7 +411,7 @@ fn moose_stack(names: Vec<String>) -> Stack {
 
 /// The largest area of `outline` once its frame is taken off: where
 /// the scene shows.
-fn scene_room(outline: &[Path]) -> mml_core::geometry::Rect {
+pub(crate) fn scene_room(outline: &[Path]) -> mml_core::geometry::Rect {
     offset_paths(outline, -FRAME)
         .iter()
         .max_by(|a, b| a.signed_area().abs().total_cmp(&b.signed_area().abs()))
@@ -430,11 +431,11 @@ fn ridge(x0: f64, span: f64, height: f64, points: &[(f64, f64)]) -> Vec<(f64, f6
 /// rows of firs in front of it, a lake shore at the bottom.
 pub fn bear_sunset(language: &str) -> Document {
     let b = Builder::new(text_language(language), "bear_sunset");
-    let names = sheet_names(&b, 6);
+    let names = sheet_names(&b, 7);
     cut_stack(b, bear_stack(names))
 }
 
-fn bear_stack(names: Vec<String>) -> Stack {
+pub(crate) fn bear_stack(names: Vec<String>) -> Stack {
     let outline = crate::art::picked(crate::art::FOREST_ANIMALS, crate::art::BEAR, 118.0, false);
     let room = scene_room(&outline);
     let (x0, x1) = (room.min.x - 5.0, room.max.x + 5.0);
@@ -530,7 +531,7 @@ pub fn owl_moon(language: &str) -> Document {
     cut_stack(b, owl_stack(names))
 }
 
-fn owl_stack(names: Vec<String>) -> Stack {
+pub(crate) fn owl_stack(names: Vec<String>) -> Stack {
     let outline = crate::art::picked(crate::art::FOREST_ANIMALS, crate::art::OWL, 160.0, false);
     let room = scene_room(&outline);
     let (x0, x1) = (room.min.x - 5.0, room.max.x + 5.0);
@@ -580,7 +581,7 @@ fn owl_stack(names: Vec<String>) -> Stack {
 }
 
 /// Five-pointed star, a point upwards.
-fn star(centre: Point, outer: f64, inner: f64) -> Path {
+pub(crate) fn star(centre: Point, outer: f64, inner: f64) -> Path {
     Path::new(
         (0..10)
             .map(|index| {
@@ -603,7 +604,7 @@ pub fn christmas_bauble(language: &str) -> Document {
     cut_stack(b, bauble_stack(names))
 }
 
-fn bauble_stack(names: Vec<String>) -> Stack {
+pub(crate) fn bauble_stack(names: Vec<String>) -> Stack {
     let centre = point(0.0, 0.0);
     let loop_at = point(0.0, BAUBLE + 4.0);
     let outline = union(vec![

@@ -6,7 +6,7 @@
 use crate::Builder;
 use crate::layered::{Random, fir_with};
 use crate::models3d::cut_and_finish;
-use crate::puzzles3d::{THICKNESS, outline_of, vertical_extent, vertical_slot};
+use crate::puzzles3d::{THICKNESS, outline_of, smooth_closed, vertical_extent, vertical_slot};
 use crate::shapes::*;
 use crate::tests_projects::text_language;
 use mml_core::Document;
@@ -134,6 +134,223 @@ pub fn wolf_3d(language: &str) -> Document {
     let b = Builder::new(text_language(language), "wolf_3d");
     let model = wolf_parts((b.t("part.flank_1"), b.t("part.spacer")));
     twin_document(language, "wolf_3d", model)
+}
+
+pub fn rhino_parts(names: (String, String)) -> TwinModel {
+    let side = crate::art::picked(crate::art::ANIMALS_B, crate::art::RHINO, 95.0, false);
+    twin_model(side, 26.0, &[0.3, 0.48, 0.65], names)
+}
+
+/// Rhinoceros in two flanks and three spacers.
+pub fn rhino_3d(language: &str) -> Document {
+    let b = Builder::new(text_language(language), "rhino_3d");
+    let model = rhino_parts((b.t("part.flank_1"), b.t("part.spacer")));
+    twin_document(language, "rhino_3d", model)
+}
+
+pub fn turtle_parts(names: (String, String)) -> TwinModel {
+    let side = crate::art::picked(crate::art::ANIMALS_B, crate::art::TURTLE, 72.0, false);
+    twin_model(side, 40.0, &[0.32, 0.47, 0.62], names)
+}
+
+/// Tortoise in two flanks and three spacers across the shell.
+pub fn turtle_3d(language: &str) -> Document {
+    let b = Builder::new(text_language(language), "turtle_3d");
+    let model = turtle_parts((b.t("part.flank_1"), b.t("part.spacer")));
+    twin_document(language, "turtle_3d", model)
+}
+
+/// Length of the 3D rocket.
+pub const ROCKET: f64 = 165.0;
+
+/// The rocket: the full body with two fins, and the lower stage with
+/// the two other fins, crossed.
+pub struct Rocket {
+    pub body: Part,
+    pub fins: Part,
+    #[allow(dead_code)]
+    pub meet: f64,
+    #[allow(dead_code)]
+    pub cap: f64,
+}
+
+pub fn rocket_parts(names: [String; 2]) -> Rocket {
+    let [body_name, fins_name] = names;
+    let (outline, window) = crate::layered2::rocket(point(0.0, ROCKET), ROCKET);
+    // Raise it so the fin tips stand on y = 0.
+    let low = outline.bounds().min.y;
+    let lift = mml_core::geometry::Transform::translate(0.0, -low);
+    let outline = outline.transformed(&lift);
+    let window = window.transformed(&lift);
+    let base = -low;
+    let meet = base + ROCKET * 0.22;
+    let cap = base + ROCKET * 0.48;
+    let body = difference(vec![vec![outline.clone()], vertical_slot(0.0, -5.0, meet)]);
+    let fins = difference(vec![
+        vec![outline.clone()],
+        vec![rect(-60.0, cap, 120.0, ROCKET * 2.0)],
+        vertical_slot(0.0, meet, cap + 5.0),
+    ]);
+    // Rivets and panel lines engraved on the body.
+    let mut lines = Vec::new();
+    for fraction in [0.55, 0.7] {
+        let y = base + ROCKET * fraction;
+        lines.push(Path::new(vec![point(-30.0, y), point(30.0, y)], false));
+    }
+    let area = region_of(std::slice::from_ref(&outline));
+    let engraving = clip_lines(&lines, &area);
+    let second = circle(window.bounds().center() - point(0.0, ROCKET * 0.13), 4.0);
+    Rocket {
+        body: Part::from_area(body_name, body)
+            .with_holes(vec![window, second])
+            .with_engraving(engraving),
+        fins: Part::from_area(fins_name, fins),
+        meet,
+        cap,
+    }
+}
+
+/// 3D rocket: the body slides down onto the lower stage, crossed, and
+/// stands on its four fins.
+pub fn rocket_3d(language: &str) -> Document {
+    let b = Builder::new(text_language(language), "rocket_3d");
+    let rocket = rocket_parts([b.t("part.body"), b.t("part.fins")]);
+    cut_and_finish(b, vec![rocket.body, rocket.fins])
+}
+
+/// Airplane sizes: fuselage length, wing span and root chord.
+pub const PLANE: (f64, f64, f64) = (190.0, 200.0, 38.0);
+
+/// The airplane: fuselage, wing, tail plane and landing gear.
+pub struct Plane {
+    pub fuselage: Part,
+    pub wing: Part,
+    pub tail: Part,
+    pub gear: Part,
+    /// The holes the wing and the tail plane go through: x from, x to.
+    #[allow(dead_code)]
+    pub wing_hole: (f64, f64),
+    #[allow(dead_code)]
+    pub tail_hole: (f64, f64),
+}
+
+/// A wing seen from above, `span` wide, chord `root` at the middle and
+/// `tip` at the ends, swept back by `sweep`; leading edge at y = 0.
+fn wing_shape(span: f64, root: f64, tip: f64, sweep: f64) -> Path {
+    let half = span / 2.0;
+    polygon(&[
+        (-half, -sweep),
+        (0.0, 0.0),
+        (half, -sweep),
+        (half, -sweep - tip),
+        (0.0, -root),
+        (-half, -sweep - tip),
+    ])
+}
+
+pub fn plane_parts(names: [String; 4]) -> Plane {
+    let [fuselage_name, wing_name, tail_name, gear_name] = names;
+    let (length, span, root) = PLANE;
+    // Side view, nose to the right, belly at y = 0.
+    let body = smooth_closed(
+        &[
+            (0.0, 18.0),
+            (20.0, 12.0),
+            (60.0, 4.0),
+            (110.0, 0.0),
+            (165.0, 3.0),
+            (length, 13.0),
+            (length - 2.0, 22.0),
+            (165.0, 31.0),
+            (140.0, 33.0),
+            (118.0, 40.0),
+            (100.0, 33.0),
+            (40.0, 26.0),
+            (10.0, 24.0),
+        ],
+        10,
+    );
+    let fin = polygon(&[(4.0, 22.0), (2.0, 58.0), (14.0, 58.0), (40.0, 25.0)]);
+    let outline = outline_of(union(vec![vec![body], vec![fin]]));
+    let wing_hole = (110.0 - root / 2.0, 110.0 + root / 2.0);
+    let tail_hole = (8.0, 30.0);
+    let hole = |from: f64, to: f64, y: f64| {
+        rect(from - 0.25, y - THICKNESS / 2.0, to - from + 0.5, THICKNESS)
+    };
+    let wing_y = 12.0;
+    let tail_y = 21.0;
+    // The landing gear comes up into the belly under the wing.
+    let gear_x = 100.0;
+    let (belly, _) = vertical_extent(&outline, gear_x).expect("a belly");
+    let rise = 10.0;
+    let meet = belly + rise / 2.0;
+    let fuselage = difference(vec![
+        vec![outline.clone()],
+        vec![hole(wing_hole.0, wing_hole.1, wing_y)],
+        vec![hole(tail_hole.0, tail_hole.1, tail_y)],
+        vertical_slot(gear_x, belly - 5.0, meet),
+    ]);
+    let mut lines = vec![
+        // Cockpit windows and the door.
+        rect(150.0, 22.0, 9.0, 6.0),
+        rect(162.0, 21.0, 8.0, 6.0),
+        rect(60.0, 8.0, 7.0, 13.0),
+    ];
+    for index in 0..6 {
+        lines.push(circle(point(75.0 + index as f64 * 12.0, 22.0), 2.0));
+    }
+    let wing = wing_shape(span, root, 24.0, 10.0);
+    let roundels = vec![
+        circle(point(-70.0, -16.0), 7.0),
+        circle(point(-70.0, -16.0), 3.5),
+        circle(point(70.0, -16.0), 7.0),
+        circle(point(70.0, -16.0), 3.5),
+    ];
+    let tail = wing_shape(72.0, 22.0, 13.0, 6.0);
+    // Gear seen from the front: a strut from the belly to each wheel.
+    let top = belly + rise;
+    let ground = belly - 24.0;
+    let gear = union(vec![
+        vec![rect(-10.0, belly - 4.0, 20.0, top - belly + 4.0)],
+        offset_paths(
+            &[Path::new(
+                vec![point(-6.0, belly - 2.0), point(-26.0, ground + 6.0)],
+                false,
+            )],
+            2.5,
+        ),
+        offset_paths(
+            &[Path::new(
+                vec![point(6.0, belly - 2.0), point(26.0, ground + 6.0)],
+                false,
+            )],
+            2.5,
+        ),
+        vec![circle(point(-26.0, ground + 6.0), 6.0)],
+        vec![circle(point(26.0, ground + 6.0), 6.0)],
+    ]);
+    let gear = difference(vec![gear, vertical_slot(0.0, meet, top + 5.0)]);
+    Plane {
+        fuselage: Part::from_area(fuselage_name, fuselage).with_engraving(lines),
+        wing: Part::new(wing_name, wing).with_engraving(roundels),
+        tail: Part::new(tail_name, tail),
+        gear: Part::from_area(gear_name, gear),
+        wing_hole,
+        tail_hole,
+    }
+}
+
+/// 3D airplane: the wing and the tail plane slide through the fuselage,
+/// the landing gear slots in under the belly.
+pub fn airplane_3d(language: &str) -> Document {
+    let b = Builder::new(text_language(language), "airplane_3d");
+    let plane = plane_parts([
+        b.t("part.fuselage"),
+        b.t("part.wing"),
+        b.t("part.tail"),
+        b.t("part.gear"),
+    ]);
+    cut_and_finish(b, vec![plane.fuselage, plane.wing, plane.tail, plane.gear])
 }
 
 /// Height of the 3D fir tree.
@@ -273,7 +490,12 @@ mod tests {
 
     #[test]
     fn spacer_slots_meet_the_flank_slots_halfway() {
-        for model in [bear_parts(names()), wolf_parts(names())] {
+        for model in [
+            bear_parts(names()),
+            wolf_parts(names()),
+            rhino_parts(names()),
+            turtle_parts(names()),
+        ] {
             assert_eq!(model.spacers.len(), model.spacings.len());
             for (spacing, part) in model.spacings.iter().zip(&model.spacers) {
                 let bottom = part.outline.bounds().min.y;
@@ -290,6 +512,46 @@ mod tests {
             assert!(model.spacers.iter().all(|part| part.holes.is_empty()));
             assert!(model.gap > 10.0);
         }
+    }
+
+    #[test]
+    fn plane_wings_pass_through_their_holes() {
+        let plane = plane_parts(["a".into(), "b".into(), "c".into(), "d".into()]);
+        let (_, _, root) = PLANE;
+        // Each chord of the wing fits the hole it slides through.
+        let wing = plane.wing.outline.bounds();
+        assert!(wing.height() <= plane.wing_hole.1 - plane.wing_hole.0 + 1e-9);
+        assert!((wing.height() - root).abs() < 1e-9);
+        let tail = plane.tail.outline.bounds();
+        assert!(tail.height() <= plane.tail_hole.1 - plane.tail_hole.0 + 1e-9);
+        // Holes are inside the fuselage, wood above and below them.
+        assert_eq!(plane.fuselage.holes.len(), 2);
+        for hole in &plane.fuselage.holes {
+            let bounds = hole.bounds();
+            for x in [bounds.min.x + 0.5, bounds.max.x - 0.5] {
+                let (low, high) =
+                    vertical_extent(&plane.fuselage.outline, x).expect("fuselage over the hole");
+                assert!(bounds.min.y - low >= 2.5, "{x}: {low} {bounds:?}");
+                assert!(high - bounds.max.y >= 2.5, "{x}: {high} {bounds:?}");
+            }
+        }
+        // The gear and the wing fit a board.
+        assert!(wing.width() <= 250.0);
+        assert!(plane.gear.holes.is_empty());
+    }
+
+    #[test]
+    fn rocket_stages_cross_and_stand_on_their_fins() {
+        let rocket = rocket_parts(["a".into(), "b".into()]);
+        let body = rocket.body.outline.bounds();
+        let fins = rocket.fins.outline.bounds();
+        assert!(body.min.y.abs() < 1e-6 && fins.min.y.abs() < 1e-6);
+        assert!((fins.max.y - rocket.cap).abs() < 0.5);
+        assert!(rocket.meet < rocket.cap);
+        // Wood either side of the stage slot.
+        let (low, high) = vertical_extent(&rocket.fins.outline, THICKNESS / 2.0 + 4.0)
+            .expect("wood beside the slot");
+        assert!(low < rocket.meet && high > rocket.cap - 1.0);
     }
 
     #[test]

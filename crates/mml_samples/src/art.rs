@@ -4,13 +4,18 @@
 
 use crate::shapes::*;
 use mml_core::geometry::{Path, Transform, bounds_of, simplify_polyline};
-use mml_core::region::{region_of, to_path};
 
 pub const MOOSE: &[u8] = include_bytes!("../art/moose.svg");
 pub const STAG: &[u8] = include_bytes!("../art/stag.svg");
 pub const LEAPING_DEER: &[u8] = include_bytes!("../art/leaping-deer.svg");
 /// A sheet of forest animals; `Pick` areas below take one out.
 pub const FOREST_ANIMALS: &[u8] = include_bytes!("../art/forest-animals.svg");
+
+/// Sheets of other animals, and a whale with a star, a heart and a moon.
+pub const ANIMALS_A: &[u8] = include_bytes!("../art/animals-a.svg");
+pub const ANIMALS_B: &[u8] = include_bytes!("../art/animals-b.svg");
+pub const WHALE_SHAPES: &[u8] = include_bytes!("../art/whale-shapes.svg");
+pub const BAT: &[u8] = include_bytes!("../art/bat.svg");
 
 /// Where one drawing lies on a sheet of several: left, top, right,
 /// bottom as fractions of the sheet, from its top left corner.
@@ -19,6 +24,13 @@ pub type Pick = (f64, f64, f64, f64);
 pub const BEAR: Pick = (0.0, 0.0, 0.51, 0.27);
 pub const WOLF: Pick = (0.52, 0.5, 1.0, 0.79);
 pub const OWL: Pick = (0.39, 0.63, 0.63, 1.0);
+/// On `ANIMALS_A`.
+pub const PENGUIN: Pick = (0.32, 0.0, 0.58, 0.37);
+/// On `ANIMALS_B`.
+pub const RHINO: Pick = (0.3, 0.0, 0.6, 0.17);
+pub const TURTLE: Pick = (0.38, 0.84, 0.67, 1.0);
+/// On `WHALE_SHAPES`.
+pub const WHALE: Pick = (0.0, 0.0, 0.5, 0.5);
 
 /// The filled area of a silhouette, scaled to `height` mm with its
 /// lower left corner at the origin, turned to face the other way if
@@ -31,25 +43,41 @@ pub fn silhouette(svg: &[u8], height: f64, mirror: bool) -> Vec<Path> {
 /// whose middle is in that area.
 pub fn picked(svg: &[u8], pick: Pick, height: f64, mirror: bool) -> Vec<Path> {
     let groups = mml_io::import_svg(svg).expect("a bundled drawing");
-    let paths: Vec<Path> = groups.into_iter().flat_map(|group| group.paths).collect();
-    let region = region_of(&paths);
-    let sheet = bounds_of(&paths);
+    let all: Vec<Path> = groups
+        .into_iter()
+        .flat_map(|group| group.paths)
+        .filter(|path| path.points.len() > 2)
+        // Filled shapes, even when the drawing left them open.
+        .map(|path| Path::new(path.points, true))
+        .collect();
+    let sheet = bounds_of(&all);
     let (left, top, right, bottom) = pick;
     let x = |fraction: f64| sheet.min.x + sheet.width() * fraction;
     let y = |fraction: f64| sheet.max.y - sheet.height() * fraction;
-    let area: Vec<Path> = region
-        .0
+    let within = |path: &Path| {
+        let piece = path.bounds();
+        let (cx, cy) = (
+            (piece.min.x + piece.max.x) / 2.0,
+            (piece.min.y + piece.max.y) / 2.0,
+        );
+        cx >= x(left) && cx <= x(right) && cy <= y(top) && cy >= y(bottom)
+    };
+    // The pieces of the drawing overlap (some drawings are made of
+    // thousands, some draw a shape twice): their union is the shape.
+    let shapes: Vec<Vec<Path>> = all
+        .into_iter()
+        .filter(|path| within(path))
+        .map(|path| vec![path])
+        .collect();
+    let area = union(shapes);
+    // Specks left around the drawing would only be cut as dust.
+    let largest = area
         .iter()
-        .filter(|polygon| {
-            let piece = to_path(polygon.exterior()).bounds();
-            let (cx, cy) = (
-                (piece.min.x + piece.max.x) / 2.0,
-                (piece.min.y + piece.max.y) / 2.0,
-            );
-            cx >= x(left) && cx <= x(right) && cy <= y(top) && cy >= y(bottom)
-        })
-        .flat_map(|polygon| std::iter::once(polygon.exterior()).chain(polygon.interiors()))
-        .map(to_path)
+        .map(|path| path.signed_area().abs())
+        .fold(0.0, f64::max);
+    let area: Vec<Path> = area
+        .into_iter()
+        .filter(|path| path.signed_area().abs() > largest * 0.02)
         .collect();
     let bounds = bounds_of(&area);
     let scale = height / bounds.height();

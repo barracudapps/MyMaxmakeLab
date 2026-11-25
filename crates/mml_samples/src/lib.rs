@@ -9,6 +9,7 @@ mod clock;
 mod deco;
 mod esoteric;
 mod layered;
+mod layered2;
 mod mixed;
 mod models3d;
 mod puzzles;
@@ -185,6 +186,38 @@ pub fn catalog() -> &'static [Sample] {
             build: animals3d::fir_tree_3d,
         },
         Sample {
+            id: "rhino_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: animals3d::rhino_3d,
+        },
+        Sample {
+            id: "turtle_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: animals3d::turtle_3d,
+        },
+        Sample {
+            id: "rocket_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 1,
+            build: animals3d::rocket_3d,
+        },
+        Sample {
+            id: "airplane_3d",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: animals3d::airplane_3d,
+        },
+        Sample {
             id: "globe",
             category: Category::Puzzle,
             machine: Laser,
@@ -327,6 +360,46 @@ pub fn catalog() -> &'static [Sample] {
             hybrid: false,
             difficulty: 1,
             build: layered::christmas_bauble,
+        },
+        Sample {
+            id: "ocean_whale",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered2::ocean_whale,
+        },
+        Sample {
+            id: "penguin_ice",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered2::penguin_ice,
+        },
+        Sample {
+            id: "city_night",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered2::city_night,
+        },
+        Sample {
+            id: "space_porthole",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered2::space_porthole,
+        },
+        Sample {
+            id: "halloween_pumpkin",
+            category: Category::Decoration,
+            machine: Laser,
+            hybrid: false,
+            difficulty: 2,
+            build: layered2::halloween_pumpkin,
         },
         Sample {
             id: "layered_mandala",

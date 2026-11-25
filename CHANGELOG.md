@@ -17,6 +17,12 @@ yet: GRBL is tested against simulated controllers.
 - **Three more 3D puzzles**: a bear and a wolf standing on their four
   legs (two full side views held apart by rounded spacers) and a 3D fir
   tree with its star.
+- **Five more layered decorations**: the sea bed inside a whale, a
+  penguin on the pack ice under the northern lights, a city at night in
+  an arched window, a porthole on space and a Halloween pumpkin.
+- **Four more 3D puzzles**: a rhinoceros, a tortoise, a rocket standing
+  on its four fins and an airplane whose wing slides through the
+  fuselage.
 - The animal outlines come from public domain (CC0) drawings from
   Openclipart, credited in `crates/mml_samples/art/CREDITS.md`.
 
