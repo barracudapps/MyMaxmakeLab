@@ -57,8 +57,8 @@ pub fn fir_with(base: Point, height: f64, inner: f64) -> Path {
     }
     right.push((0.0, height));
     let mut points: Vec<(f64, f64)> = right.clone();
+    // The left side, from the apex down to the foot of the trunk.
     points.extend(right.iter().rev().skip(1).map(|(x, y)| (-x, *y)));
-    points.pop();
     Path::new(
         points
             .into_iter()
@@ -171,7 +171,8 @@ pub fn assemble(outline: &[Path], areas: Vec<Vec<Path>>, names: Vec<String>) -> 
         .enumerate()
         .map(|(index, (area, name))| {
             let mut part = Part::from_area(name, connected(area));
-            part.holes.extend(pins.iter().map(|pin| circle(*pin, 1.0)));
+            part.holes
+                .extend(pins.iter().map(|pin| circle(*pin, crate::fit::real(1.0))));
             // The front sheet shows its face: no number on it.
             if index + 1 < count {
                 part.engrave = stroke_text(&(index + 1).to_string(), 3.5, label_at);
@@ -248,6 +249,7 @@ fn label_point(outline: &[Path]) -> Point {
 /// Cuts the sheets of a stack, a few per board, with the guide steps
 /// around: preparing, the boards, then gluing and finishing.
 pub(crate) fn cut_stack(mut b: Builder, stack: Stack) -> Document {
+    b.stock_board();
     b.step("s1", Vec::new());
     b.cut_boards(
         boards(stack.sheets, 4.0),
@@ -673,6 +675,15 @@ mod tests {
         assert!((bounds.min.y - 5.0).abs() < 2.5);
         assert!((bounds.max.y - 45.0).abs() < 1e-9);
         assert!((bounds.min.x + bounds.max.x - 20.0).abs() < 1e-9);
+        // Both feet of the trunk stand on the base.
+        let feet: Vec<f64> = tree
+            .points
+            .iter()
+            .filter(|point| (point.y - 5.0).abs() < 1e-9)
+            .map(|point| point.x - 10.0)
+            .collect();
+        assert_eq!(feet.len(), 2);
+        assert!((feet[0] + feet[1]).abs() < 1e-9);
     }
 
     #[test]

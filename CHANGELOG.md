@@ -7,6 +7,23 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Resize the laser-cut puzzles and layered decorations to your
+  stock**: opening one of these samples asks for the plywood thickness,
+  the board (project size, A4, A5, A6 or custom) and the size. The
+  drawing is scaled while the slots stay as wide as the plywood is
+  thick and the pin holes stay 2 mm; the parts are shared out on boards
+  of that size, the largest size that fits is offered, and a board
+  larger than the machine's work area is refused. The guide gives the
+  thickness, the number of boards and the scale used.
+
+### Fixed
+- The 3D fir tree's large tree came out with the left half of its foot
+  as a loose piece (the trunk outline missed a corner; the firs of the
+  layered decorations had a crooked trunk for the same reason).
+- Layered decorations and the newer 3D puzzles now show the grey board
+  their guide asks to place the plywood on.
+
 ## [0.1.18] - 2026-11-25
 
 ### Added

@@ -77,7 +77,7 @@ pub fn marble_maze(language: &str) -> Document {
 /// Tower of Hanoi: seven discs and a base in 12 mm plywood.
 pub fn hanoi(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "hanoi");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let mut parts = Vec::new();
     let mut base = Part::new(b.t("part.base"), rounded_rect(0.0, 0.0, 240.0, 70.0, 10.0));
     base = base.with_holes(
@@ -135,7 +135,7 @@ const PENTOMINOES: [(&str, [Cell; 5], Cell); 12] = [
 /// Pentominoes in 3 mm plywood, with a 6 x 10 tray.
 pub fn pentominoes(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "pentominoes");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let cell = 15.0;
     // Play: each piece 0.15 mm smaller all round, the tray 0.6 mm
     // larger than 6 x 10 cells.
@@ -185,7 +185,7 @@ pub fn pentominoes(language: &str) -> Document {
 /// Fifteen puzzle: 15 numbered tiles in a 4 x 4 tray, 3 mm plywood.
 pub fn sliding_puzzle(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "sliding_puzzle");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let tile = 30.0;
     let mut parts = Vec::new();
     for number in 1..=15 {

@@ -10,7 +10,8 @@ use mml_core::geometry::{Path, Point, Transform};
 use mml_core::region::{clip_lines, offset_paths, region_of};
 use mml_core::{Document, MachineKind};
 
-/// Plywood thickness, and width of every slot.
+/// Plywood thickness the projects are drawn for, and width of every
+/// slot unless a project is resized (see `fit`).
 pub const THICKNESS: f64 = 3.0;
 
 /// Smooth closed curve through `points` (Catmull-Rom).
@@ -68,9 +69,9 @@ pub fn vertical_extent(path: &Path, x: f64) -> Option<(f64, f64)> {
 /// Slot `THICKNESS` wide centred on `x`, from `from` to `to` in y.
 pub(crate) fn vertical_slot(x: f64, from: f64, to: f64) -> Vec<Path> {
     vec![rect(
-        x - THICKNESS / 2.0,
+        x - crate::fit::slot() / 2.0,
         from.min(to),
-        THICKNESS,
+        crate::fit::slot(),
         (to - from).abs(),
     )]
 }
@@ -306,7 +307,7 @@ pub fn dragon_parts(names: [String; 4]) -> Dragon {
 /// scales and wing veins engraved.
 pub fn dragon(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "dragon");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let parts = dragon_parts([
         b.t("part.body"),
         b.t("part.wings"),
@@ -351,7 +352,7 @@ pub fn globe_meet(z: f64) -> (f64, f64) {
 /// from their rim.
 pub fn slotted_globe(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "globe");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let mut parts = Vec::new();
     // Rib: the part of the half disc beyond the inner edge.
     let reach = (GLOBE_RIB_INNER / GLOBE_RADIUS).acos().to_degrees();
@@ -370,9 +371,9 @@ pub fn slotted_globe(language: &str) -> Document {
         let (_, meet) = globe_meet(z);
         rib.push(vec![rect(
             GLOBE_RIB_INNER - 2.0,
-            z - THICKNESS / 2.0,
+            z - crate::fit::slot() / 2.0,
             meet - GLOBE_RIB_INNER + 2.0,
-            THICKNESS,
+            crate::fit::slot(),
         )]);
     }
     let rib = outline_of(difference(rib));
@@ -388,7 +389,12 @@ pub fn slotted_globe(language: &str) -> Document {
         let mut shapes = vec![vec![circle(centre, rim)], vec![circle(centre, 6.0)]];
         for rib_index in 0..GLOBE_RIBS {
             let angle = rib_index as f64 * 360.0 / GLOBE_RIBS as f64;
-            let slot = rect(meet, -THICKNESS / 2.0, rim + 2.0 - meet, THICKNESS);
+            let slot = rect(
+                meet,
+                -crate::fit::slot() / 2.0,
+                rim + 2.0 - meet,
+                crate::fit::slot(),
+            );
             shapes.push(vec![slot.transformed(&Transform::rotate_degrees(angle))]);
         }
         // Rings of the same size share a number: 1 at the poles, 3 at

@@ -35,6 +35,24 @@ impl Default for SavedConnection {
     }
 }
 
+/// Plywood and boards the resizable sample projects are made for.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SampleStock {
+    pub thickness: f64,
+    pub board: (f64, f64),
+}
+
+impl Default for SampleStock {
+    fn default() -> Self {
+        let fit = mml_samples::fit::Fit::default();
+        Self {
+            thickness: fit.thickness,
+            board: fit.board,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Macro {
     pub name: String,
@@ -100,6 +118,8 @@ pub struct Settings {
     pub camera_corners: Option<[[f64; 2]; 4]>,
     /// Snapshot address of a phone or IP camera.
     pub camera_url: String,
+    /// Last plywood and boards chosen for a resizable sample.
+    pub sample_stock: SampleStock,
 }
 
 impl Default for Settings {
@@ -149,6 +169,7 @@ impl Default for Settings {
             auto_update: true,
             camera_corners: None,
             camera_url: String::new(),
+            sample_stock: SampleStock::default(),
         }
     }
 }

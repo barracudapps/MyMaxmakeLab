@@ -198,11 +198,15 @@ pub const BOARD_AT: (f64, f64) = (10.0, 10.0);
 /// out (none of ours is: debug builds and tests fail on it).
 pub fn boards(parts: Vec<Part>, spacing: f64) -> Vec<Vec<Part>> {
     let params = NestParams {
-        sheet: BOARD,
-        margin: 5.0,
+        sheet: crate::fit::board(),
+        margin: crate::fit::MARGIN,
         spacing,
         rotate: true,
     };
+    for part in &parts {
+        let size = part.bounds();
+        crate::fit::note_part(size.width() + spacing, size.height() + spacing);
+    }
     let mut left = parts;
     let mut result = Vec::new();
     while !left.is_empty() {
@@ -219,7 +223,13 @@ pub fn boards(parts: Vec<Part>, spacing: f64) -> Vec<Vec<Part>> {
             }
         }
         if board.is_empty() {
-            debug_assert!(false, "{} part(s) too big for a board", rest.len());
+            crate::fit::note_too_big(rest.len());
+            // Only a resized project may be too big: it is refused.
+            debug_assert!(
+                !crate::fit::current().is_default(),
+                "{} part(s) too big for a board",
+                rest.len()
+            );
             break;
         }
         result.push(board);

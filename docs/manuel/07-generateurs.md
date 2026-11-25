@@ -102,6 +102,16 @@ l'assemblage.
 | Planche de spiritisme | laser | alphabet en arc, chiffres, oui / non / au revoir dans la langue du guide, et sa goutte |
 | Horloge à balancier | CNC | toutes les pièces d'une horloge murale à poids : platines, rouage (5 × 4 × 3), échappement à ancre de Graham, tambour à rochet, minuterie, cadran, aiguilles, balancier de 56 cm |
 
+Les puzzles 3D et les décors à couches découpés au laser sont
+**redimensionnables** : à l'ouverture, choisissez l'épaisseur du
+contreplaqué, la planche (format des projets, A4, A5, A6 ou
+personnalisée) et la taille. Le dessin est mis à l'échelle, mais les
+fentes gardent la largeur de l'épaisseur et les trous d'alignement 2 mm ;
+les pièces sont réparties sur des planches de ce format. La fenêtre
+propose la plus grande taille qui tient sur la planche et refuse une
+planche plus grande que la zone de travail de la machine. Le guide indique
+l'épaisseur, le nombre de planches et l'échelle choisis.
+
 Les silhouettes d'animaux de ces projets viennent de dessins du domaine
 public (CC0) d'Openclipart, listés dans `crates/mml_samples/art/CREDITS.md`.
 

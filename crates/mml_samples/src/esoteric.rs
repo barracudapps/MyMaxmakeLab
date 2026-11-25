@@ -105,7 +105,7 @@ fn tree_of_life(centre: Point, unit: f64, radius: f64) -> Vec<Path> {
 /// cube and the tree of life, engraved and cut in 3 mm plywood.
 pub fn sacred_geometry(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "sacred_geometry");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let centre = point(0.0, 0.0);
     let disc = 40.0;
     let designs: [(&str, Vec<Path>); 3] = [
@@ -544,7 +544,7 @@ fn arc_text(
 /// arcs, numbers, yes, no and goodbye in the language of the guide.
 pub fn spirit_board(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "spirit_board");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let font = "Cinzel Decorative";
     // Fits a board once its 5 mm margins are taken off.
     let (width, height) = (244.0, 164.0);

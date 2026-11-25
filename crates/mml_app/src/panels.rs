@@ -1706,6 +1706,7 @@ pub fn dialogs(app: &mut MyApp, ctx: &egui::Context) {
     crate::nest_dialog::show(app, ctx);
     crate::line_puzzle_dialog::show(app, ctx);
     crate::samples_dialog::show(app, ctx);
+    crate::samples_dialog::show_fit(app, ctx);
     crate::library::show(app, ctx);
     crate::ornament_dialog::show(app, ctx);
     crate::makers_dialog::show(app, ctx);

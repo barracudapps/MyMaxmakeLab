@@ -4,9 +4,10 @@
 //! trees and a star.
 
 use crate::Builder;
+use crate::fit::slot;
 use crate::layered::{Random, fir_with};
 use crate::models3d::cut_and_finish;
-use crate::puzzles3d::{THICKNESS, outline_of, smooth_closed, vertical_extent, vertical_slot};
+use crate::puzzles3d::{outline_of, smooth_closed, vertical_extent, vertical_slot};
 use crate::shapes::*;
 use crate::tests_projects::text_language;
 use mml_core::Document;
@@ -43,7 +44,7 @@ pub struct TwinModel {
 /// A spacer across the back: a rounded top `SPACER_BULGE` above the
 /// flanks, two slots from its bottom edge, one for each flank.
 fn spacer(gap: f64, spacing: &Spacing) -> Vec<Path> {
-    let half = gap / 2.0 + THICKNESS + SPACER_LIP;
+    let half = gap / 2.0 + slot() + SPACER_LIP;
     let bottom = spacing.top - SPACER_DEPTH;
     let shoulder = spacing.top - 2.0;
     let mut points = vec![(-half, bottom)];
@@ -58,7 +59,7 @@ fn spacer(gap: f64, spacing: &Spacing) -> Vec<Path> {
     points.push((half, bottom));
     let mut shapes = vec![vec![polygon(&points)]];
     for side in [-1.0, 1.0] {
-        let x = side * (gap / 2.0 + THICKNESS / 2.0);
+        let x = side * (gap / 2.0 + slot() / 2.0);
         shapes.push(vertical_slot(x, bottom - 5.0, spacing.meet));
     }
     difference(shapes)
@@ -100,7 +101,7 @@ pub fn twin_model(
 }
 
 fn twin_document(language: &str, prefix: &'static str, model: TwinModel) -> Document {
-    let b = Builder::new(text_language(language), prefix);
+    let mut b = Builder::new(text_language(language), prefix);
     let mut parts = vec![
         model.flank.clone(),
         Part {
@@ -109,6 +110,7 @@ fn twin_document(language: &str, prefix: &'static str, model: TwinModel) -> Docu
         },
     ];
     parts.extend(model.spacers);
+    b.stock_board();
     cut_and_finish(b, parts)
 }
 
@@ -213,8 +215,9 @@ pub fn rocket_parts(names: [String; 2]) -> Rocket {
 /// 3D rocket: the body slides down onto the lower stage, crossed, and
 /// stands on its four fins.
 pub fn rocket_3d(language: &str) -> Document {
-    let b = Builder::new(text_language(language), "rocket_3d");
+    let mut b = Builder::new(text_language(language), "rocket_3d");
     let rocket = rocket_parts([b.t("part.body"), b.t("part.fins")]);
+    b.stock_board();
     cut_and_finish(b, vec![rocket.body, rocket.fins])
 }
 
@@ -274,9 +277,8 @@ pub fn plane_parts(names: [String; 4]) -> Plane {
     let outline = outline_of(union(vec![vec![body], vec![fin]]));
     let wing_hole = (110.0 - root / 2.0, 110.0 + root / 2.0);
     let tail_hole = (8.0, 30.0);
-    let hole = |from: f64, to: f64, y: f64| {
-        rect(from - 0.25, y - THICKNESS / 2.0, to - from + 0.5, THICKNESS)
-    };
+    let hole =
+        |from: f64, to: f64, y: f64| rect(from - 0.25, y - slot() / 2.0, to - from + 0.5, slot());
     let wing_y = 12.0;
     let tail_y = 21.0;
     // The landing gear comes up into the belly under the wing.
@@ -343,13 +345,14 @@ pub fn plane_parts(names: [String; 4]) -> Plane {
 /// 3D airplane: the wing and the tail plane slide through the fuselage,
 /// the landing gear slots in under the belly.
 pub fn airplane_3d(language: &str) -> Document {
-    let b = Builder::new(text_language(language), "airplane_3d");
+    let mut b = Builder::new(text_language(language), "airplane_3d");
     let plane = plane_parts([
         b.t("part.fuselage"),
         b.t("part.wing"),
         b.t("part.tail"),
         b.t("part.gear"),
     ]);
+    b.stock_board();
     cut_and_finish(b, vec![plane.fuselage, plane.wing, plane.tail, plane.gear])
 }
 
@@ -397,7 +400,7 @@ pub fn tree_parts(names: [String; 3]) -> Tree {
             let clear = hole
                 .points
                 .iter()
-                .all(|p| inside(&solid, *p) && p.x.abs() > THICKNESS);
+                .all(|p| inside(&solid, *p) && p.x.abs() > slot());
             if y < top - 8.0 && clear {
                 holes.push(hole);
             }
@@ -475,14 +478,16 @@ fn inside(area: &[Path], p: mml_core::geometry::Point) -> bool {
 /// 3D fir tree: two trees crossed, one with its slot from below and the
 /// other, shorter, from above, and a star on the tip.
 pub fn fir_tree_3d(language: &str) -> Document {
-    let b = Builder::new(text_language(language), "fir_tree_3d");
+    let mut b = Builder::new(text_language(language), "fir_tree_3d");
     let tree = tree_parts([b.t("part.full"), b.t("part.short"), b.t("part.star")]);
+    b.stock_board();
     cut_and_finish(b, vec![tree.full, tree.short, tree.star])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::puzzles3d::THICKNESS;
 
     fn names() -> (String, String) {
         ("flank".into(), "spacer".into())
@@ -557,6 +562,12 @@ mod tests {
     #[test]
     fn the_trees_cross_at_the_same_height() {
         let tree = tree_parts(["a".into(), "b".into(), "c".into()]);
+        // Each tree is one piece: its only holes are the baubles.
+        for part in [&tree.full, &tree.short] {
+            for hole in &part.holes {
+                assert!(hole.bounds().width() < 7.0, "{:?}", hole.bounds());
+            }
+        }
         let full = tree.full.outline.bounds();
         let short = tree.short.outline.bounds();
         assert!((full.max.y - TREE).abs() < 0.5);

@@ -218,7 +218,7 @@ pub fn triceratops_parts(names: [String; 4]) -> Model {
 /// A triceratops to slot together in 3 mm plywood.
 pub fn triceratops(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "triceratops");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let model = triceratops_parts([
         b.t("part.body"),
         b.t("part.frill"),
@@ -386,7 +386,7 @@ pub fn galleon_parts(names: [String; 3]) -> Model {
 /// sails and two cradles.
 pub fn galleon(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "galleon");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let model = galleon_parts([b.t("part.hull"), b.t("part.sail"), b.t("part.cradle")]);
     let mut parts = vec![model.central];
     parts.extend(model.crossing);

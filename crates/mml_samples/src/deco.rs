@@ -39,7 +39,7 @@ fn ornament_disc(style: OrnamentStyle, seed: u64, centre: Point, radius: f64) ->
 /// Four round coasters with a different ornament each.
 pub fn coasters(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "coasters");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let styles = [
         OrnamentStyle::Viking,
         OrnamentStyle::Celtic,
@@ -108,7 +108,7 @@ fn snowflake(centre: Point) -> Vec<Path> {
 /// Christmas decorations to hang: star, bauble and snowflake, twice.
 pub fn christmas(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "christmas");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let centre = point(0.0, 0.0);
     let mut parts = Vec::new();
     for copy in 0..2 {

@@ -315,7 +315,7 @@ fn gear_part(name: String, teeth: usize, module: f64, bore: f64, windows: bool) 
 
 pub fn pendulum_clock(language: &str) -> Document {
     let mut b = Builder::new(text_language(language), "pendulum_clock");
-    b.stock(BOARD.0, BOARD.1);
+    b.stock_board();
     let l = layout();
     let origin = point(0.0, 0.0);
     let mut parts = vec![

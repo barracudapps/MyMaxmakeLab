@@ -209,6 +209,8 @@ pub struct MyApp {
     pub nest: Option<crate::nest_dialog::NestDialog>,
     pub line_puzzle: Option<crate::line_puzzle_dialog::LinePuzzleDialog>,
     pub samples_open: bool,
+    /// Size and stock chosen before opening a resizable sample.
+    pub sample_fit: Option<crate::samples_dialog::FitDialog>,
     pub shapes_library: crate::library::LibraryState,
     /// The start panel shows on an empty design until closed.
     pub start_panel: bool,
@@ -326,6 +328,7 @@ impl MyApp {
             nest: None,
             line_puzzle: None,
             samples_open: false,
+            sample_fit: None,
             paper: None,
             shapes_library: Default::default(),
             start_panel: true,

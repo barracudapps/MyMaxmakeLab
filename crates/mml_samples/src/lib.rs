@@ -8,6 +8,7 @@ mod art;
 mod clock;
 mod deco;
 mod esoteric;
+pub mod fit;
 mod layered;
 mod layered2;
 mod mixed;
@@ -68,7 +69,17 @@ pub struct Sample {
     pub hybrid: bool,
     /// 1 easy to 3 demanding.
     pub difficulty: u8,
+    /// Laser-cut project that can be resized to the user's plywood and
+    /// boards (slots keep the plywood thickness).
+    pub resizable: bool,
     build: fn(&str) -> Document,
+}
+
+/// Why a resized project cannot be made.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FitError {
+    /// Some part is larger than the board; the largest scale that fits.
+    TooBig { largest: f64 },
 }
 
 impl Sample {
@@ -84,6 +95,40 @@ impl Sample {
     pub fn build(&self, language: &str) -> Document {
         (self.build)(text::supported(language))
     }
+
+    /// The project resized to `fit`: the drawing is scaled, the slots
+    /// are as wide as the plywood is thick, the parts are shared out on
+    /// boards of the given size.
+    pub fn build_fitted(&self, language: &str, fit: fit::Fit) -> Result<Document, FitError> {
+        let fit = if self.resizable {
+            fit
+        } else {
+            fit::Fit::default()
+        };
+        let (mut document, sizes, dropped) = fit::within(fit, || self.build(language));
+        if dropped > 0 {
+            return Err(FitError::TooBig {
+                largest: fit::largest_scale(&sizes, fit.board) * fit.scale,
+            });
+        }
+        if fit.scale != 1.0 {
+            let anchor = fit::anchor();
+            let resize = mml_core::geometry::Transform::translate(-anchor.x, -anchor.y)
+                .then(mml_core::geometry::Transform::scale(fit.scale, fit.scale))
+                .then(mml_core::geometry::Transform::translate(anchor.x, anchor.y));
+            for shape in &mut document.shapes {
+                shape.transform = shape.transform.then(resize);
+            }
+        }
+        Ok(document)
+    }
+
+    /// The largest scale at which every part of the project fits a
+    /// board of `board` mm (1 is the size in the guide).
+    pub fn largest_scale(&self, board: (f64, f64)) -> f64 {
+        let (_, sizes, _) = fit::within(fit::Fit::default(), || self.build("en"));
+        fit::largest_scale(&sizes, board)
+    }
 }
 
 pub fn catalog() -> &'static [Sample] {
@@ -94,6 +139,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::MachineTest,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: tests_projects::cnc_calibration,
         },
@@ -102,6 +148,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::MachineTest,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: tests_projects::laser_tests,
         },
@@ -110,6 +157,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::MachineTest,
             machine: Cnc,
             hybrid: true,
+            resizable: false,
             difficulty: 2,
             build: mixed::hybrid_alignment,
         },
@@ -118,6 +166,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::MachineTest,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: tests_projects::fit_test,
         },
@@ -126,6 +175,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 2,
             build: puzzles::marble_maze,
         },
@@ -134,6 +184,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: puzzles::hanoi,
         },
@@ -142,6 +193,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: puzzles3d::dragon,
         },
@@ -150,6 +202,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: models3d::triceratops,
         },
@@ -158,6 +211,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: models3d::galleon,
         },
@@ -166,6 +220,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: animals3d::bear_3d,
         },
@@ -174,6 +229,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: animals3d::wolf_3d,
         },
@@ -182,6 +238,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 1,
             build: animals3d::fir_tree_3d,
         },
@@ -190,6 +247,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: animals3d::rhino_3d,
         },
@@ -198,6 +256,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: animals3d::turtle_3d,
         },
@@ -206,6 +265,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 1,
             build: animals3d::rocket_3d,
         },
@@ -214,6 +274,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: animals3d::airplane_3d,
         },
@@ -222,6 +283,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: puzzles3d::slotted_globe,
         },
@@ -230,6 +292,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Cnc,
             hybrid: true,
+            resizable: false,
             difficulty: 2,
             build: mixed::awale,
         },
@@ -238,6 +301,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: puzzles::pentominoes,
         },
@@ -246,6 +310,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Puzzle,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: puzzles::sliding_puzzle,
         },
@@ -254,6 +319,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: deco::coasters,
         },
@@ -262,6 +328,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: deco::christmas,
         },
@@ -270,6 +337,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 2,
             build: deco::door_sign,
         },
@@ -278,6 +346,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Cnc,
             hybrid: true,
+            resizable: false,
             difficulty: 2,
             build: mixed::valet_tray,
         },
@@ -286,6 +355,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Science,
             machine: Cnc,
             hybrid: true,
+            resizable: false,
             difficulty: 1,
             build: science::benham_tops,
         },
@@ -294,6 +364,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Science,
             machine: Cnc,
             hybrid: true,
+            resizable: false,
             difficulty: 2,
             build: science::sundial,
         },
@@ -302,6 +373,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Esoteric,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: esoteric::sacred_geometry,
         },
@@ -310,6 +382,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Esoteric,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: esoteric::runes,
         },
@@ -318,6 +391,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Esoteric,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 2,
             build: esoteric::relief_medallions,
         },
@@ -326,6 +400,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Esoteric,
             machine: Laser,
             hybrid: false,
+            resizable: false,
             difficulty: 1,
             build: esoteric::spirit_board,
         },
@@ -334,6 +409,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered::moose_forest,
         },
@@ -342,6 +418,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered::bear_sunset,
         },
@@ -350,6 +427,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered::owl_moon,
         },
@@ -358,6 +436,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 1,
             build: layered::christmas_bauble,
         },
@@ -366,6 +445,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered2::ocean_whale,
         },
@@ -374,6 +454,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered2::penguin_ice,
         },
@@ -382,6 +463,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered2::city_night,
         },
@@ -390,6 +472,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered2::space_porthole,
         },
@@ -398,6 +481,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 2,
             build: layered2::halloween_pumpkin,
         },
@@ -406,6 +490,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Decoration,
             machine: Laser,
             hybrid: false,
+            resizable: true,
             difficulty: 1,
             build: layered::layered_mandala,
         },
@@ -414,6 +499,7 @@ pub fn catalog() -> &'static [Sample] {
             category: Category::Mechanism,
             machine: Cnc,
             hybrid: false,
+            resizable: false,
             difficulty: 3,
             build: clock::pendulum_clock,
         },
@@ -522,7 +608,8 @@ pub(crate) mod settings {
         Operation::LaserLine(LineParams {
             speed: 300.0,
             power: 100.0,
-            passes: 2,
+            // Two passes for 3 mm, one for 2 mm or less.
+            passes: (fit::current().thickness / 2.0).ceil().max(1.0) as u32,
             air_assist: true,
             kerf: 0.15,
             ..LineParams::default()
@@ -565,6 +652,8 @@ pub(crate) struct Builder {
     prefix: &'static str,
     document: Document,
     steps: Vec<GuideStep>,
+    /// Boards the parts were shared out on.
+    boards: usize,
 }
 
 impl Builder {
@@ -578,6 +667,7 @@ impl Builder {
                 guide: None,
             },
             steps: Vec::new(),
+            boards: 0,
         }
     }
 
@@ -606,6 +696,12 @@ impl Builder {
         let id = layer.id;
         self.document.layers.push(layer);
         id
+    }
+
+    /// The board the parts are shared out on, as the stock.
+    pub fn stock_board(&mut self) {
+        let (width, height) = fit::board();
+        self.stock(width, height);
     }
 
     /// The outline of the stock on a layer that never runs.
@@ -648,6 +744,7 @@ impl Builder {
     /// engraves with a V-bit in a step of its own before the cut.
     pub fn cut_boards(&mut self, boards: Vec<Vec<shapes::Part>>, ops: BoardOps, key: &str) {
         let count = boards.len();
+        self.boards += count;
         for (index, board) in boards.into_iter().enumerate() {
             let (number, total) = ((index + 1).to_string(), count.to_string());
             let numbers = [number.as_str(), total.as_str()];
@@ -733,14 +830,64 @@ impl Builder {
     fn finish_guide(mut self, machine: MachineKind, hybrid: bool) -> Document {
         let prefix = self.prefix;
         let language = self.language;
+        // Sizes that follow the stock the project is made for.
+        let fit = fit::current();
+        let whole = |value: f64| {
+            let decimals = if value.fract().abs() < 1e-9 { 0 } else { 1 };
+            fit::format_mm(language, value, decimals)
+        };
+        let plate = whole(fit.thickness);
+        let slot = fit::format_mm(language, fit.thickness, 1);
+        let board = format!(
+            "{} × {}",
+            whole(fit.board.0.round()),
+            whole(fit.board.1.round())
+        );
+        let boards = if self.boards == 1 {
+            text::format(language, "common.boards_one", &[&board])
+        } else {
+            text::format(
+                language,
+                "common.boards_many",
+                &[&self.boards.to_string(), &board],
+            )
+        };
+        let sizes = |text: String| {
+            text.replace("{plate}", &plate)
+                .replace("{slot}", &slot)
+                .replace("{boards}", &boards)
+                .replace("{board}", &board)
+        };
+        let title = self.t("title");
+        let mut summary = sizes(self.t("summary"));
+        if !fit.is_default() {
+            summary.push_str("\n\n");
+            summary.push_str(&text::format(
+                language,
+                "common.resized",
+                &[&format!("{:.0}", fit.scale * 100.0), &plate],
+            ));
+        }
+        let steps = self
+            .steps
+            .into_iter()
+            .map(|step| GuideStep {
+                title: sizes(step.title),
+                lines: step.lines.into_iter().map(sizes).collect(),
+                layers: step.layers,
+            })
+            .collect();
         self.document.guide = Some(Guide {
-            title: self.t("title"),
-            summary: self.t("summary"),
+            title,
+            summary,
             machine,
             hybrid,
-            materials: text::lines(language, &format!("{prefix}.materials")),
+            materials: text::lines(language, &format!("{prefix}.materials"))
+                .into_iter()
+                .map(sizes)
+                .collect(),
             tools: text::lines(language, &format!("{prefix}.tools")),
-            steps: self.steps,
+            steps,
         });
         // Opens on the first machining step, so overlapping boards do
         // not clutter the view.
@@ -760,6 +907,124 @@ impl Builder {
 mod tests {
     use super::*;
     use mml_core::geometry::bounds_of;
+
+    fn sample(id: &str) -> &'static Sample {
+        catalog()
+            .iter()
+            .find(|sample| sample.id == id)
+            .expect("a sample")
+    }
+
+    /// Widths of the gaps a horizontal line at `y` crosses inside `path`.
+    fn gaps(path: &Path, y: f64) -> Vec<(f64, f64)> {
+        let count = path.points.len();
+        let mut xs: Vec<f64> = (0..count)
+            .filter_map(|index| {
+                let (a, b) = (path.points[index], path.points[(index + 1) % count]);
+                ((a.y > y) != (b.y > y)).then(|| a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y))
+            })
+            .collect();
+        xs.sort_by(f64::total_cmp);
+        xs.windows(2)
+            .skip(1)
+            .step_by(2)
+            .map(|pair| (pair[0], pair[1]))
+            .collect()
+    }
+
+    #[test]
+    fn resized_projects_keep_slots_as_wide_as_the_plywood() {
+        let fit = fit::Fit {
+            scale: 0.6,
+            thickness: 2.0,
+            board: (200.0, 140.0),
+        };
+        // In the drawing, before scaling, the slot is the plywood
+        // thickness divided by the scale...
+        let (tree, _, _) = fit::within(fit, || {
+            animals3d::tree_parts(["a".into(), "b".into(), "c".into()])
+        });
+        let slot = gaps(&tree.full.outline, 3.0)
+            .into_iter()
+            .find(|(from, to)| *from < 0.0 && *to > 0.0)
+            .expect("the slot");
+        assert!((slot.1 - slot.0 - 2.0 / 0.6).abs() < 1e-6, "{slot:?}");
+        // ...and the whole project is then scaled down.
+        let document = sample("fir_tree_3d")
+            .build_fitted("en", fit)
+            .expect("it fits");
+        let tallest = document
+            .shapes
+            .iter()
+            .filter(|shape| {
+                document
+                    .layer(shape.layer)
+                    .is_some_and(|layer| layer.output)
+            })
+            .flat_map(|shape| shape.world_paths())
+            .map(|path| {
+                let bounds = path.bounds();
+                bounds.width().max(bounds.height())
+            })
+            .fold(0.0, f64::max);
+        assert!((tallest - animals3d::TREE * 0.6).abs() < 0.5, "{tallest}");
+        let guide = document.guide.expect("a guide");
+        assert!(
+            guide.materials[0].contains("2 mm"),
+            "{}",
+            guide.materials[0]
+        );
+        assert!(
+            guide
+                .steps
+                .iter()
+                .any(|step| step.lines.iter().any(|line| line.contains("2.0 mm")))
+        );
+    }
+
+    #[test]
+    fn resized_projects_fit_an_a5_board_or_are_refused() {
+        let a5 = (208.0, 146.0);
+        for id in ["bear_3d", "moose_forest", "christmas_bauble"] {
+            let sample = sample(id);
+            assert!(sample.resizable);
+            let largest = sample.largest_scale(a5);
+            let fit = fit::Fit {
+                scale: largest.min(1.0) * 0.99,
+                thickness: 2.0,
+                board: a5,
+            };
+            let document = sample.build_fitted("fr", fit).expect("it fits");
+            let paths: Vec<Path> = document
+                .shapes
+                .iter()
+                .filter(|shape| {
+                    document
+                        .layer(shape.layer)
+                        .is_some_and(|layer| layer.output)
+                })
+                .flat_map(|shape| shape.world_paths())
+                .collect();
+            let bounds = bounds_of(&paths);
+            let (x, y) = shapes::BOARD_AT;
+            assert!(bounds.min.x >= x - 1e-6 && bounds.min.y >= y - 1e-6, "{id}");
+            assert!(
+                bounds.max.x <= x + a5.0 + 1e-6 && bounds.max.y <= y + a5.1 + 1e-6,
+                "{id}"
+            );
+            let too_big = fit::Fit {
+                scale: largest * 1.1,
+                ..fit
+            };
+            assert!(matches!(
+                sample.build_fitted("fr", too_big),
+                Err(FitError::TooBig { .. })
+            ));
+        }
+        // A project that is not resizable comes out as it is.
+        let fixed = sample("cnc_calibration");
+        assert!(!fixed.resizable);
+    }
 
     #[test]
     fn every_sample_builds_fits_the_board_and_has_a_guide() {
