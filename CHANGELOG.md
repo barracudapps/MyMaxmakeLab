@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.20] - 2026-11-25
+
 ### Added
 - **Three bigger projects over several boards**: a book nook (an alley
   at night in a finger-jointed box to slide between books, with house
@@ -271,7 +273,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.19...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.20...HEAD
+[0.1.20]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.19...v0.1.20
 [0.1.19]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.18...v0.1.19
 [0.1.18]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.16...v0.1.17
