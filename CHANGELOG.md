@@ -7,6 +7,15 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- A laser job on a milling machine with a laser module (HiMill) no
+  longer lifts Z to the safe height at the end nor before a pause: the
+  head stays at its focus height, and the Z travel check no longer
+  refuses the job.
+- The machine profile follows the laser mode of the connected
+  controller (`$32`): laser layers are no longer reported as "not in
+  laser mode" when the controller is in laser mode.
+
 ## [0.1.23] - 2026-11-26
 
 ### Changed

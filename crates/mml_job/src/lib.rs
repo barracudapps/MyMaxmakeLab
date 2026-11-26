@@ -134,10 +134,10 @@ pub fn build_job(document: &Document, machine: &MachineProfile) -> Job {
 /// Stops the tool, lifts it and waits for the operator (`M0`). GRBL
 /// resumes on cycle start, which the machine button sends; with the
 /// safety door enabled ($ door input) it refuses to resume while open.
-fn pause(writer: &mut GcodeWriter, machine: &MachineProfile, message: &str) {
+fn pause(writer: &mut GcodeWriter, machine: &MachineProfile, mills: bool, message: &str) {
     writer.tool_off();
     writer.air(false);
-    if machine.kind == MachineKind::Cnc {
+    if machine.kind == MachineKind::Cnc && mills {
         writer.rapid_z(machine.safe_z);
     }
     writer.comment(message);
@@ -213,6 +213,16 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     writer.raw(&machine.start_gcode);
     let mut head = anchor.unwrap_or_default();
 
+    // A job of laser layers only never moves Z, even on a milling
+    // machine with a laser module: the head stays at its focus height.
+    let mills = document.layers.iter().any(|layer| {
+        !layer.operation.is_laser()
+            && output_shapes.iter().any(|shape| shape.layer == layer.id)
+            && layer.output
+            && layer.visible
+            && layer.obstacle.is_none()
+    });
+    let lifts = machine.kind == MachineKind::Cnc && mills;
     let mut previous_family: Option<bool> = None;
     let mut loaded_tool: Option<u32> = None;
     for layer in document
@@ -255,11 +265,17 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             pause(
                 &mut writer,
                 machine,
+                mills,
                 &format!("Head change before layer {name}"),
             );
             pauses.push(reason);
         } else if layer.pause_before && previous_family.is_some() {
-            pause(&mut writer, machine, &format!("Pause before layer {name}"));
+            pause(
+                &mut writer,
+                machine,
+                mills,
+                &format!("Pause before layer {name}"),
+            );
             pauses.push(PauseReason::LayerPause {
                 next_layer: name.clone(),
             });
@@ -360,12 +376,12 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     // end G-code of the machine runs last (it may present the part, or
     // close a stream like the HiMill), and the program ends.
     if let Some(anchor) = anchor {
-        if machine.kind == MachineKind::Cnc {
+        if lifts {
             writer.rapid_z(machine.safe_z);
         }
         writer.rapid(anchor.x, anchor.y);
         writer.raw("G92.1");
-    } else if machine.kind == MachineKind::Cnc {
+    } else if lifts {
         writer.rapid_z(machine.safe_z);
         writer.rapid(0.0, 0.0);
     }
@@ -666,6 +682,17 @@ mod tests {
         assert!(job.gcode.find("; Layer Mill").unwrap() < pause_at);
         assert!(pause_at < job.gcode.find("; Layer Cut").unwrap());
         let _ = laser_layer;
+    }
+
+    #[test]
+    fn a_laser_job_on_a_milling_machine_never_moves_z() {
+        let (document, _) = document_with_square(50.0);
+        let mut machine = MachineProfile::maxmake_himill_d1s();
+        machine.laser_mode = true;
+        let job = build_job(&document, &machine);
+        let program = mml_gcode::parse(&job.gcode);
+        assert!(!program.moves_z, "{}", job.gcode);
+        assert!(program.motions.iter().any(|motion| motion.is_cutting()));
     }
 
     #[test]

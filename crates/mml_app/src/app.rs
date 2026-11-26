@@ -241,6 +241,8 @@ pub struct MyApp {
     pub sources: Option<crate::sources_dialog::SourcesDialog>,
     /// Travel last read from the controller, to apply it once.
     travel_applied: Option<[f64; 3]>,
+    /// Last laser mode ($32) read from the controller and applied.
+    laser_mode_applied: Option<bool>,
     applied_theme: Option<ThemeChoice>,
     lock_ratio: bool,
     pub live_links: Vec<LiveLink>,
@@ -325,6 +327,7 @@ impl MyApp {
             sprue: None,
             sources: None,
             travel_applied: None,
+            laser_mode_applied: None,
             nest: None,
             line_puzzle: None,
             samples_open: false,
@@ -1545,10 +1548,41 @@ impl MyApp {
         }
     }
 
+    /// A milling machine with a laser module switches its controller
+    /// between laser and spindle ($32); the profile follows each new
+    /// reading, so laser layers are accepted and never move Z.
+    fn follow_controller_laser_mode(&mut self) {
+        if !self.device.is_connected() {
+            self.laser_mode_applied = None;
+            return;
+        }
+        if self.machine.kind != MachineKind::Cnc {
+            return;
+        }
+        let Some(reading) = self.device.setting_f64(32).map(|value| value > 0.5) else {
+            return;
+        };
+        if self.laser_mode_applied == Some(reading) {
+            return;
+        }
+        self.laser_mode_applied = Some(reading);
+        if self.machine.laser_mode != reading {
+            self.machine.laser_mode = reading;
+            self.revision += 1;
+            let key = if reading {
+                "machine.laser_mode_on"
+            } else {
+                "machine.laser_mode_off"
+            };
+            self.notify(tr(key), Level::Info);
+        }
+    }
+
     /// Homing durations are compared with the usual one: a much slower
     /// homing is the typical sign of a binding axis or a loose belt.
     fn process_machine_events(&mut self) {
         self.follow_controller_travel();
+        self.follow_controller_laser_mode();
         let on_plate = self.job.placement == Placement::MachineOrigin
             && self.job.rotary.is_none()
             && !self.machine.relative_to_current;
