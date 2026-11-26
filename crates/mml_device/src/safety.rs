@@ -204,8 +204,8 @@ impl SafetyMonitor {
 /// after homing and the homing directions (`$23`, see
 /// [`crate::jog::limits`]), whatever values the firmware gives its home.
 /// Before homing, an axis is assumed to use the GRBL negative space
-/// (`[-travel, 0]`) when the head sits at a negative coordinate, the
-/// positive space otherwise. `None` for an axis without known travel.
+/// (`[-travel, 0]`) when the head sits at a negative coordinate on it,
+/// the positive space when positive; at 0, like the other axes. `None` for an axis without known travel.
 pub fn travel_ranges(
     home: Option<[f64; 3]>,
     position: [f64; 3],
@@ -218,8 +218,17 @@ pub fn travel_ranges(
         Some(match home {
             Some(home) if direction_mask & (1 << axis) != 0 => (home[axis], home[axis] + travel),
             Some(home) => (home[axis] - travel, home[axis]),
+            // Each axis by its own sign: a head at X+10 cannot be in
+            // [-travel, 0] whatever Y says. At 0 exactly, the other
+            // axes tell the usual space of the machine.
             None => {
-                let negative = negative_xy || (axis == 2 && position[2] < -1e-3);
+                let negative = if position[axis] < -1e-3 {
+                    true
+                } else if position[axis] > 1e-3 {
+                    false
+                } else {
+                    negative_xy
+                };
                 if negative {
                     (-travel, 0.0)
                 } else {
@@ -378,6 +387,12 @@ mod tests {
         let violations = travel_violations([30.0, 20.0, 0.0], [250.0, 60.0, 0.0], ranges);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].0, 'Y');
+        // Without homing, each axis by its own sign: the HiMill in laser
+        // mode has X positive and Y negative.
+        let ranges = travel_ranges(None, [9.9, -190.0, 0.0], travel, 0);
+        assert_eq!(ranges[0], Some((0.0, 280.0)));
+        assert_eq!(ranges[1], Some((-200.0, 0.0)));
+        assert_eq!(ranges[2], Some((-80.0, 0.0)));
         // Z lowered to focus height before homing reads as negative space.
         let ranges = travel_ranges(None, [10.0, 10.0, -37.3], travel, 0);
         assert_eq!(ranges[2], Some((-80.0, 0.0)));

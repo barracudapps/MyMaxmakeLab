@@ -7,6 +7,12 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- Before homing in the application, the travel check judges each axis
+  by the sign of its own position. It used to take the space of every
+  axis from X and Y together, and refused a laser job on the HiMill
+  (X positive, Y negative) when the homing was done before connecting.
+
 ## [0.1.24] - 2026-11-26
 
 ### Added
