@@ -20,6 +20,7 @@ mod puzzles3d;
 mod science;
 pub mod shapes;
 mod skeleton;
+mod structures;
 mod tests_projects;
 pub mod text;
 
@@ -334,6 +335,33 @@ pub fn catalog() -> &'static [Sample] {
             resizable: true,
             difficulty: 3,
             build: mechanisms::trebuchet,
+        },
+        Sample {
+            id: "ferris_wheel",
+            category: Category::Mechanism,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: structures::ferris_wheel,
+        },
+        Sample {
+            id: "windmill",
+            category: Category::Mechanism,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: structures::windmill,
+        },
+        Sample {
+            id: "castle",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: structures::castle,
         },
         Sample {
             id: "globe",

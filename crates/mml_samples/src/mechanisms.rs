@@ -15,23 +15,23 @@ use mml_core::geometry::{Path, Point};
 use mml_core::makers::boxes::{BoxParams, panels};
 
 /// Width of an axle strip, mm; the axle is two strips thick.
-const AXLE: f64 = 6.0;
+pub(crate) const AXLE: f64 = 6.0;
 
 /// Rectangular hole an axle fits, centred on `centre`.
-fn axle_hole(centre: Point) -> Path {
+pub(crate) fn axle_hole(centre: Point) -> Path {
     let (a, b) = (AXLE + real(0.2), 2.0 * slot() + real(0.2));
     rect(centre.x - a / 2.0, centre.y - b / 2.0, a, b)
 }
 
 /// Round hole an axle turns in.
-fn bearing(centre: Point) -> Path {
+pub(crate) fn bearing(centre: Point) -> Path {
     let t = slot();
     let half_diagonal = (AXLE * AXLE + 4.0 * t * t).sqrt() / 2.0;
     circle(centre, half_diagonal + real(0.35))
 }
 
 /// Box panels by name.
-fn box_panel(params: &BoxParams, name: &str) -> Path {
+pub(crate) fn box_panel(params: &BoxParams, name: &str) -> Path {
     panels(params)
         .into_iter()
         .find(|panel| panel.name == name)

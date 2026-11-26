@@ -84,6 +84,9 @@ l'assemblage.
 | Squelette de T-rex | laser | colonne et crâne denté, huit côtes, bassin portant deux pattes de profil, bras, socle |
 | Automate marin | laser | manivelle, arbre à trois cames, bateau, baleine et poisson qui montent et descendent entre trois rangées de vagues |
 | Trébuchet | laser | bâtis en A, bras sur axe avec cales, contrepoids en boîte suspendu ; lance une boulette de papier |
+| Grande roue | laser | deux roues à rayons et traverses, huit nacelles qui restent droites, bâtis en A, manivelle |
+| Moulin à vent | laser | tour à créneaux et pierres gravées, toit en bardeaux, ailes en treillis qui tournent |
+| Château fort | laser | murailles crénelées, quatre tours, pont-levis à charnière, herse coulissante |
 | Sapin de Noël 3D | laser | deux sapins croisés, boules découpées, guirlandes gravées, étoile sur la pointe |
 | Globe à lamelles | laser | sphère de 11 cm : 5 anneaux et 8 lamelles qui s'emboîtent |
 | Awalé | CNC + laser | décor gravé au laser, douze trous et deux greniers creusés en cuvette à la fraise boule de 6 mm (les graines se ramassent du bout des doigts), contour à la fraise plate ; règles du jeu dans le guide |

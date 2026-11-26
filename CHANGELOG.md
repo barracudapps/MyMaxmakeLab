@@ -7,6 +7,16 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Three more complex 3D projects**, all resizable: a Ferris wheel
+  turned by a crank (two spoked wheels tied by tabbed rungs, eight
+  gondolas that hang level on pins, A-frame stand), a windmill whose
+  lattice sails turn on an axle through both gables (stone-engraved
+  finger-jointed tower, shingled roof), and a castle (crenellated
+  curtain walls round a courtyard, four corner towers with arrow slits,
+  a drawbridge on a pin hinge raised by two strings, a portcullis
+  sliding in grooves behind the gate).
+
 ## [0.1.21] - 2026-11-26
 
 ### Added
