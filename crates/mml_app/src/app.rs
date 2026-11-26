@@ -1558,8 +1558,11 @@ impl MyApp {
     }
 
     /// A milling machine with a laser module switches its controller
-    /// between laser and spindle ($32); the profile follows each new
-    /// reading, so laser layers are accepted and never move Z.
+    /// to laser mode ($32 = 1); the profile then turns its laser mode on,
+    /// so laser layers are accepted and never move Z. A controller that
+    /// reports $32 = 0 never turns it off: some machines (the HiMill)
+    /// switch their laser with their own command and keep $32 at 0, and
+    /// the box ticked by hand in the machine settings stays.
     fn follow_controller_laser_mode(&mut self) {
         if !self.device.is_connected() {
             self.laser_mode_applied = None;
@@ -1575,15 +1578,10 @@ impl MyApp {
             return;
         }
         self.laser_mode_applied = Some(reading);
-        if self.machine.laser_mode != reading {
-            self.machine.laser_mode = reading;
+        if reading && !self.machine.laser_mode {
+            self.machine.laser_mode = true;
             self.revision += 1;
-            let key = if reading {
-                "machine.laser_mode_on"
-            } else {
-                "machine.laser_mode_off"
-            };
-            self.notify(tr(key), Level::Info);
+            self.notify(tr("machine.laser_mode_on"), Level::Info);
         }
     }
 

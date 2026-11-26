@@ -1363,7 +1363,6 @@ flow.to_start = Avvia il lavoro  ›
 job.estimate_learned = Corretta in base agli ultimi {0} lavori completati su questa macchina (accelerazioni, avvio del mandrino…).
 machine.travel_applied = Piano adattato alla corsa della macchina collegata: {0} × {1} mm, Z {2} mm.
 machine.laser_mode_on = Il controller è in modalità laser: i livelli laser sono accettati e la testa resta all’altezza di messa a fuoco.
-machine.laser_mode_off = Il controller è in modalità fresatura: i livelli laser richiedono di riportare la macchina in modalità laser.
 machine.bed_from_controller = Usa la corsa del controller (da $130 a $132)
 machine.bed_from_controller_hint = Alla connessione, dimensione del piano e corsa Z seguono quanto indica la macchina: la griglia corrisponde alla sua area di lavoro reale.
 machine.origin_hint = Angolo del piano dove si trova l'utensile dopo l'homing. Su una macchina a piano mobile (HiMill), il piano avanzato verso di te porta l'utensile sopra la parte posteriore: scegli un angolo posteriore.

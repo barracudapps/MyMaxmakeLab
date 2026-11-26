@@ -1361,7 +1361,6 @@ flow.to_start = Lancer le travail  ›
 job.estimate_learned = Corrigée d'après les {0} derniers travaux terminés sur cette machine (accélérations, démarrage de la broche…).
 machine.travel_applied = Plateau ajusté à la course de la machine connectée : {0} × {1} mm, Z {2} mm.
 machine.laser_mode_on = Le contrôleur est en mode laser : les calques laser sont acceptés et la tête reste à sa hauteur de mise au point.
-machine.laser_mode_off = Le contrôleur est en mode fraisage : les calques laser demandent de repasser la machine en mode laser.
 machine.bed_from_controller = Prendre la course du contrôleur ($130 à $132)
 machine.bed_from_controller_hint = À la connexion, la taille du plateau et la course en Z suivent ce que la machine indique : la grille correspond à son espace de travail réel.
 machine.origin_hint = Coin du plateau où se trouve l'outil après le homing. Sur une machine à plateau mobile (HiMill), le plateau avancé vers vous place l'outil au-dessus de l'arrière du plateau : choisissez un coin arrière.

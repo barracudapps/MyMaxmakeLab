@@ -1293,7 +1293,6 @@ flow.to_start = Start the job  ›
 job.estimate_learned = Corrected from the last {0} jobs completed on this machine (acceleration, spindle spin-up…).
 machine.travel_applied = Bed set to the travel of the connected machine: {0} × {1} mm, Z {2} mm.
 machine.laser_mode_on = The controller is in laser mode: laser layers are accepted and the head stays at its focus height.
-machine.laser_mode_off = The controller is in milling mode: laser layers need the machine back in laser mode.
 machine.bed_from_controller = Use the travel of the controller ($130 to $132)
 machine.bed_from_controller_hint = On connection, the bed size and Z travel follow what the machine reports: the grid matches its real working area.
 machine.origin_hint = Corner of the bed where the tool is after homing. On a moving-table machine (HiMill), the table forward towards you puts the tool over the rear of the table: choose a rear corner.

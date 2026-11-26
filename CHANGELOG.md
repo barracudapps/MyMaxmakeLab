@@ -22,9 +22,10 @@ yet: GRBL is tested against simulated controllers.
   axis from where the head has been seen since homing: the HiMill in
   laser mode reports a `$23` that does not match its coordinates, and
   jobs placed at the head were refused on X.
-- The machine profile follows the laser mode of the connected
-  controller (`$32`): laser layers are no longer reported as "not in
-  laser mode" when the controller is in laser mode.
+- The machine profile turns its laser mode on when the connected
+  controller is in laser mode (`$32` = 1), so laser layers are no longer
+  reported as "not in laser mode". It never turns it off: the HiMill
+  keeps `$32` at 0, and the box ticked in the machine settings stays.
 
 ## [0.1.23] - 2026-11-26
 
