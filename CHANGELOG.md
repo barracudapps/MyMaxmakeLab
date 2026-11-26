@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.24] - 2026-11-26
+
 ### Added
 - **Jobs relative to the head in X, Y and Z**: with the "Head position
   marks…" placement, tick "Z too" and the current head height becomes
@@ -337,7 +339,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.23...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.24...HEAD
+[0.1.24]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.23...v0.1.24
 [0.1.23]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.22...v0.1.23
 [0.1.22]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.21...v0.1.22
 [0.1.21]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.20...v0.1.21
