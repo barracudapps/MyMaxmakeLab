@@ -132,7 +132,7 @@ zéro serait faux). L'étape en cours reste affichée dans l'onglet
 Machine, avec un bouton pour préparer la suivante. Les pièces
 nombreuses sont réparties sur des planches de 260 × 180 mm (la course
 de la HiMill), une étape par planche ; le rectangle gris « Planche »
-montre où poser le brut. Choisissez le placement « Zéro machine » pour
+montre où poser le brut. Choisissez le placement « Sur le plateau » pour
 que toutes les étapes restent alignées.
 
 Les projets **CNC + laser** demandent une CNC avec module laser (cochez

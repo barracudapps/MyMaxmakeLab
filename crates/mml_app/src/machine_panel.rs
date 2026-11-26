@@ -95,6 +95,12 @@ pub struct DeviceState {
     /// Machine position right after the last successful homing: with
     /// the travel and homing directions it gives where jogs may go.
     pub home_machine: Option<[f64; 3]>,
+    /// Front-left corner of the bed in machine coordinates, kept as the
+    /// X/Y work zero while the "on the bed" placement is chosen on a
+    /// homed machine: the drawing is then cut where the bed shows it.
+    pub plate_zero: Option<[f64; 2]>,
+    /// Bed corner last sent as work zero.
+    plate_synced: Option<[f64; 2]>,
     /// Homing just succeeded: the next status gives `home_machine`.
     capture_home: bool,
     /// Network search for Carvera machines in progress.
@@ -159,6 +165,8 @@ impl DeviceState {
             spindle_on: false,
             homing_failure: None,
             home_machine: None,
+            plate_zero: None,
+            plate_synced: None,
             capture_home: false,
             discovery: None,
             discovered: None,
@@ -277,6 +285,42 @@ impl DeviceState {
             return;
         }
         self.line(format!("$J=G91 G21 X{dx:.3} Y{dy:.3} Z{dz:.3} F{feed:.0}"));
+    }
+
+    /// Front-left corner of the bed in machine coordinates, once homed:
+    /// the low end of the X and Y travel (X+ to the right, Y+ to the rear,
+    /// as on GRBL machines).
+    pub fn plate_corner(&self, machine: &MachineProfile) -> Option<[f64; 2]> {
+        let home = self.home_machine?;
+        let position = self.status.as_ref()?.machine_position;
+        let travel = [
+            Some(self.setting_f64(130).unwrap_or(machine.width)),
+            Some(self.setting_f64(131).unwrap_or(machine.height)),
+            None,
+        ];
+        let mask = self.setting_f64(23).unwrap_or(0.0) as u32;
+        let [x, y, _] = mml_device::travel_ranges(Some(home), position, travel, mask);
+        Some([x?.0, y?.0])
+    }
+
+    /// Keeps the X/Y work zero on `wanted` (machine coordinates), sent
+    /// once per change while the machine is idle; `None` lets the
+    /// operator set the work zero.
+    pub fn sync_plate_zero(&mut self, wanted: Option<[f64; 2]>) {
+        self.plate_zero = wanted;
+        let Some(wanted) = wanted else {
+            self.plate_synced = None;
+            return;
+        };
+        if self.plate_synced == Some(wanted)
+            || self.job_running()
+            || self.homing.is_some()
+            || self.state() != MachineState::Idle
+        {
+            return;
+        }
+        self.line(format!("G10 L2 P1 X{:.3} Y{:.3}", wanted[0], wanted[1]));
+        self.plate_synced = Some(wanted);
     }
 
     /// Sends `$H` and supervises it: with `hold_required`, the homing
@@ -854,9 +898,19 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
                                     .monospace()
                                     .weak(),
                             );
+                            let on_plate = axis < 2 && device.plate_zero.is_some();
+                            let hint = if on_plate {
+                                tr("device.zero_plate_hint").to_owned()
+                            } else {
+                                trf("device.zero_hint", &[label])
+                            };
                             if ui
-                                .small_button(tr("device.zero"))
-                                .on_hover_text(trf("device.zero_hint", &[label]))
+                                .add_enabled(
+                                    !on_plate,
+                                    egui::Button::new(tr("device.zero")).small(),
+                                )
+                                .on_hover_text(hint.clone())
+                                .on_disabled_hover_text(hint)
                                 .clicked()
                             {
                                 device.line(format!("G10 L20 P1 {label}0"));
@@ -887,7 +941,14 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
         });
     ui.horizontal_wrapped(|ui| {
         homing_button(device, ui, hold, tr("device.home"));
-        if ui.button(tr("device.zero_xy")).clicked() {
+        if ui
+            .add_enabled(
+                device.plate_zero.is_none(),
+                egui::Button::new(tr("device.zero_xy")),
+            )
+            .on_disabled_hover_text(tr("device.zero_plate_hint"))
+            .clicked()
+        {
             device.line("G10 L20 P1 X0 Y0");
         }
         if ui.button(tr("device.goto_zero")).clicked() {
@@ -1400,7 +1461,8 @@ fn placement(app: &mut MyApp, ui: &mut egui::Ui) {
     ui.label(RichText::new(tr("place.title")).strong());
     let mut placement = app.job.placement;
     ui.horizontal(|ui| {
-        ui.radio_value(&mut placement, Placement::MachineOrigin, tr("place.origin"));
+        ui.radio_value(&mut placement, Placement::MachineOrigin, tr("place.origin"))
+            .on_hover_text(tr("place.origin_hint"));
         let on_head = matches!(placement, Placement::Head(_));
         if ui.radio(on_head, tr("place.head")).clicked() && !on_head {
             placement = Placement::Head(Anchor::Center);

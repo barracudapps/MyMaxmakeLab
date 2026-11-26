@@ -1549,6 +1549,13 @@ impl MyApp {
     /// homing is the typical sign of a binding axis or a loose belt.
     fn process_machine_events(&mut self) {
         self.follow_controller_travel();
+        let on_plate = self.job.placement == Placement::MachineOrigin
+            && self.job.rotary.is_none()
+            && !self.machine.relative_to_current;
+        let wanted = on_plate
+            .then(|| self.device.plate_corner(&self.machine))
+            .flatten();
+        self.device.sync_plate_zero(wanted);
         for (duration, success) in std::mem::take(&mut self.device.homing_results) {
             if !success {
                 continue;

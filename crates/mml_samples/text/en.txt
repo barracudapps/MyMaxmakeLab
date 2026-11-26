@@ -14,7 +14,7 @@ common.layer_holes = Board {0} — holes
 common.layer_outline = Board {0} — outlines
 common.board_parts = Parts on this board: {0}.
 common.prepare = Click “Prepare this step”: only its layers stay active. Then switch to the Run tab.
-common.zero_machine = Home the machine, then choose the “Machine zero” placement: the design keeps its place on the table, and all steps stay aligned as long as the board does not move.
+common.zero_machine = Home the machine, then choose the “On the bed” placement: the design keeps its place on the table, and all steps stay aligned as long as the board does not move.
 common.place_stock = Lay the board on the grey “Stock” rectangle (front left corner 10 mm from the origin) and fasten it flat: double-sided tape, or clamps outside the tool path.
 common.board_setup = If the board is not already in place, lay it on the grey “Stock” rectangle and fasten it flat.
 common.frame = Run Frame: the head traces the outline of the area without cutting. Check that it stays on the board and well clear of the clamps.
@@ -27,7 +27,7 @@ common.tabs = The parts are held to the board by small tabs: cut them with a uti
 common.spoilboard = Put a spoilboard under your board: through cuts go 0.3 mm into it.
 common.cnc_settings = Feed rates are cautious starting values for a small CNC (HiMill type) in plywood; adjust them in the layer settings for hardwood.
 common.laser_settings = Powers and speeds are starting values for a diode laser of about 10 W: tune them for your material with the “Laser settings” project.
-common.laser_place = Lay the board on the grey “Stock” rectangle (front left corner 10 mm from the origin) and choose the “Machine zero” placement. Without homing: “Head position marks… bottom left”, with the head about 1 cm from the front left corner of the board.
+common.laser_place = Lay the board on the grey “Stock” rectangle (front left corner 10 mm from the origin) and choose the “On the bed” placement. Without homing: “Head position marks… bottom left”, with the head about 1 cm from the front left corner of the board.
 common.laser_board = If the board is not already in place, lay it on the grey “Stock” rectangle and focus on its top surface.
 common.focus = Focus the laser on the top of the board.
 common.kerf = Cuts compensate for a 0.15 mm kerf: measure yours with the “Laser settings” project and correct “Kerf compensation” in the cut layers if it differs.
@@ -38,7 +38,7 @@ common.to_laser = Head change: stop the spindle and wait until it is completely 
 common.to_spindle = Head change: switch off the laser, remove the module and refit the spindle, without touching the board.
 common.laser_mode_on = Switch the controller to laser mode as the module's manual describes (on GRBL: $32=1).
 common.laser_mode_off = Check that the controller is in milling mode ($32=0 on GRBL): in laser mode, the spindle output is cut during rapid moves, which is dangerous for milling.
-common.home_again = Home the machine again: with the “Machine zero” placement, the design lands in the same place on the board.
+common.home_again = Home the machine again: with the “On the bed” placement, the design lands in the same place on the board.
 common.laser_focus = Focus: bring the head in Z to the module's focal distance above the board (spacer or mark supplied with the module).
 common.offset_check = If the laser engraving and the machining do not line up, the laser offset is wrong: adjust it with the “CNC / laser alignment” project.
 common.sheet_back = {0} — back

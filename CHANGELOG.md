@@ -7,6 +7,14 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Changed
+- **The "Machine zero" placement becomes "On the bed"**: once the
+  machine has homed, the X/Y work zero is set on the front left corner
+  of the travel, so the drawing is cut where the bed shows it and the
+  head cross shows its real place (it used to sit at the bed origin
+  while the head was at home, rear left on the HiMill). The X/Y zero
+  buttons are greyed in this placement; the Z zero stays free.
+
 ### Fixed
 - A laser job no longer refuses to start because of the Z axis: a
   program that never commands Z leaves the head at its focus height,

@@ -14,7 +14,7 @@ common.layer_holes = Pannello {0} — fori
 common.layer_outline = Pannello {0} — contorni
 common.board_parts = Pezzi di questo pannello: {0}.
 common.prepare = Clicchi «Prepara questo passaggio»: restano attivi solo i suoi livelli. Passi poi alla scheda «Esecuzione».
-common.zero_machine = Esegua l'homing, poi scelga il posizionamento «Zero macchina»: il disegno mantiene la sua posizione sul piano e tutti i passaggi restano allineati finché il pannello non si sposta.
+common.zero_machine = Esegua l'homing, poi scelga il posizionamento «Sul piano»: il disegno mantiene la sua posizione sul piano e tutti i passaggi restano allineati finché il pannello non si sposta.
 common.place_stock = Appoggi il pannello sul rettangolo grigio «Pannello» (angolo anteriore sinistro a 10 mm dall'origine) e lo fissi ben piatto: nastro biadesivo, oppure morsetti fuori dal percorso dell'utensile.
 common.board_setup = Se il pannello non è già in posizione, lo appoggi sul rettangolo grigio «Pannello» e lo fissi ben piatto.
 common.frame = Avvii «Contorno»: la testa percorre il perimetro della zona a vuoto. Verifichi che resti sul pannello e lontana dai morsetti.
@@ -27,7 +27,7 @@ common.tabs = I pezzi restano attaccati al pannello con piccoli ponticelli: li t
 common.spoilboard = Metta un piano sacrificale sotto il pannello: i tagli lo attraversano di 0,3 mm.
 common.cnc_settings = Gli avanzamenti sono valori di partenza prudenti per una piccola CNC (tipo HiMill) nel compensato; li adatti nelle impostazioni del livello per un legno duro.
 common.laser_settings = Potenze e velocità sono valori di partenza per un laser a diodo di circa 10 W: le regoli sul suo materiale con il progetto «Regolazioni laser».
-common.laser_place = Appoggi il pannello sul rettangolo grigio «Pannello» (angolo anteriore sinistro a 10 mm dall'origine) e scelga il posizionamento «Zero macchina». Senza homing: «La posizione della testa indica… in basso a sinistra», con la testa a circa 1 cm dall'angolo anteriore sinistro del pannello.
+common.laser_place = Appoggi il pannello sul rettangolo grigio «Pannello» (angolo anteriore sinistro a 10 mm dall'origine) e scelga il posizionamento «Sul piano». Senza homing: «La posizione della testa indica… in basso a sinistra», con la testa a circa 1 cm dall'angolo anteriore sinistro del pannello.
 common.laser_board = Se il pannello non è già in posizione, lo appoggi sul rettangolo grigio «Pannello» e metta a fuoco sulla sua faccia superiore.
 common.focus = Metta a fuoco il laser sulla faccia superiore del pannello.
 common.kerf = Il taglio compensa 0,15 mm di larghezza di taglio (kerf): misuri la sua con il progetto «Regolazioni laser» e corregga «Compensazione del taglio» nei livelli di taglio se è diversa.
@@ -38,7 +38,7 @@ common.to_laser = Cambio di testa: spenga il mandrino e attenda che sia fermo, t
 common.to_spindle = Cambio di testa: spenga il laser, smonti il modulo e rimonti il mandrino, senza toccare il pannello.
 common.laser_mode_on = Porti il controller in modalità laser come indicato nelle istruzioni del modulo (su GRBL: $32=1).
 common.laser_mode_off = Verifichi che il controller sia in modalità fresatura ($32=0 su GRBL): in modalità laser, l'uscita del mandrino viene interrotta durante gli spostamenti rapidi, il che è pericoloso per fresare.
-common.home_again = Ripeta l'homing: con il posizionamento «Zero macchina», il disegno torna esattamente nello stesso punto del pannello.
+common.home_again = Ripeta l'homing: con il posizionamento «Sul piano», il disegno torna esattamente nello stesso punto del pannello.
 common.laser_focus = Metta a fuoco: porti la testa in Z alla distanza focale del modulo sopra il pannello (spessore o riferimento fornito con il modulo).
 common.offset_check = Se l'incisione laser e la lavorazione CNC non cadono una sull'altra, l'offset del laser è sbagliato: lo regoli con il progetto «Allineamento CNC / laser».
 common.sheet_back = {0} — fondo

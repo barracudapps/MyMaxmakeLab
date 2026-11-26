@@ -14,7 +14,7 @@ common.layer_holes = Planche {0} — trous
 common.layer_outline = Planche {0} — contours
 common.board_parts = Pièces de cette planche : {0}.
 common.prepare = Cliquez « Préparer cette étape » : seuls ses calques restent actifs. Passez ensuite à l'onglet Machine.
-common.zero_machine = Faites le homing, puis choisissez le placement « Zéro machine » : le dessin garde sa place sur la table, et toutes les étapes restent alignées tant que la planche ne bouge pas.
+common.zero_machine = Faites le homing, puis choisissez le placement « Sur le plateau » : le dessin garde sa place sur la table, et toutes les étapes restent alignées tant que la planche ne bouge pas.
 common.place_stock = Posez la planche sur le rectangle gris « Planche » (coin avant gauche à 10 mm de l'origine) et fixez-la bien à plat : ruban adhésif double face, ou brides en dehors du trajet de l'outil.
 common.board_setup = Si la planche n'est pas déjà en place, posez-la sur le rectangle gris « Planche » et fixez-la bien à plat.
 common.frame = Lancez Cadrer : la tête fait le tour de la zone à vide. Vérifiez qu'elle reste sur la planche et loin des brides.
@@ -27,7 +27,7 @@ common.tabs = Les pièces tiennent à la planche par de petites attaches : coupe
 common.spoilboard = Mettez une planche martyre sous votre planche : les découpes la traversent de 0,3 mm.
 common.cnc_settings = Les avances sont des valeurs de départ prudentes pour une petite CNC (type HiMill) dans le contreplaqué ; adaptez-les dans les réglages du calque pour un bois dur.
 common.laser_settings = Les puissances et vitesses sont des valeurs de départ pour un laser diode d'environ 10 W : ajustez-les sur votre matériau avec le projet « Réglages laser ».
-common.laser_place = Posez la planche sur le rectangle gris « Planche » (coin avant gauche à 10 mm de l'origine) et choisissez le placement « Zéro machine ». Sans homing : « La position de la tête marque… en bas à gauche », tête à environ 1 cm du coin avant gauche de la planche.
+common.laser_place = Posez la planche sur le rectangle gris « Planche » (coin avant gauche à 10 mm de l'origine) et choisissez le placement « Sur le plateau ». Sans homing : « La position de la tête marque… en bas à gauche », tête à environ 1 cm du coin avant gauche de la planche.
 common.laser_board = Si la planche n'est pas déjà en place, posez-la sur le rectangle gris « Planche » et faites la mise au point sur son dessus.
 common.focus = Faites la mise au point du laser sur le dessus de la planche.
 common.kerf = La découpe compense 0,15 mm de largeur de trait : mesurez la vôtre avec le projet « Réglages laser » et corrigez « Compensation du trait » dans les calques de découpe si elle diffère.
@@ -38,7 +38,7 @@ common.to_laser = Changement de tête : arrêtez la broche et attendez qu'elle s
 common.to_spindle = Changement de tête : éteignez le laser, démontez le module et remontez la broche, sans toucher la planche.
 common.laser_mode_on = Passez le contrôleur en mode laser comme l'indique la notice du module (sur GRBL : $32=1).
 common.laser_mode_off = Vérifiez que le contrôleur est en mode fraisage ($32=0 sur GRBL) : en mode laser, la sortie broche est coupée pendant les déplacements rapides, ce qui est dangereux pour fraiser.
-common.home_again = Refaites le homing : avec le placement « Zéro machine », le dessin retombe au même endroit sur la planche.
+common.home_again = Refaites le homing : avec le placement « Sur le plateau », le dessin retombe au même endroit sur la planche.
 common.laser_focus = Faites la mise au point : amenez la tête en Z à la distance de focale du module au-dessus de la planche (cale ou repère fourni avec le module).
 common.offset_check = Si la gravure au laser et l'usinage ne tombent pas l'un sur l'autre, le décalage du laser est faux : réglez-le avec le projet « Alignement CNC / laser ».
 common.sheet_back = {0} — fond

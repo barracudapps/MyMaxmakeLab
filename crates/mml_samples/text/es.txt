@@ -14,7 +14,7 @@ common.layer_holes = Tablero {0} — agujeros
 common.layer_outline = Tablero {0} — contornos
 common.board_parts = Piezas de este tablero: {0}.
 common.prepare = Haga clic en «Preparar este paso»: solo sus capas quedan activas. Después pase a la pestaña Ejecutar.
-common.zero_machine = Haga el homing y elija la colocación «Cero de la máquina»: el dibujo conserva su lugar en la mesa y todos los pasos quedan alineados mientras el tablero no se mueva.
+common.zero_machine = Haga el homing y elija la colocación «Sobre la mesa»: el dibujo conserva su lugar en la mesa y todos los pasos quedan alineados mientras el tablero no se mueva.
 common.place_stock = Coloque el tablero sobre el rectángulo gris «Tablero» (esquina delantera izquierda a 10 mm del origen) y fíjelo bien plano: cinta adhesiva de doble cara, o bridas fuera de la trayectoria de la herramienta.
 common.board_setup = Si el tablero no está ya colocado, póngalo sobre el rectángulo gris «Tablero» y fíjelo bien plano.
 common.frame = Lance Contorno: el cabezal recorre el perímetro de la zona en vacío. Compruebe que se mantiene sobre el tablero y lejos de las bridas.
@@ -27,7 +27,7 @@ common.tabs = Las piezas quedan unidas al tablero por pequeños puentes de sujec
 common.spoilboard = Ponga un tablero de sacrificio debajo de su tablero: los cortes lo atraviesan 0,3 mm.
 common.cnc_settings = Los avances son valores iniciales prudentes para una CNC pequeña (tipo HiMill) en contrachapado; adáptelos en los ajustes de la capa para una madera dura.
 common.laser_settings = Las potencias y velocidades son valores iniciales para un láser de diodo de unos 10 W: ajústelas a su material con el proyecto «Ajustes láser».
-common.laser_place = Coloque el tablero sobre el rectángulo gris «Tablero» (esquina delantera izquierda a 10 mm del origen) y elija la colocación «Cero de la máquina». Sin homing: «La posición del cabezal marca… abajo a la izquierda», con el cabezal a 1 cm aproximadamente de la esquina delantera izquierda del tablero.
+common.laser_place = Coloque el tablero sobre el rectángulo gris «Tablero» (esquina delantera izquierda a 10 mm del origen) y elija la colocación «Sobre la mesa». Sin homing: «La posición del cabezal marca… abajo a la izquierda», con el cabezal a 1 cm aproximadamente de la esquina delantera izquierda del tablero.
 common.laser_board = Si el tablero no está ya colocado, póngalo sobre el rectángulo gris «Tablero» y enfoque sobre su cara superior.
 common.focus = Enfoque el láser sobre la cara superior del tablero.
 common.kerf = El corte compensa 0,15 mm de ancho de corte (kerf): mida el suyo con el proyecto «Ajustes láser» y corrija «Compensación del corte» en las capas de corte si es diferente.
@@ -38,7 +38,7 @@ common.to_laser = Cambio de cabezal: pare el husillo y espere a que esté inmóv
 common.to_spindle = Cambio de cabezal: apague el láser, desmonte el módulo y vuelva a montar el husillo, sin tocar el tablero.
 common.laser_mode_on = Ponga el controlador en modo láser como indican las instrucciones del módulo (en GRBL: $32=1).
 common.laser_mode_off = Compruebe que el controlador está en modo fresado ($32=0 en GRBL): en modo láser, la salida del husillo se corta durante los desplazamientos rápidos, lo que es peligroso para fresar.
-common.home_again = Vuelva a hacer el homing: con la colocación «Cero de la máquina», el dibujo vuelve a caer en el mismo lugar del tablero.
+common.home_again = Vuelva a hacer el homing: con la colocación «Sobre la mesa», el dibujo vuelve a caer en el mismo lugar del tablero.
 common.laser_focus = Enfoque: lleve el cabezal en Z a la distancia focal del módulo sobre el tablero (calzo o referencia suministrados con el módulo).
 common.offset_check = Si el grabado láser y el mecanizado no coinciden, el desfase del láser es incorrecto: ajústelo con el proyecto «Alineación CNC / láser».
 common.sheet_back = {0} — fondo

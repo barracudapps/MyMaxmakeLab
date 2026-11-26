@@ -14,7 +14,7 @@ common.layer_holes = Platte {0} — Löcher
 common.layer_outline = Platte {0} — Konturen
 common.board_parts = Teile auf dieser Platte: {0}.
 common.prepare = Klicken Sie auf „Diesen Schritt vorbereiten“: Nur seine Ebenen bleiben aktiv. Wechseln Sie dann zum Tab „Ausführen“.
-common.zero_machine = Führen Sie die Referenzfahrt (Homing) aus und wählen Sie dann die Platzierung „Maschinennullpunkt“: Die Zeichnung behält ihre Position auf dem Tisch, und alle Schritte bleiben ausgerichtet, solange die Platte nicht verrutscht.
+common.zero_machine = Führen Sie die Referenzfahrt (Homing) aus und wählen Sie dann die Platzierung „Auf dem Bett“: Die Zeichnung behält ihre Position auf dem Tisch, und alle Schritte bleiben ausgerichtet, solange die Platte nicht verrutscht.
 common.place_stock = Legen Sie die Platte auf das graue Rechteck „Platte“ (vordere linke Ecke 10 mm vom Nullpunkt) und befestigen Sie sie plan: mit doppelseitigem Klebeband oder mit Spannpratzen außerhalb des Werkzeugwegs.
 common.board_setup = Falls die Platte noch nicht liegt, legen Sie sie auf das graue Rechteck „Platte“ und befestigen Sie sie plan.
 common.frame = Starten Sie „Umriss abfahren“: Der Kopf fährt den Bereich ohne Bearbeitung ab. Prüfen Sie, dass er auf der Platte und weit weg von den Spannpratzen bleibt.
@@ -27,7 +27,7 @@ common.tabs = Die Teile hängen mit kleinen Haltestegen an der Platte: Trennen S
 common.spoilboard = Legen Sie eine Opferplatte unter Ihre Platte: Die Durchbrüche gehen 0,3 mm hinein.
 common.cnc_settings = Die Vorschübe sind vorsichtige Startwerte für eine kleine CNC (z. B. HiMill) in Sperrholz; passen Sie sie für Hartholz in den Ebeneneinstellungen an.
 common.laser_settings = Leistungen und Geschwindigkeiten sind Startwerte für einen Diodenlaser mit etwa 10 W: Stimmen Sie sie mit dem Projekt „Lasereinstellungen“ auf Ihr Material ab.
-common.laser_place = Legen Sie die Platte auf das graue Rechteck „Platte“ (vordere linke Ecke 10 mm vom Nullpunkt) und wählen Sie die Platzierung „Maschinennullpunkt“. Ohne Homing: „Kopfposition markiert… unten links“, Kopf etwa 1 cm von der vorderen linken Ecke der Platte.
+common.laser_place = Legen Sie die Platte auf das graue Rechteck „Platte“ (vordere linke Ecke 10 mm vom Nullpunkt) und wählen Sie die Platzierung „Auf dem Bett“. Ohne Homing: „Kopfposition markiert… unten links“, Kopf etwa 1 cm von der vorderen linken Ecke der Platte.
 common.laser_board = Falls die Platte noch nicht liegt, legen Sie sie auf das graue Rechteck „Platte“ und fokussieren Sie auf ihre Oberseite.
 common.focus = Fokussieren Sie den Laser auf die Oberseite der Platte.
 common.kerf = Der Schnitt gleicht 0,15 mm Schnittfuge aus: Messen Sie Ihre mit dem Projekt „Lasereinstellungen“ und korrigieren Sie bei Abweichung den „Schnittfugen-Ausgleich“ in den Schneide-Ebenen.
@@ -38,7 +38,7 @@ common.to_laser = Kopfwechsel: Schalten Sie die Spindel aus und warten Sie, bis 
 common.to_spindle = Kopfwechsel: Schalten Sie den Laser aus, bauen Sie das Modul ab und die Spindel wieder ein, ohne die Platte zu berühren.
 common.laser_mode_on = Schalten Sie den Controller in den Lasermodus, wie in der Anleitung des Moduls beschrieben (bei GRBL: $32=1).
 common.laser_mode_off = Prüfen Sie, dass der Controller im Fräsmodus ist ($32=0 bei GRBL): Im Lasermodus wird der Spindelausgang bei Eilgangbewegungen abgeschaltet, was beim Fräsen gefährlich ist.
-common.home_again = Führen Sie die Referenzfahrt (Homing) erneut aus: Mit der Platzierung „Maschinennullpunkt“ landet die Zeichnung wieder an derselben Stelle auf der Platte.
+common.home_again = Führen Sie die Referenzfahrt (Homing) erneut aus: Mit der Platzierung „Auf dem Bett“ landet die Zeichnung wieder an derselben Stelle auf der Platte.
 common.laser_focus = Fokussieren Sie: Fahren Sie den Kopf in Z auf den Fokusabstand des Moduls über der Platte (mit der Lehre oder Markierung, die dem Modul beiliegt).
 common.offset_check = Liegen Lasergravur und Fräsbearbeitung nicht übereinander, stimmt der Laser-Versatz nicht: Stellen Sie ihn mit dem Projekt „Ausrichtung CNC / Laser“ ein.
 common.sheet_back = {0} — Hintergrund

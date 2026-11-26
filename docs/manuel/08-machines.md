@@ -89,7 +89,18 @@ entre-temps.
 Après un homing réussi, les déplacements s'arrêtent aux bouts de course :
 l'application connaît alors l'espace machine (position de homing, sens de
 homing `$23`, course `$130` à `$132`). Avant le homing, un déplacement est
-seulement limité à une course d'axe. Rappel : **Y+ va vers l'arrière** ;
+seulement limité à une course d'axe.
+
+Avec le placement **Sur le plateau** (onglet Machine, encadré Travail),
+une fois le homing fait, l'application place le zéro de travail X/Y au
+coin avant gauche de la course : le dessin est découpé là où il apparaît
+sur le plateau, et la croix de la tête montre sa vraie place. Les
+boutons Zéro X, Zéro Y et « Zéro XY ici » sont alors grisés ; pour poser
+le dessin ailleurs, choisissez « La position de la tête marque… ». Le
+zéro Z reste libre. Sans homing, le point (0,0) du dessin va au zéro de
+travail, comme sur toute machine GRBL.
+
+Rappel : **Y+ va vers l'arrière** ;
 pour ramener la tête (ou l'outil, sur un plateau mobile) vers vous, c'est
 la flèche du bas (Y−).
 
