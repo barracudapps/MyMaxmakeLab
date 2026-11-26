@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.25] - 2026-11-26
+
 ### Fixed
 - Before homing in the application, the travel check judges each axis
   by the sign of its own position. It used to take the space of every
@@ -345,7 +347,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.24...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.25...HEAD
+[0.1.25]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.24...v0.1.25
 [0.1.24]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.23...v0.1.24
 [0.1.23]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.22...v0.1.23
 [0.1.22]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.21...v0.1.22
