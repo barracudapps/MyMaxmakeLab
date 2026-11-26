@@ -215,8 +215,13 @@ pub fn process_finished(app: &mut MyApp) {
         // not the last line the controller had planned.
         let stop = app.device.interrupted.take();
         app.job.interrupted = match (stop, &app.job.streamed) {
-            (Some((accepted, position)), Some(streamed)) if !completed => {
+            (Some((accepted, position)), Some(streamed)) if !completed => 'resume: {
                 let program = mml_gcode::parse(streamed);
+                // A program relative to the head cannot restart in the
+                // middle: its moves only make sense from its start.
+                if program.relative_start.is_some() {
+                    break 'resume None;
+                }
                 let accepted_line = mml_gcode::resume::source_line_of(streamed, accepted);
                 let line = mml_gcode::resume::resume_line(&program, accepted_line, position)
                     .unwrap_or(accepted_line);

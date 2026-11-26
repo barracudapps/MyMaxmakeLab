@@ -636,13 +636,16 @@ pub fn state_label(state: MachineState) -> &'static str {
         MachineState::Check => tr("state.check"),
         MachineState::Home => tr("state.home"),
         MachineState::Sleep => tr("state.sleep"),
+        MachineState::Tool => tr("state.tool"),
+        MachineState::Queue => tr("state.queue"),
+        MachineState::Boot => tr("state.boot"),
     }
 }
 
 fn state_color(state: MachineState) -> Color32 {
     match state {
         MachineState::Idle => crate::theme::SUCCESS,
-        MachineState::Run | MachineState::Jog | MachineState::Home => {
+        MachineState::Run | MachineState::Jog | MachineState::Home | MachineState::Queue => {
             Color32::from_rgb(40, 120, 220)
         }
         MachineState::Hold | MachineState::HoldComplete | MachineState::Door => {
@@ -873,8 +876,18 @@ fn machine_state(app: &mut MyApp, ui: &mut egui::Ui) {
         .inner_margin(10.0)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
+            let raw = device
+                .status
+                .as_ref()
+                .map(|status| status.state_text.clone())
+                .unwrap_or_default();
+            let label = if state == MachineState::Unknown && !raw.is_empty() {
+                format!("{} ({raw})", state_label(state))
+            } else {
+                state_label(state).to_owned()
+            };
             ui.label(
-                RichText::new(state_label(state))
+                RichText::new(label)
                     .color(state_color(state))
                     .strong()
                     .size(20.0),
@@ -1459,12 +1472,31 @@ pub fn guard_for(app: &MyApp) -> Option<JobGuard> {
     let built = app.job.built.as_ref()?;
     let bounds = built.program.bounds();
     let (z_low, z_high) = built.program.z_range;
+    // A relative program runs from wherever the head is: its design
+    // coordinates are shifted by where the head stands at the start.
+    // Z stays absolute unless the head height is Z0.
+    let shift = match built.program.relative_start {
+        Some(start) => {
+            let head = app
+                .device
+                .status
+                .as_ref()
+                .map_or([0.0; 3], |status| status.work_position);
+            let z = if built.anchor_z {
+                head[2] - start[2]
+            } else {
+                0.0
+            };
+            [head[0] - start[0], head[1] - start[1], z]
+        }
+        None => [0.0; 3],
+    };
     Some(JobGuard {
         envelope: (!bounds.is_empty()).then_some([
-            [bounds.min.x, bounds.max.x],
-            [bounds.min.y, bounds.max.y],
+            [bounds.min.x + shift[0], bounds.max.x + shift[0]],
+            [bounds.min.y + shift[1], bounds.max.y + shift[1]],
             if built.program.moves_z {
-                [z_low, z_high]
+                [z_low + shift[2], z_high + shift[2]]
             } else {
                 [f64::NEG_INFINITY, f64::INFINITY]
             },
@@ -1494,6 +1526,13 @@ fn placement(app: &mut MyApp, ui: &mut egui::Ui) {
             placement = Placement::Head(Anchor::Center);
         }
     });
+    if placement == Placement::MachineOrigin && app.machine.relative_to_current {
+        ui.label(
+            RichText::new(tr("place.profile_relative"))
+                .color(crate::theme::WARNING)
+                .small(),
+        );
+    }
     if let Placement::Head(anchor) = placement {
         ui.horizontal_wrapped(|ui| {
             let options = [
@@ -1795,6 +1834,15 @@ fn job_card(app: &mut MyApp, ui: &mut egui::Ui) {
         ui.label(tr("job.frame_power"));
         ui.add(egui::Slider::new(&mut app.settings.frame_power, 0.0..=5.0).suffix(" %"));
     });
+    let laser = app.machine.kind == mml_core::machine::MachineKind::Laser || app.machine.laser_mode;
+    if laser {
+        let (key, color) = if app.settings.frame_power > 0.0 {
+            ("job.frame_laser_on", crate::theme::WARNING)
+        } else {
+            ("job.frame_laser_off", Color32::GRAY)
+        };
+        ui.label(RichText::new(tr(key)).color(color).small());
+    }
     let gates = crate::workflow::start_gates(app);
     for gate in &gates {
         ui.label(RichText::new(format!("🔒 {gate}")).color(crate::theme::WARNING));

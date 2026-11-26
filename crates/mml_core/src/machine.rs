@@ -275,6 +275,9 @@ impl MachineProfile {
             // The HiMill firmware frames each program like MaxmakeLAB does.
             start_gcode: "[STREAM_START]".into(),
             end_gcode: "[STREAM_END]".into(),
+            // Like MaxmakeLAB's "current position": jobs start where the
+            // head is, relative to it.
+            relative_to_current: true,
             ..Self::generic_cnc()
         }
     }

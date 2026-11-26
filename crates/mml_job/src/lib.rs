@@ -212,14 +212,19 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         "Bounds X{:.2} Y{:.2} to X{:.2} Y{:.2}",
         bounds.min.x, bounds.min.y, bounds.max.x, bounds.max.y
     ));
+    // The start G-code comes first, as MaxmakeLAB does on the HiMill
+    // (its `[STREAM_START]` opens the program).
+    writer.raw(&machine.start_gcode);
     writer.preamble();
-    if let Some(anchor) = anchor {
-        // The head marks `anchor`: declare the current position as it,
-        // and its height as Z0 when the job is relative in Z too.
+    // A job placed at the head is written relative to it (G91, see
+    // `mml_gcode::relative`), like the "current position" jobs of
+    // MaxmakeLAB: no work offset is touched. Rotary jobs still declare
+    // the head position with G92.
+    let relative = anchor.is_some() && options.rotary.is_none();
+    if let Some(anchor) = anchor.filter(|_| !relative) {
         let z = if anchor_z { " Z0" } else { "" };
         writer.raw(&format!("G92 X{:.3} Y{:.3}{z}", anchor.x, anchor.y));
     }
-    writer.raw(&machine.start_gcode);
     let mut head = anchor.unwrap_or_default();
 
     // A job of laser layers only never moves Z, even on a milling
@@ -389,16 +394,21 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             writer.rapid_z(machine.safe_z);
         }
         writer.rapid(anchor.x, anchor.y);
-        writer.raw("G92.1");
+        if !relative {
+            writer.raw("G92.1");
+        }
     } else if lifts {
         writer.rapid_z(machine.safe_z);
         writer.rapid(0.0, 0.0);
     }
     writer.raw(&machine.end_gcode);
     writer.program_end();
-    let gcode = match options.rotary {
-        Some(rotary) => wrap_rotary(&writer.finish(), rotary),
-        None => writer.finish(),
+    let gcode = match (options.rotary, anchor) {
+        (Some(rotary), _) => wrap_rotary(&writer.finish(), rotary),
+        (None, Some(anchor)) => {
+            mml_gcode::relative::to_relative(&writer.finish(), [anchor.x, anchor.y], anchor_z)
+        }
+        (None, None) => writer.finish(),
     };
     Job {
         gcode,
@@ -441,7 +451,15 @@ pub fn sequence(files: &[(String, String)]) -> (String, Vec<PauseReason>) {
 }
 
 /// Traces the job bounding box so the user can check the placement on
-/// the material. `power` is a percentage; 0 moves with the laser off.
+/// the material, with jog commands (`$J=`) like MaxmakeLAB: the
+/// controller takes them whenever it is idle and they change no modal
+/// state. `power` is a percentage: above 0 the laser is on at that
+/// constant power (`M3`) during the trace, so it shows on the material;
+/// at 0 the head moves with the laser off.
+///
+/// With an `anchor` the trace is relative to the head (which marks that
+/// design point) and ends back where it started; without, it follows
+/// the work coordinates.
 pub fn frame_job(
     bounds: Rect,
     anchor: Option<Point>,
@@ -449,33 +467,58 @@ pub fn frame_job(
     power: f64,
     speed: f64,
 ) -> String {
-    let mut writer = GcodeWriter::new();
-    writer.preamble();
-    if let Some(anchor) = anchor {
-        writer.raw(&format!("G92 X{:.3} Y{:.3}", anchor.x, anchor.y));
-    }
+    let mut lines = Vec::new();
     let s_value = (power.clamp(0.0, 100.0) / 100.0 * machine.max_s).round();
     let corners = bounds.corners();
-    writer.rapid(corners[0].x, corners[0].y);
-    if s_value > 0.0 {
-        writer.laser_on(false);
+    let feed = speed.round();
+    let number = |value: f64| {
+        let text = format!("{:.3}", if value.abs() < 0.0005 { 0.0 } else { value });
+        text.trim_end_matches('0').trim_end_matches('.').to_owned()
+    };
+    // Path: to the first corner (laser off), around, back to the first
+    // corner, then (relative) back to the start.
+    let mut path: Vec<Point> = corners.to_vec();
+    path.push(corners[0]);
+    match anchor {
+        Some(anchor) => {
+            let mut at = anchor;
+            let mut jog = |to: Point, lines: &mut Vec<String>| {
+                lines.push(format!(
+                    "$J=G21G91X{}Y{}F{feed}",
+                    number(to.x - at.x),
+                    number(to.y - at.y)
+                ));
+                at = to;
+            };
+            jog(path[0], &mut lines);
+            if s_value > 0.0 {
+                lines.push(format!("M3 S{s_value}"));
+            }
+            for corner in &path[1..] {
+                jog(*corner, &mut lines);
+            }
+            if s_value > 0.0 {
+                lines.push("M5".into());
+            }
+            jog(anchor, &mut lines);
+        }
+        None => {
+            let jog = |to: Point| format!("$J=G21G90X{}Y{}F{feed}", number(to.x), number(to.y));
+            lines.push(jog(path[0]));
+            if s_value > 0.0 {
+                lines.push(format!("M3 S{s_value}"));
+            }
+            for corner in &path[1..] {
+                lines.push(jog(*corner));
+            }
+            if s_value > 0.0 {
+                lines.push("M5".into());
+            }
+        }
     }
-    for corner in corners.iter().skip(1).chain(std::iter::once(&corners[0])) {
-        writer.linear(
-            corner.x,
-            corner.y,
-            speed,
-            (s_value > 0.0).then_some(s_value),
-        );
-    }
-    if s_value > 0.0 {
-        writer.tool_off();
-    }
-    if let Some(anchor) = anchor {
-        writer.rapid(anchor.x, anchor.y);
-        writer.raw("G92.1");
-    }
-    writer.finish()
+    let mut program = lines.join("\n");
+    program.push('\n');
+    program
 }
 
 /// Closed outlines moved out by half the kerf, holes in, so the part
@@ -637,40 +680,76 @@ mod tests {
     }
 
     #[test]
-    fn anchored_job_declares_the_head_as_the_anchor_point() {
+    fn anchored_job_runs_relative_to_the_head() {
         let (document, _) = document_with_square(1000.0);
         let options = JobOptions {
             anchor: Some(Point::new(1000.0, 50.0)),
             ..JobOptions::default()
         };
         let job = build_job_with(&document, &MachineProfile::generic_laser(), &options);
-        assert!(job.gcode.contains("G92 X1000.000 Y50.000"));
-        assert!(job.gcode.contains("G92.1"));
+        assert!(!job.gcode.contains("G92"), "{}", job.gcode);
+        assert!(!job.gcode.contains("G90"), "{}", job.gcode);
+        assert!(job.gcode.contains("G91"));
         assert!(!job.warnings.contains(&JobWarning::OutOfBounds));
+        // Parsed back, it is in design coordinates and ends at the head.
+        let program = mml_gcode::parse(&job.gcode);
+        assert_eq!(program.relative_start, Some([1000.0, 50.0, 0.0]));
+        let absolute = build_job_with(
+            &document,
+            &MachineProfile::generic_laser(),
+            &JobOptions::default(),
+        );
+        let expected = mml_gcode::parse(&absolute.gcode).cut_bounds();
+        let bounds = program.cut_bounds();
+        for (got, want) in [
+            (bounds.min.x, expected.min.x),
+            (bounds.min.y, expected.min.y),
+            (bounds.max.x, expected.max.x),
+            (bounds.max.y, expected.max.y),
+        ] {
+            assert!((got - want).abs() < 1e-3, "{got} vs {want}");
+        }
+        let last = program.motions.last().unwrap();
+        assert!((last.to[0] - 1000.0).abs() < 1e-6 && (last.to[1] - 50.0).abs() < 1e-6);
     }
 
     #[test]
-    fn a_job_relative_in_z_declares_the_head_height_as_z0() {
-        let (mut document, _) = document_with_square(50.0);
-        document.layers[0].operation = Operation::CncProfile(CncProfileParams::default());
+    fn a_himill_job_opens_its_stream_first() {
+        let (document, _) = document_with_square(50.0);
+        let mut machine = MachineProfile::maxmake_himill_d1s();
+        machine.laser_mode = true;
         let options = JobOptions {
-            anchor: Some(Point::new(0.0, 0.0)),
-            anchor_z: true,
+            anchor: Some(Point::new(45.0, 45.0)),
             ..JobOptions::default()
         };
-        let job = build_job_with(&document, &MachineProfile::generic_cnc(), &options);
-        assert!(job.anchor_z);
-        let declared = job.gcode.find("G92 X0.000 Y0.000 Z0").unwrap();
-        let first_cut = job.gcode.find("\nG1").unwrap();
-        assert!(declared < first_cut);
-        assert!(job.gcode.contains("G92.1"));
-        // Without an anchor, Z stays on the work zero.
-        let options = JobOptions {
-            anchor_z: true,
-            ..JobOptions::default()
-        };
-        let job = build_job_with(&document, &MachineProfile::generic_cnc(), &options);
-        assert!(!job.anchor_z && !job.gcode.contains("G92"));
+        let job = build_job_with(&document, &machine, &options);
+        let code: Vec<&str> = job
+            .gcode
+            .lines()
+            .filter(|line| !line.starts_with(';') && !line.is_empty())
+            .collect();
+        assert_eq!(code[0], "[STREAM_START]");
+        assert!(code[1].starts_with("G91"), "{}", code[1]);
+        assert_eq!(code[code.len() - 2], "[STREAM_END]");
+    }
+
+    #[test]
+    fn framing_jogs_around_the_job_and_back_to_the_head() {
+        let bounds = Rect::from_points(Point::new(10.0, 10.0), Point::new(60.0, 40.0));
+        let machine = MachineProfile::maxmake_himill_d1s();
+        let frame = frame_job(bounds, Some(Point::new(10.0, 10.0)), &machine, 1.0, 3000.0);
+        let lines: Vec<&str> = frame.lines().collect();
+        assert!(
+            lines
+                .iter()
+                .all(|line| line.starts_with("$J=") || line.starts_with('M'))
+        );
+        assert_eq!(lines[1], "M3 S130");
+        assert_eq!(lines.last(), Some(&"$J=G21G91X0Y0F3000"));
+        assert!(lines.contains(&"M5"));
+        let off = frame_job(bounds, None, &machine, 0.0, 3000.0);
+        assert!(!off.contains('M'));
+        assert!(off.lines().all(|line| line.starts_with("$J=G21G90")));
     }
 
     #[test]

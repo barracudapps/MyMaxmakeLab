@@ -7,6 +7,27 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Changed
+- **Jobs placed at the head are written relative to it** (`G91`), like
+  MaxmakeLAB's "current position" jobs: they start wherever the head
+  is, whatever the machine coordinates, touch no work zero (no more
+  `G92` left behind by an interrupted job) and end back at the start.
+  Such a job cannot be resumed in the middle.
+- **Framing uses jog commands** (`$J=`), like MaxmakeLAB: the
+  controller takes them whenever it is idle. Above 0 % the laser stays
+  on at that power during the trace so the outline shows on the
+  material, with a reminder to wear the safety glasses; a trace from the
+  head ends back where it started.
+- The HiMill D1S profile starts jobs from the current head position by
+  default, and its start G-code (`[STREAM_START]`) now opens the
+  program, as MaxmakeLAB writes it. The Job card says when the profile
+  places the drawing at the head.
+
+### Fixed
+- The `Queue` and `Boot` states of the HiMill and the `Tool` state of
+  grblHAL are recognised; an unknown state shows the word the controller
+  sent.
+
 ## [0.1.25] - 2026-11-26
 
 ### Fixed

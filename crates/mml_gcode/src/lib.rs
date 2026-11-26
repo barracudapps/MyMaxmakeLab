@@ -8,6 +8,7 @@ pub mod clearance;
 mod gentle;
 mod optimize;
 mod parser;
+pub mod relative;
 pub mod resume;
 mod writer;
 

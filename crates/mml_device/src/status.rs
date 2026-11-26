@@ -15,6 +15,12 @@ pub enum MachineState {
     Check,
     Home,
     Sleep,
+    /// grblHAL tool change in progress.
+    Tool,
+    /// HiMill firmware: lines queued (seen in MaxmakeLAB's parser).
+    Queue,
+    /// HiMill firmware: starting up.
+    Boot,
 }
 
 impl MachineState {
@@ -34,6 +40,9 @@ impl MachineState {
             Self::Check => "Check",
             Self::Home => "Home",
             Self::Sleep => "Sleep",
+            Self::Tool => "Tool",
+            Self::Queue => "Queue",
+            Self::Boot => "Boot",
         }
     }
 }
@@ -41,6 +50,10 @@ impl MachineState {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MachineStatus {
     pub state: MachineState,
+    /// State word as the controller sent it, to show what an unknown
+    /// state was.
+    #[serde(default)]
+    pub state_text: String,
     pub machine_position: [f64; 3],
     pub work_position: [f64; 3],
     /// Work coordinate offset, `machine = work + offset`.
@@ -111,10 +124,14 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
         "Check" => MachineState::Check,
         "Home" => MachineState::Home,
         "Sleep" => MachineState::Sleep,
+        "Tool" => MachineState::Tool,
+        "Queue" => MachineState::Queue,
+        "Boot" => MachineState::Boot,
         _ => MachineState::Unknown,
     };
     let mut status = MachineStatus {
         state,
+        state_text: state_text.to_owned(),
         pins: String::new(),
         tool: None,
         halt: None,
@@ -210,6 +227,22 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn himill_and_grblhal_states_are_known() {
+        let previous = MachineStatus::default();
+        for (text, state) in [
+            ("Queue", MachineState::Queue),
+            ("Boot", MachineState::Boot),
+            ("Tool", MachineState::Tool),
+        ] {
+            let status = parse_status(&format!("<{text}|MPos:0,0,0>"), &previous).unwrap();
+            assert_eq!(status.state, state);
+        }
+        let odd = parse_status("<Weird|MPos:0,0,0>", &previous).unwrap();
+        assert_eq!(odd.state, MachineState::Unknown);
+        assert_eq!(odd.state_text, "Weird");
+    }
 
     #[test]
     fn work_position_uses_the_last_known_offset() {

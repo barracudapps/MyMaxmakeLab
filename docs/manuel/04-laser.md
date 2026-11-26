@@ -92,10 +92,27 @@ hauteur vaut π × diamètre.
 
 ## Cadrage (passage à blanc)
 
-Avant tout travail laser, **Cadrer** fait le tour du dessin à très faible
-puissance : vous vérifiez la position sur la pièce, puis vous
-**approuvez**, corrigez ou relancez. Le démarrage reste bloqué tant que le
-cadrage n'est pas approuvé.
+Avant tout travail laser, **Cadrer** fait le tour du dessin : vous
+vérifiez la position sur la pièce, puis vous **approuvez**, corrigez ou
+relancez. Le démarrage reste bloqué tant que le cadrage n'est pas
+approuvé.
+
+Le tour se fait avec des commandes de déplacement (`$J=`), comme
+MaxmakeLAB : le contrôleur les accepte dès qu'il est à l'arrêt. À 0 % de
+**Puissance du cadrage**, la tête fait le tour laser éteint ; vers 0,5 à
+1 %, le laser reste allumé faiblement et le contour se voit sur le
+matériau (portez les lunettes). Quand le travail part de la tête, le
+cadrage revient à son point de départ.
+
+## Travail relatif à la tête
+
+Avec « La position de la tête marque… », ou si le profil de la machine
+coche « Partir de la position actuelle de la tête » (réglage par défaut
+de la HiMill), tout le travail est écrit en déplacements relatifs
+(`G91`), comme les travaux « position actuelle » de MaxmakeLAB : il part
+de la tête, quelles que soient les coordonnées de la machine, sans
+toucher aux zéros, et revient à son point de départ à la fin. Un tel
+travail ne peut pas être repris au milieu après un arrêt.
 
 ---
 

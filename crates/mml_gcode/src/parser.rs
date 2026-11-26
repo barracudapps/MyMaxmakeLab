@@ -79,6 +79,10 @@ pub struct Program {
     /// Diameter of the stock turned by the A axis, announced by the
     /// programs of this application (`; Rotary stock diameter 40 mm`).
     pub rotary_diameter: Option<f64>,
+    /// Design point the head stands on when a relative program starts
+    /// (`; Relative to the head from X.. Y..`, see [`crate::relative`]).
+    /// The program then runs from wherever the head is.
+    pub relative_start: Option<[f64; 3]>,
     /// Table height of a 5-axis trunnion program
     /// (`; Trunnion table height 10 mm`), for previews in part space.
     pub trunnion_table: Option<f64>,
@@ -151,6 +155,23 @@ pub fn parse(source: &str) -> Program {
                 .split_whitespace()
                 .next()
                 .and_then(|value| value.parse().ok());
+        }
+        if let Some(rest) = raw_line.trim().strip_prefix(crate::relative::START_COMMENT) {
+            let mut start = [0.0; 3];
+            for word in rest.split_whitespace() {
+                let (letter, value) = word.split_at(1);
+                let axis = match letter {
+                    "X" => 0,
+                    "Y" => 1,
+                    "Z" => 2,
+                    _ => continue,
+                };
+                start[axis] = value.parse().unwrap_or(0.0);
+            }
+            if program.relative_start.is_none() && program.motions.is_empty() {
+                state.position = start;
+                program.relative_start = Some(start);
+            }
         }
         if let Some(rest) = raw_line.trim().strip_prefix("; Trunnion table height ") {
             program.trunnion_table = rest
