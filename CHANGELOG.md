@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.26] - 2026-11-26
+
 ### Changed
 - **Jobs placed at the head are written relative to it** (`G91`), like
   MaxmakeLAB's "current position" jobs: they start wherever the head
@@ -368,7 +370,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.25...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.26...HEAD
+[0.1.26]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.25...v0.1.26
 [0.1.25]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.24...v0.1.25
 [0.1.24]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.23...v0.1.24
 [0.1.23]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.22...v0.1.23
