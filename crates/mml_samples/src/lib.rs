@@ -12,12 +12,14 @@ mod esoteric;
 pub mod fit;
 mod layered;
 mod layered2;
+mod mechanisms;
 mod mixed;
 mod models3d;
 mod puzzles;
 mod puzzles3d;
 mod science;
 pub mod shapes;
+mod skeleton;
 mod tests_projects;
 pub mod text;
 
@@ -305,6 +307,33 @@ pub fn catalog() -> &'static [Sample] {
             resizable: true,
             difficulty: 3,
             build: complex3d::code_box,
+        },
+        Sample {
+            id: "trex_skeleton",
+            category: Category::Puzzle,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: skeleton::trex_skeleton,
+        },
+        Sample {
+            id: "sea_automaton",
+            category: Category::Mechanism,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: mechanisms::sea_automaton,
+        },
+        Sample {
+            id: "trebuchet",
+            category: Category::Mechanism,
+            machine: Laser,
+            hybrid: false,
+            resizable: true,
+            difficulty: 3,
+            build: mechanisms::trebuchet,
         },
         Sample {
             id: "globe",

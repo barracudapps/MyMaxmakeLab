@@ -7,6 +7,15 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Three more complex 3D projects**, all resizable: a T. rex skeleton
+  (spine and toothed skull, eight ribs slotted from below, a pelvis
+  carrying two legs seen from the side, little arms and a stand), a sea
+  automaton (turn the crank: a three-cam shaft lifts a bobbing boat, a
+  diving whale and a jumping fish between bands of waves) and a working
+  trebuchet (A-frames, an arm on an axle with spacers, a hanging boxed
+  counterweight and a sling to make from string and cloth).
+
 ## [0.1.20] - 2026-11-25
 
 ### Added
