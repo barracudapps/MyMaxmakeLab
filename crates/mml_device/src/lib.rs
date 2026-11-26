@@ -14,7 +14,7 @@ pub use controller::{
     Command, Connection, Controller, Event, JobOutcome, Protocol, list_serial_ports,
 };
 pub use messages::{alarm_message, error_message, halt_message};
-pub use safety::{Anomaly, JobGuard, travel_violations};
+pub use safety::{Anomaly, JobGuard, travel_ranges, travel_violations};
 pub use status::{MachineState, MachineStatus, parse_status};
 
 /// GRBL real-time commands, sent outside the line buffer.

@@ -199,25 +199,52 @@ impl SafetyMonitor {
     }
 }
 
+/// Allowed range of each axis in machine coordinates, for the travel
+/// checks. Once homed, the range follows from the position read right
+/// after homing and the homing directions (`$23`, see
+/// [`crate::jog::limits`]), whatever values the firmware gives its home.
+/// Before homing, an axis is assumed to use the GRBL negative space
+/// (`[-travel, 0]`) when the head sits at a negative coordinate, the
+/// positive space otherwise. `None` for an axis without known travel.
+pub fn travel_ranges(
+    home: Option<[f64; 3]>,
+    position: [f64; 3],
+    travel: [Option<f64>; 3],
+    direction_mask: u32,
+) -> [Option<(f64, f64)>; 3] {
+    let negative_xy = position.iter().take(2).any(|value| *value < -1e-3);
+    std::array::from_fn(|axis| {
+        let travel = travel[axis]?;
+        Some(match home {
+            Some(home) if direction_mask & (1 << axis) != 0 => (home[axis], home[axis] + travel),
+            Some(home) => (home[axis] - travel, home[axis]),
+            None => {
+                let negative = negative_xy || (axis == 2 && position[2] < -1e-3);
+                if negative {
+                    (-travel, 0.0)
+                } else {
+                    (0.0, travel)
+                }
+            }
+        })
+    })
+}
+
 /// Axes on which a job would leave the machine travel, as
 /// `(axis, needed min, needed max, allowed min, allowed max)`.
 ///
 /// `machine_min` / `machine_max` is the job envelope in machine
-/// coordinates. GRBL machines homed towards the maximum use negative
-/// coordinates (`[-travel, 0]`), the others `[0, travel]`.
+/// coordinates, `ranges` the allowed range of each axis
+/// ([`travel_ranges`]); an axis without range is not checked.
 pub fn travel_violations(
     machine_min: [f64; 3],
     machine_max: [f64; 3],
-    travel: [Option<f64>; 3],
-    negative_space: bool,
+    ranges: [Option<(f64, f64)>; 3],
 ) -> Vec<(char, f64, f64, f64, f64)> {
     let mut violations = Vec::new();
     for (axis, name) in ['X', 'Y', 'Z'].into_iter().enumerate() {
-        let Some(travel) = travel[axis] else { continue };
-        let (low, high) = if negative_space {
-            (-travel, 0.0)
-        } else {
-            (0.0, travel)
+        let Some((low, high)) = ranges[axis] else {
+            continue;
         };
         let epsilon = 1e-3;
         if machine_min[axis] < low - epsilon || machine_max[axis] > high + epsilon {
@@ -328,22 +355,31 @@ mod tests {
 
     #[test]
     fn job_larger_than_the_travel_is_refused() {
-        let violations = travel_violations(
-            [-390.0, -100.0, 0.0],
-            [-10.0, -20.0, 0.0],
-            [Some(300.0), Some(300.0), None],
-            true,
-        );
+        let travel = [Some(300.0), Some(300.0), None];
+        let ranges = travel_ranges(None, [-5.0, -5.0, 0.0], travel, 0);
+        let violations = travel_violations([-390.0, -100.0, 0.0], [-10.0, -20.0, 0.0], ranges);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].0, 'X');
-        assert!(
-            travel_violations(
-                [10.0, 10.0, 0.0],
-                [200.0, 200.0, 0.0],
-                [Some(300.0), Some(300.0), None],
-                false
-            )
-            .is_empty()
-        );
+        let ranges = travel_ranges(None, [0.0, 0.0, 0.0], travel, 0);
+        assert!(travel_violations([10.0, 10.0, 0.0], [200.0, 200.0, 0.0], ranges).is_empty());
+    }
+
+    #[test]
+    fn homed_ranges_follow_the_home_position_and_directions() {
+        // HiMill in laser mode: home reported at 0, X homes towards its
+        // minimum (left), Y towards its maximum (rear).
+        let travel = [Some(280.0), Some(200.0), Some(80.0)];
+        let ranges = travel_ranges(Some([0.0; 3]), [0.0; 3], travel, 0b001);
+        assert_eq!(ranges[0], Some((0.0, 280.0)));
+        assert_eq!(ranges[1], Some((-200.0, 0.0)));
+        assert_eq!(ranges[2], Some((-80.0, 0.0)));
+        // A drawing 20 to 60 mm in front of the work zero, with the work
+        // zero still at home, lies behind the rear end: refused.
+        let violations = travel_violations([30.0, 20.0, 0.0], [250.0, 60.0, 0.0], ranges);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].0, 'Y');
+        // Z lowered to focus height before homing reads as negative space.
+        let ranges = travel_ranges(None, [10.0, 10.0, -37.3], travel, 0);
+        assert_eq!(ranges[2], Some((-80.0, 0.0)));
     }
 }

@@ -1322,7 +1322,8 @@ pub fn start_blockers(app: &MyApp) -> Vec<String> {
             .filter(|travel| *travel > 0.0 && built.program.moves_z),
     ];
     let position = status.machine_position;
-    let negative = position.iter().take(2).any(|value| *value < -1e-3);
+    let mask = app.device.setting_f64(23).unwrap_or(0.0) as u32;
+    let ranges = mml_device::travel_ranges(app.device.home_machine, position, travel, mask);
     let offset = status.work_offset;
     let (min, max) = match built.anchor {
         Some(anchor) => (
@@ -1351,7 +1352,7 @@ pub fn start_blockers(app: &MyApp) -> Vec<String> {
         ),
     };
     for (axis, low, high, allowed_low, allowed_high) in
-        mml_device::travel_violations(min, max, travel, negative)
+        mml_device::travel_violations(min, max, ranges)
     {
         blockers.push(trf(
             "safety.travel",

@@ -12,6 +12,11 @@ yet: GRBL is tested against simulated controllers.
   program that never commands Z leaves the head at its focus height,
   so its Z travel is not checked before starting nor watched during
   the job.
+- The travel check before starting follows the position read right
+  after homing and the homing directions (`$23`). It used to guess the
+  coordinate space from the sign of the head position: on a machine
+  that reports its home at 0, like the HiMill in laser mode, a drawing
+  out of reach passed the check.
 
 ## [0.1.22] - 2026-11-26
 
