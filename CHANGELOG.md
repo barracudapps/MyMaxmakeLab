@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-11-26
+
 ### Added
 - **Three more complex 3D projects**, all resizable: a T. rex skeleton
   (spine and toothed skull, eight ribs slotted from below, a pelvis
@@ -282,7 +284,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.20...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.21...HEAD
+[0.1.21]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.20...v0.1.21
 [0.1.20]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.19...v0.1.20
 [0.1.19]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.18...v0.1.19
 [0.1.18]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.17...v0.1.18
