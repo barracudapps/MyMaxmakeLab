@@ -7,11 +7,21 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Added
+- **Jobs relative to the head in X, Y and Z**: with the "Head position
+  marks…" placement, tick "Z too" and the current head height becomes
+  Z0, so the job runs entirely from where the head is (tool on the top
+  of the material, or laser at its focus height).
+
 ### Fixed
 - A laser job on a milling machine with a laser module (HiMill) no
   longer lifts Z to the safe height at the end nor before a pause: the
   head stays at its focus height, and the Z travel check no longer
   refuses the job.
+- The travel checks and jog limits correct the homing direction of an
+  axis from where the head has been seen since homing: the HiMill in
+  laser mode reports a `$23` that does not match its coordinates, and
+  jobs placed at the head were refused on X.
 - The machine profile follows the laser mode of the connected
   controller (`$32`): laser layers are no longer reported as "not in
   laser mode" when the controller is in laser mode.

@@ -33,6 +33,8 @@ pub struct BuiltJob {
     pub external: Option<String>,
     pub pauses: Vec<mml_job::PauseReason>,
     pub anchor: Option<Point>,
+    /// The head height is Z0 too (relative job in X, Y and Z).
+    pub anchor_z: bool,
 }
 
 /// Where the job is placed on the machine.
@@ -72,6 +74,8 @@ pub struct JobState {
     pub built_revision: (u64, u64),
     pub building: Option<((u64, u64), Receiver<BuiltJob>)>,
     pub placement: Placement,
+    /// With the head placement, the head height is Z0 as well.
+    pub head_z: bool,
     pub selection_only: bool,
     /// Bumped when placement or selection-only change.
     pub options_revision: u64,
@@ -303,6 +307,7 @@ impl MyApp {
                 built_revision: (0, 0),
                 building: None,
                 placement: Placement::MachineOrigin,
+                head_z: false,
                 selection_only: false,
                 options_revision: 0,
                 picking_anchor: false,
@@ -794,6 +799,7 @@ impl MyApp {
                         external: Some(name),
                         pauses: Vec::new(),
                         anchor: None,
+                        anchor_z: false,
                     });
                     self.job.preview_line = Some(None);
                     self.mode = Mode::Prepare;
@@ -1253,6 +1259,7 @@ impl MyApp {
                     external: None,
                     pauses: job.pauses,
                     anchor: job.anchor,
+                    anchor_z: job.anchor_z,
                 });
                 repaint.request_repaint();
             });
@@ -1304,6 +1311,7 @@ impl MyApp {
         mml_job::JobOptions {
             only: self.job.selection_only.then(|| self.selection.clone()),
             anchor,
+            anchor_z: self.job.head_z,
             rotary: self.job.rotary,
         }
     }
@@ -1347,6 +1355,7 @@ impl MyApp {
             external: Some(names.join(" + ")),
             pauses,
             anchor: None,
+            anchor_z: false,
         });
         self.job.preview_line = Some(None);
         self.mode = Mode::Prepare;

@@ -23,6 +23,25 @@ pub fn limits(home: [f64; 3], travel: [f64; 3], direction_mask: u32) -> [(f64, f
     })
 }
 
+/// Homing directions (`$23` layout) corrected by a head position seen
+/// after homing: the head can never be on the side of the home position
+/// where the mask leaves no travel, so seeing it there more than 1 mm
+/// away proves the axis homes the other way. Some firmwares (the HiMill
+/// in laser mode) report a `$23` that does not match their coordinates.
+pub fn learn_directions(mask: u32, home: [f64; 3], position: [f64; 3]) -> u32 {
+    let mut mask = mask;
+    for axis in 0..3 {
+        let bit = 1 << axis;
+        let towards_minimum = mask & bit != 0;
+        if !towards_minimum && position[axis] > home[axis] + 1.0 {
+            mask |= bit;
+        } else if towards_minimum && position[axis] < home[axis] - 1.0 {
+            mask &= !bit;
+        }
+    }
+    mask
+}
+
 /// Shortens a relative jog so it stays within `limits`; never turns it
 /// around or makes it longer. Without limits (no homing yet) the move is
 /// only capped to one travel length per axis, so a held key cannot
@@ -73,6 +92,18 @@ mod tests {
     use super::*;
 
     const TRAVEL: [f64; 3] = [280.0, 200.0, 80.0];
+
+    #[test]
+    fn directions_follow_where_the_head_has_been() {
+        // $23 says every axis homes to its maximum, but the head was seen
+        // 24 mm to the positive side of home on X: X homes to its minimum.
+        let home = [0.0, 0.0, 0.0];
+        assert_eq!(learn_directions(0, home, [24.0, -30.0, -5.0]), 0b001);
+        assert_eq!(learn_directions(0b001, home, [0.5, 0.0, 0.0]), 0b001);
+        assert_eq!(learn_directions(0b011, home, [10.0, -30.0, 0.0]), 0b001);
+        let limits = limits(home, TRAVEL, 0b001);
+        assert_eq!(limits[0], (0.5, 279.5));
+    }
 
     #[test]
     fn himill_space_after_homing_left_and_table_forward() {

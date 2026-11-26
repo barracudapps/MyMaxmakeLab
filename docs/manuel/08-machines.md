@@ -100,6 +100,18 @@ le dessin ailleurs, choisissez « La position de la tête marque… ». Le
 zéro Z reste libre. Sans homing, le point (0,0) du dessin va au zéro de
 travail, comme sur toute machine GRBL.
 
+Avec **La position de la tête marque…**, le travail part de la tête : le
+point choisi du dessin (centre, coin ou point cliqué) est sous la tête au
+démarrage. Cochez **Z aussi** pour que la hauteur actuelle de la tête
+soit le Z0 : descendez la fraise sur le dessus du matériau, ou la tête
+laser à sa hauteur de mise au point, puis démarrez. Le travail est alors
+entièrement relatif à la tête, en X, Y et Z, sans toucher aux zéros
+enregistrés dans le contrôleur.
+
+Le sens de homing de chaque axe vient de `$23`, corrigé par les positions
+où la tête a été vue depuis le homing : la HiMill en mode laser annonce
+un `$23` qui ne correspond pas à ses coordonnées.
+
 Rappel : **Y+ va vers l'arrière** ;
 pour ramener la tête (ou l'outil, sur un plateau mobile) vers vous, c'est
 la flèche du bas (Y−).

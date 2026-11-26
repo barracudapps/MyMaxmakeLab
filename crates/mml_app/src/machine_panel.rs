@@ -95,6 +95,9 @@ pub struct DeviceState {
     /// Machine position right after the last successful homing: with
     /// the travel and homing directions it gives where jogs may go.
     pub home_machine: Option<[f64; 3]>,
+    /// Homing directions corrected by where the head has been seen since
+    /// connecting (see `mml_device::jog::learn_directions`).
+    learned_mask: Option<u32>,
     /// Front-left corner of the bed in machine coordinates, kept as the
     /// X/Y work zero while the "on the bed" placement is chosen on a
     /// homed machine: the drawing is then cut where the bed shows it.
@@ -165,6 +168,7 @@ impl DeviceState {
             spindle_on: false,
             homing_failure: None,
             home_machine: None,
+            learned_mask: None,
             plate_zero: None,
             plate_synced: None,
             capture_home: false,
@@ -273,7 +277,7 @@ impl DeviceState {
                 .max(if machine.z_travel > 0.0 { 1.0 } else { 0.0 }),
         ];
         let limits = self.home_machine.map(|home| {
-            let mask = self.setting_f64(23).unwrap_or(0.0) as u32;
+            let mask = self.homing_mask();
             mml_device::jog::limits(home, travel, mask)
         });
         let position = self
@@ -287,6 +291,13 @@ impl DeviceState {
         self.line(format!("$J=G91 G21 X{dx:.3} Y{dy:.3} Z{dz:.3} F{feed:.0}"));
     }
 
+    /// Homing directions in the `$23` layout: the controller setting,
+    /// corrected by where the head has been seen since homing.
+    pub fn homing_mask(&self) -> u32 {
+        self.learned_mask
+            .unwrap_or_else(|| self.setting_f64(23).unwrap_or(0.0) as u32)
+    }
+
     /// Front-left corner of the bed in machine coordinates, once homed:
     /// the low end of the X and Y travel (X+ to the right, Y+ to the rear,
     /// as on GRBL machines).
@@ -298,7 +309,7 @@ impl DeviceState {
             Some(self.setting_f64(131).unwrap_or(machine.height)),
             None,
         ];
-        let mask = self.setting_f64(23).unwrap_or(0.0) as u32;
+        let mask = self.homing_mask();
         let [x, y, _] = mml_device::travel_ranges(Some(home), position, travel, mask);
         Some([x?.0, y?.0])
     }
@@ -441,6 +452,7 @@ impl DeviceState {
                 Event::Disconnected { reason } => {
                     self.homing = None;
                     self.home_machine = None;
+                    self.learned_mask = None;
                     self.spindle_on = false;
                     self.controller = None;
                     self.connecting = false;
@@ -471,6 +483,14 @@ impl DeviceState {
                     if self.capture_home && status.state == MachineState::Idle {
                         self.capture_home = false;
                         self.home_machine = Some(status.machine_position);
+                    }
+                    if let Some(home) = self.home_machine {
+                        let mask = mml_device::jog::learn_directions(
+                            self.homing_mask(),
+                            home,
+                            status.machine_position,
+                        );
+                        self.learned_mask = Some(mask);
                     }
                     self.status = Some(status);
                 }
@@ -1383,20 +1403,26 @@ pub fn start_blockers(app: &MyApp) -> Vec<String> {
             .filter(|travel| *travel > 0.0 && built.program.moves_z),
     ];
     let position = status.machine_position;
-    let mask = app.device.setting_f64(23).unwrap_or(0.0) as u32;
+    let mask = app.device.homing_mask();
     let ranges = mml_device::travel_ranges(app.device.home_machine, position, travel, mask);
     let offset = status.work_offset;
+    // Machine Z of the job's Z0: the head height for a job relative in Z.
+    let z_zero = if built.anchor_z {
+        position[2]
+    } else {
+        offset[2]
+    };
     let (min, max) = match built.anchor {
         Some(anchor) => (
             [
                 position[0] + bounds.min.x - anchor.x,
                 position[1] + bounds.min.y - anchor.y,
-                z_low + offset[2],
+                z_low + z_zero,
             ],
             [
                 position[0] + bounds.max.x - anchor.x,
                 position[1] + bounds.max.y - anchor.y,
-                z_high + offset[2],
+                z_high + z_zero,
             ],
         ),
         None => (
@@ -1496,6 +1522,13 @@ fn placement(app: &mut MyApp, ui: &mut egui::Ui) {
                 app.job.picking_anchor = !app.job.picking_anchor;
             }
         });
+        if ui
+            .checkbox(&mut app.job.head_z, tr("place.head_z"))
+            .on_hover_text(tr("place.head_z_hint"))
+            .changed()
+        {
+            app.job.options_revision += 1;
+        }
         ui.label(RichText::new(tr("place.head_hint")).weak().small());
     }
     app.set_placement(placement);

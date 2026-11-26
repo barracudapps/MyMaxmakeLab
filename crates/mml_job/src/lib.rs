@@ -109,6 +109,9 @@ pub struct JobOptions {
     /// Design point that the head currently marks; the job then runs
     /// relative to the head position. Overrides the machine setting.
     pub anchor: Option<Point>,
+    /// With an anchor, the current head height is Z0 too: the whole job
+    /// runs relative to the head position in X, Y and Z.
+    pub anchor_z: bool,
     pub rotary: Option<Rotary>,
 }
 
@@ -121,6 +124,8 @@ pub struct Job {
     pub pauses: Vec<PauseReason>,
     /// Design point placed at the head position, when relative.
     pub anchor: Option<Point>,
+    /// The head height is Z0 as well (see [`JobOptions::anchor_z`]).
+    pub anchor_z: bool,
 }
 
 fn vector_paths(shape: &Shape) -> Option<Vec<Path>> {
@@ -167,6 +172,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     let anchor = options
         .anchor
         .or(machine.relative_to_current.then_some(bounds.min));
+    let anchor_z = anchor.is_some() && options.anchor_z;
     if output_shapes.is_empty() {
         warnings.push(JobWarning::NothingToOutput);
         return Job {
@@ -175,6 +181,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
             warnings,
             pauses: Vec::new(),
             anchor,
+            anchor_z,
         };
     }
     let height = options.rotary.map_or(machine.height, |rotary| {
@@ -207,8 +214,10 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
     ));
     writer.preamble();
     if let Some(anchor) = anchor {
-        // The head marks `anchor`: declare the current position as it.
-        writer.raw(&format!("G92 X{:.3} Y{:.3}", anchor.x, anchor.y));
+        // The head marks `anchor`: declare the current position as it,
+        // and its height as Z0 when the job is relative in Z too.
+        let z = if anchor_z { " Z0" } else { "" };
+        writer.raw(&format!("G92 X{:.3} Y{:.3}{z}", anchor.x, anchor.y));
     }
     writer.raw(&machine.start_gcode);
     let mut head = anchor.unwrap_or_default();
@@ -397,6 +406,7 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
         warnings,
         pauses,
         anchor,
+        anchor_z,
     }
 }
 
@@ -637,6 +647,30 @@ mod tests {
         assert!(job.gcode.contains("G92 X1000.000 Y50.000"));
         assert!(job.gcode.contains("G92.1"));
         assert!(!job.warnings.contains(&JobWarning::OutOfBounds));
+    }
+
+    #[test]
+    fn a_job_relative_in_z_declares_the_head_height_as_z0() {
+        let (mut document, _) = document_with_square(50.0);
+        document.layers[0].operation = Operation::CncProfile(CncProfileParams::default());
+        let options = JobOptions {
+            anchor: Some(Point::new(0.0, 0.0)),
+            anchor_z: true,
+            ..JobOptions::default()
+        };
+        let job = build_job_with(&document, &MachineProfile::generic_cnc(), &options);
+        assert!(job.anchor_z);
+        let declared = job.gcode.find("G92 X0.000 Y0.000 Z0").unwrap();
+        let first_cut = job.gcode.find("\nG1").unwrap();
+        assert!(declared < first_cut);
+        assert!(job.gcode.contains("G92.1"));
+        // Without an anchor, Z stays on the work zero.
+        let options = JobOptions {
+            anchor_z: true,
+            ..JobOptions::default()
+        };
+        let job = build_job_with(&document, &MachineProfile::generic_cnc(), &options);
+        assert!(!job.anchor_z && !job.gcode.contains("G92"));
     }
 
     #[test]

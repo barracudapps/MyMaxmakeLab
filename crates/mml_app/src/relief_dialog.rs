@@ -85,6 +85,7 @@ pub fn show(app: &mut MyApp, ctx: &egui::Context) {
             external: Some(name),
             pauses: Vec::new(),
             anchor: None,
+            anchor_z: false,
         });
         app.job.preview_line = Some(None);
         app.mode = Mode::Prepare;
