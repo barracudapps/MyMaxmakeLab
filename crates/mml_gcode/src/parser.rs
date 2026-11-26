@@ -71,6 +71,9 @@ pub struct Program {
     /// safety monitor: a rotary axis moving during a job that never
     /// commands it is an anomaly.
     pub uses_rotary: bool,
+    /// The program commands the Z axis. Laser programs usually do not:
+    /// the head stays at its focus height and Z travel is not checked.
+    pub moves_z: bool,
     /// Lowest and highest Z reached, `(0, 0)` for 2D programs.
     pub z_range: (f64, f64),
     /// Diameter of the stock turned by the A axis, announced by the
@@ -193,7 +196,10 @@ pub fn parse(source: &str) -> Program {
                 },
                 'X' => target[0] = Some(*value),
                 'Y' => target[1] = Some(*value),
-                'Z' => target[2] = Some(*value),
+                'Z' => {
+                    target[2] = Some(*value);
+                    program.moves_z = true;
+                }
                 'I' => offsets[0] = Some(*value),
                 'J' => offsets[1] = Some(*value),
                 'R' => radius = Some(*value),
@@ -460,5 +466,7 @@ mod tests {
         assert!(program.uses_rotary);
         assert_eq!(program.z_range, (-1.5, 5.0));
         assert!(!parse("G1 X1 F100").uses_rotary);
+        assert!(program.moves_z);
+        assert!(!parse("G1 X1 F100 S500").moves_z);
     }
 }

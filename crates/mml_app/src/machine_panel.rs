@@ -1317,7 +1317,9 @@ pub fn start_blockers(app: &MyApp) -> Vec<String> {
     let travel = [
         app.device.setting_f64(130).or(Some(app.machine.width)),
         app.device.setting_f64(131).or(Some(app.machine.height)),
-        app.device.setting_f64(132).filter(|travel| *travel > 0.0),
+        app.device
+            .setting_f64(132)
+            .filter(|travel| *travel > 0.0 && built.program.moves_z),
     ];
     let position = status.machine_position;
     let negative = position.iter().take(2).any(|value| *value < -1e-3);
@@ -1373,7 +1375,11 @@ pub fn guard_for(app: &MyApp) -> Option<JobGuard> {
         envelope: (!bounds.is_empty()).then_some([
             [bounds.min.x, bounds.max.x],
             [bounds.min.y, bounds.max.y],
-            [z_low, z_high],
+            if built.program.moves_z {
+                [z_low, z_high]
+            } else {
+                [f64::NEG_INFINITY, f64::INFINITY]
+            },
         ]),
         uses_rotary: built.program.uses_rotary,
         tolerance: 1.0,

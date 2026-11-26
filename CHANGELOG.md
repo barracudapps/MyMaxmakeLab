@@ -7,6 +7,12 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- A laser job no longer refuses to start because of the Z axis: a
+  program that never commands Z leaves the head at its focus height,
+  so its Z travel is not checked before starting nor watched during
+  the job.
+
 ## [0.1.22] - 2026-11-26
 
 ### Added
