@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.23] - 2026-11-26
+
 ### Changed
 - **The "Machine zero" placement becomes "On the bed"**: once the
   machine has homed, the X/Y work zero is set on the front left corner
@@ -315,7 +317,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.22...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.23...HEAD
+[0.1.23]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.22...v0.1.23
 [0.1.22]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.21...v0.1.22
 [0.1.21]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.20...v0.1.21
 [0.1.20]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.19...v0.1.20
