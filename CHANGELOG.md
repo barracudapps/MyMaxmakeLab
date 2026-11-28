@@ -7,6 +7,8 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+## [0.1.27] - 2026-11-28
+
 ### Fixed
 - **Framing waits for the head to stop between sides**: the HiMill
   refused a jog sent while the previous one was still moving
@@ -381,7 +383,8 @@ yet: GRBL is tested against simulated controllers.
 First release: design, preparation and machine control for GRBL lasers
 and milling machines.
 
-[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.26...HEAD
+[Unreleased]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.27...HEAD
+[0.1.27]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.26...v0.1.27
 [0.1.26]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.25...v0.1.26
 [0.1.25]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.24...v0.1.25
 [0.1.24]: https://github.com/barracudapps/MyMaxmakeLab/compare/v0.1.23...v0.1.24
