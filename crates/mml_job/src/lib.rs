@@ -460,6 +460,10 @@ pub fn sequence(files: &[(String, String)]) -> (String, Vec<PauseReason>) {
 /// With an `anchor` the trace is relative to the head (which marks that
 /// design point) and ends back where it started; without, it follows
 /// the work coordinates.
+/// Line of a framing program that is not sent: the streamer waits there
+/// until the machine is `Idle` (`mml_device::controller::WAIT_IDLE`).
+pub const FRAME_WAIT: &str = "%wait-idle";
+
 pub fn frame_job(
     bounds: Rect,
     anchor: Option<Point>,
@@ -476,45 +480,37 @@ pub fn frame_job(
         text.trim_end_matches('0').trim_end_matches('.').to_owned()
     };
     // Path: to the first corner (laser off), around, back to the first
-    // corner, then (relative) back to the start.
+    // corner, then (relative) back to the start. Each jog waits for the
+    // machine to stop: some grblHAL builds refuse a jog sent during
+    // another one, and GRBL refuses M3/M5 while jogging.
     let mut path: Vec<Point> = corners.to_vec();
     path.push(corners[0]);
-    match anchor {
-        Some(anchor) => {
-            let mut at = anchor;
-            let mut jog = |to: Point, lines: &mut Vec<String>| {
-                lines.push(format!(
-                    "$J=G21G91X{}Y{}F{feed}",
-                    number(to.x - at.x),
-                    number(to.y - at.y)
-                ));
-                at = to;
-            };
-            jog(path[0], &mut lines);
-            if s_value > 0.0 {
-                lines.push(format!("M3 S{s_value}"));
-            }
-            for corner in &path[1..] {
-                jog(*corner, &mut lines);
-            }
-            if s_value > 0.0 {
-                lines.push("M5".into());
-            }
-            jog(anchor, &mut lines);
-        }
-        None => {
-            let jog = |to: Point| format!("$J=G21G90X{}Y{}F{feed}", number(to.x), number(to.y));
-            lines.push(jog(path[0]));
-            if s_value > 0.0 {
-                lines.push(format!("M3 S{s_value}"));
-            }
-            for corner in &path[1..] {
-                lines.push(jog(*corner));
-            }
-            if s_value > 0.0 {
-                lines.push("M5".into());
-            }
-        }
+    let absolute = |to: Point| format!("$J=G21G90X{}Y{}F{feed}", number(to.x), number(to.y));
+    let mut at = anchor.unwrap_or_default();
+    let mut jog = |to: Point, lines: &mut Vec<String>| {
+        lines.push(match anchor {
+            Some(_) => format!(
+                "$J=G21G91X{}Y{}F{feed}",
+                number(to.x - at.x),
+                number(to.y - at.y)
+            ),
+            None => absolute(to),
+        });
+        lines.push(FRAME_WAIT.to_owned());
+        at = to;
+    };
+    jog(path[0], &mut lines);
+    if s_value > 0.0 {
+        lines.push(format!("M3 S{s_value}"));
+    }
+    for corner in &path[1..] {
+        jog(*corner, &mut lines);
+    }
+    if s_value > 0.0 {
+        lines.push("M5".into());
+    }
+    if let Some(anchor) = anchor {
+        jog(anchor, &mut lines);
     }
     let mut program = lines.join("\n");
     program.push('\n');
@@ -740,16 +736,27 @@ mod tests {
         let frame = frame_job(bounds, Some(Point::new(10.0, 10.0)), &machine, 1.0, 3000.0);
         let lines: Vec<&str> = frame.lines().collect();
         assert!(
-            lines
-                .iter()
-                .all(|line| line.starts_with("$J=") || line.starts_with('M'))
+            lines.iter().all(|line| line.starts_with("$J=")
+                || line.starts_with('M')
+                || *line == FRAME_WAIT)
         );
-        assert_eq!(lines[1], "M3 S130");
-        assert_eq!(lines.last(), Some(&"$J=G21G91X0Y0F3000"));
-        assert!(lines.contains(&"M5"));
+        // Every jog, M3 and M5 is sent only once the machine has stopped.
+        for (index, line) in lines.iter().enumerate() {
+            if line.starts_with("$J=") {
+                assert_eq!(lines.get(index + 1), Some(&FRAME_WAIT), "{frame}");
+            }
+        }
+        assert_eq!(lines[1], FRAME_WAIT);
+        assert_eq!(lines[2], "M3 S130");
+        assert_eq!(lines[lines.len() - 2], "$J=G21G91X0Y0F3000");
+        let m5 = lines.iter().position(|line| *line == "M5").unwrap();
+        assert_eq!(lines[m5 - 1], FRAME_WAIT);
         let off = frame_job(bounds, None, &machine, 0.0, 3000.0);
         assert!(!off.contains('M'));
-        assert!(off.lines().all(|line| line.starts_with("$J=G21G90")));
+        assert!(
+            off.lines()
+                .all(|line| line.starts_with("$J=G21G90") || line == FRAME_WAIT)
+        );
     }
 
     #[test]

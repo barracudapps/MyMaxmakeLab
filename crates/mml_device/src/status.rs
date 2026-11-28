@@ -119,7 +119,7 @@ pub fn parse_status(line: &str, previous: &MachineStatus) -> Option<MachineStatu
         "Hold:0" => MachineState::HoldComplete,
         text if text.starts_with("Hold") => MachineState::Hold,
         "Jog" => MachineState::Jog,
-        "Alarm" => MachineState::Alarm,
+        text if text.starts_with("Alarm") => MachineState::Alarm,
         text if text.starts_with("Door") => MachineState::Door,
         "Check" => MachineState::Check,
         "Home" => MachineState::Home,
@@ -235,6 +235,9 @@ mod tests {
             ("Queue", MachineState::Queue),
             ("Boot", MachineState::Boot),
             ("Tool", MachineState::Tool),
+            // grblHAL adds the alarm code: "Alarm:3".
+            ("Alarm:3", MachineState::Alarm),
+            ("Alarm", MachineState::Alarm),
         ] {
             let status = parse_status(&format!("<{text}|MPos:0,0,0>"), &previous).unwrap();
             assert_eq!(status.state, state);

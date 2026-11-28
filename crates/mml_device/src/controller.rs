@@ -14,6 +14,13 @@ const STATUS_PERIOD: Duration = Duration::from_millis(200);
 const STOP_TIMEOUT: Duration = Duration::from_secs(3);
 const STATUS_TIMEOUT: Duration = Duration::from_millis(1500);
 
+/// Job line never sent to the controller: the following lines wait until
+/// every earlier one is acknowledged and the machine reports `Idle`.
+/// Framing needs it: some grblHAL builds (the HiMill) answer `error:9`
+/// to a `$J=` jog sent while another jog is still moving, and GRBL
+/// refuses `M3`/`M5` during a jog.
+pub const WAIT_IDLE: &str = "%wait-idle";
+
 /// How lines are paced to the controller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum Protocol {
@@ -295,6 +302,8 @@ struct Worker {
     last_status: Instant,
     monitor: SafetyMonitor,
     homing_since: Option<Instant>,
+    /// When a [`WAIT_IDLE`] line started waiting, all earlier lines done.
+    waiting_since: Option<Instant>,
     protocol: Protocol,
     /// The welcome line was seen (or replaced by a first status).
     greeted: bool,
@@ -321,6 +330,7 @@ impl Worker {
             last_status: Instant::now(),
             monitor: SafetyMonitor::default(),
             homing_since: None,
+            waiting_since: None,
             protocol: Protocol::Grbl,
             greeted: false,
         }
@@ -416,6 +426,7 @@ impl Worker {
     }
 
     fn clear_buffers(&mut self) {
+        self.waiting_since = None;
         self.queue.clear();
         self.in_flight.clear();
         self.buffered = 0;
@@ -512,6 +523,29 @@ impl Worker {
             }
         }
         while let Some((line, _)) = self.queue.front() {
+            if line == WAIT_IDLE {
+                if !self.in_flight.is_empty() {
+                    break;
+                }
+                let Some(since) = self.waiting_since else {
+                    self.waiting_since = Some(Instant::now());
+                    break;
+                };
+                // A status asked for after the last `ok`: the poll period
+                // plus a margin, so an older answer cannot pass for it.
+                let fresh = self.last_status > since
+                    && self.last_status.duration_since(since)
+                        >= STATUS_PERIOD + Duration::from_millis(50);
+                if !(fresh && self.status.state == MachineState::Idle) {
+                    break;
+                }
+                self.waiting_since = None;
+                self.queue.pop_front();
+                if let Some(job) = &mut self.job {
+                    job.acknowledged += 1;
+                }
+                continue;
+            }
             let size = line.len() + 1;
             let full = match self.protocol {
                 Protocol::Grbl => self.buffered + size > RX_BUFFER,
@@ -591,7 +625,11 @@ impl Worker {
             if let Some(code) = line.strip_prefix("error:") {
                 let code = code.trim().parse().unwrap_or(0);
                 self.emit(Event::Error { code, line: sent });
-                if let Origin::Job(index) = origin {
+                // Only the first refusal stops the job: the lines already
+                // sent are refused too once it is stopped.
+                if let Origin::Job(index) = origin
+                    && self.job.is_some()
+                {
                     self.queue.clear();
                     self.realtime(realtime::FEED_HOLD)?;
                     self.stopping = Some(Instant::now());
@@ -700,12 +738,15 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     /// Minimal GRBL: answers `ok` to each line, `error:20` to `BAD`,
-    /// and reports Idle on status requests.
+    /// and reports Idle on status requests. A `$J=` jog moves for 300 ms
+    /// (state `Jog`), and like the HiMill another jog sent meanwhile gets
+    /// `error:9`.
     #[derive(Clone, Default)]
     struct FakeGrbl {
         received: Arc<Mutex<Vec<String>>>,
         outgoing: Arc<Mutex<VecDeque<u8>>>,
         partial: Arc<Mutex<String>>,
+        jog_until: Arc<Mutex<Option<Instant>>>,
     }
 
     impl Read for FakeGrbl {
@@ -730,15 +771,32 @@ mod tests {
             let mut partial = self.partial.lock().unwrap();
             for &byte in data {
                 match byte {
-                    b'?' => outgoing.extend(b"<Idle|MPos:0.000,0.000,0.000|FS:0,0>\r\n"),
+                    b'?' => {
+                        let jogging = self
+                            .jog_until
+                            .lock()
+                            .unwrap()
+                            .is_some_and(|until| Instant::now() < until);
+                        let state = if jogging { "Jog" } else { "Idle" };
+                        outgoing.extend(
+                            format!("<{state}|MPos:0.000,0.000,0.000|FS:0,0>\r\n").as_bytes(),
+                        );
+                    }
                     b'\n' => {
                         let line = std::mem::take(&mut *partial);
                         let line = line.trim().to_owned();
                         if line.is_empty() {
                             continue;
                         }
+                        let mut jog_until = self.jog_until.lock().unwrap();
+                        let jogging = jog_until.is_some_and(|until| Instant::now() < until);
                         let reply: &[u8] = if line == "BAD" {
                             b"error:20\r\n"
+                        } else if line.starts_with("$J=") && jogging {
+                            b"error:9\r\n"
+                        } else if line.starts_with("$J=") {
+                            *jog_until = Some(Instant::now() + Duration::from_millis(300));
+                            b"ok\r\n"
                         } else {
                             b"ok\r\n"
                         };
@@ -822,6 +880,39 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn jogs_wait_for_the_machine_to_stop() {
+        let grbl = FakeGrbl::default();
+        let received = grbl.received.clone();
+        let controller = Controller::spawn(move || Ok(Box::new(grbl) as Box<dyn Transport>));
+        let lines: Vec<String> = ["$J=G91X10F3000", WAIT_IDLE, "$J=G91Y10F3000", WAIT_IDLE]
+            .map(str::to_owned)
+            .to_vec();
+        controller.send(Command::StartJob { lines, guard: None });
+        let events = wait_for(&controller, |event| {
+            matches!(event, Event::JobFinished { .. })
+        });
+        assert!(
+            matches!(
+                events.last(),
+                Some(Event::JobFinished {
+                    outcome: JobOutcome::Completed,
+                    ..
+                })
+            ),
+            "{events:?}"
+        );
+        let received = received.lock().unwrap();
+        assert!(!received.iter().any(|line| line == WAIT_IDLE));
+        assert_eq!(
+            received
+                .iter()
+                .filter(|line| line.starts_with("$J="))
+                .count(),
+            2
+        );
     }
 
     #[test]

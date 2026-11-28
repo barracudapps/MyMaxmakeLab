@@ -7,6 +7,17 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- **Framing waits for the head to stop between sides**: the HiMill
+  refused a jog sent while the previous one was still moving
+  (`error:9`), which stopped the framing after a few millimetres and
+  raised an alarm. The laser is also switched on and off only while
+  the head stands still.
+- **"Alarm:3" and the other numbered alarms of grblHAL** show as an
+  alarm instead of an unknown state.
+- A refused job line reports one error, not one more for each line
+  already sent.
+
 ## [0.1.26] - 2026-11-26
 
 ### Changed
