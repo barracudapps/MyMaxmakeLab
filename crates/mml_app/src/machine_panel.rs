@@ -1259,6 +1259,11 @@ fn spindle_row(app: &mut MyApp, ui: &mut egui::Ui) {
                 .on_hover_text(tr("spindle.start_hint"))
                 .clicked()
             {
+                // On the HiMill, M3 lights the laser while it is in laser
+                // mode: back to the spindle first.
+                if app.machine.switches_laser_mode() {
+                    app.device.line(mml_job::laser_mode_command(false));
+                }
                 app.device.line(format!("M3 S{:.0}", app.settings.idle_rpm));
                 // Jogs sent next wait until the spindle is up to speed.
                 app.device.line(format!("G4 P{SPIN_UP:.1}"));

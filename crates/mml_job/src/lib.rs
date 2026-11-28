@@ -294,6 +294,14 @@ pub fn build_job_with(document: &Document, machine: &MachineProfile, options: &J
                 next_layer: name.clone(),
             });
         }
+        if machine.switches_laser_mode() && previous_family != Some(is_laser) {
+            // After a head change, the switch waits until the operator
+            // has resumed and the machine has stopped (no tool running).
+            if previous_family.is_some() {
+                writer.raw(FRAME_WAIT);
+            }
+            writer.raw(laser_mode_command(is_laser));
+        }
         previous_family = Some(is_laser);
         if machine.tool_changer
             && !is_laser
@@ -460,9 +468,20 @@ pub fn sequence(files: &[(String, String)]) -> (String, Vec<PauseReason>) {
 /// With an `anchor` the trace is relative to the head (which marks that
 /// design point) and ends back where it started; without, it follows
 /// the work coordinates.
-/// Line of a framing program that is not sent: the streamer waits there
-/// until the machine is `Idle` (`mml_device::controller::WAIT_IDLE`).
+/// Line of a program that is not sent: the streamer waits there until
+/// the machine is `Idle` (`mml_device::controller::WAIT_IDLE`). G-code
+/// readers skip it (`%` starts a comment for them).
 pub const FRAME_WAIT: &str = "%wait-idle";
+
+/// HiMill command that makes `M3`/`M4` drive the laser (`true`) or the
+/// spindle (`false`); see [`MachineProfile::switches_laser_mode`].
+pub fn laser_mode_command(laser: bool) -> &'static str {
+    if laser {
+        "[LASER_MODE:1]"
+    } else {
+        "[LASER_MODE:0]"
+    }
+}
 
 pub fn frame_job(
     bounds: Rect,
@@ -510,6 +529,9 @@ pub fn frame_job(
     };
     jog(path[0], &mut step, &mut lines);
     if s_value > 0.0 {
+        if machine.switches_laser_mode() {
+            lines.push(laser_mode_command(true).into());
+        }
         lines.push(format!("M3 S{s_value}"));
         lines.push(if anchor.is_some() { "G21G91" } else { "G21G90" }.into());
         for (index, corner) in path[1..].iter().enumerate() {
@@ -763,12 +785,14 @@ mod tests {
         assert_eq!(lines[1], FRAME_WAIT);
         // Lit outline: G1 moves at the framing power, not jogs, since
         // GRBL keeps the laser off while jogging.
-        assert_eq!(lines[2], "M3 S130");
-        assert_eq!(lines[3], "G21G91");
-        assert_eq!(lines[4], "G1F3000S130X50Y0");
-        assert_eq!(&lines[5..8], &["X0Y30", "X-50Y0", "X0Y-30"]);
-        assert_eq!(&lines[8..11], &["M5", "G90", FRAME_WAIT]);
-        assert_eq!(lines[11], "$J=G21G91X0Y0F3000");
+        // The HiMill is switched to laser first, or M3 turns its spindle.
+        assert_eq!(lines[2], "[LASER_MODE:1]");
+        assert_eq!(lines[3], "M3 S130");
+        assert_eq!(lines[4], "G21G91");
+        assert_eq!(lines[5], "G1F3000S130X50Y0");
+        assert_eq!(&lines[6..9], &["X0Y30", "X-50Y0", "X0Y-30"]);
+        assert_eq!(&lines[9..12], &["M5", "G90", FRAME_WAIT]);
+        assert_eq!(lines[12], "$J=G21G91X0Y0F3000");
         assert_eq!(
             lines.iter().filter(|line| line.starts_with("$J=")).count(),
             2
@@ -825,6 +849,47 @@ mod tests {
         assert!(job.gcode.find("; Layer Mill").unwrap() < pause_at);
         assert!(pause_at < job.gcode.find("; Layer Cut").unwrap());
         let _ = laser_layer;
+    }
+
+    #[test]
+    fn the_himill_is_switched_between_spindle_and_laser() {
+        let (mut document, _) = document_with_square(50.0);
+        let cnc = Layer::new(
+            "Mill",
+            [0, 0, 0],
+            Operation::CncProfile(CncProfileParams::default()),
+        );
+        let cnc_id = cnc.id;
+        document.layers.insert(0, cnc);
+        let mut milled = document.shapes[0].clone();
+        milled.id = ShapeId::new();
+        milled.layer = cnc_id;
+        document.shapes.push(milled);
+        let mut machine = MachineProfile::maxmake_himill_d1s();
+        machine.laser_mode = true;
+        let gcode = build_job(&document, &machine).gcode;
+        let spindle = gcode.find("[LASER_MODE:0]").unwrap();
+        let laser = gcode.find("[LASER_MODE:1]").unwrap();
+        let pause = gcode.find("M0").unwrap();
+        // Spindle mode before the first M3, laser once the operator has
+        // resumed after the head change and the machine has stopped.
+        assert!(spindle < gcode.find("M3").unwrap());
+        assert!(pause < laser && laser < gcode.find("; Layer Cut").unwrap());
+        assert!(gcode[pause..laser].contains(FRAME_WAIT));
+        // A laser-only job switches to laser before burning.
+        let (document, _) = document_with_square(50.0);
+        let gcode = build_job(&document, &machine).gcode;
+        let laser = gcode.find("[LASER_MODE:1]").unwrap();
+        let first_on = ["\nM3", "\nM4"]
+            .iter()
+            .filter_map(|code| gcode.find(code))
+            .min()
+            .unwrap();
+        assert!(laser < first_on, "{gcode}");
+        assert!(!gcode.contains("[LASER_MODE:0]"));
+        // Other machines never get it.
+        let gcode = build_job(&document, &MachineProfile::generic_laser()).gcode;
+        assert!(!gcode.contains("LASER_MODE"));
     }
 
     #[test]

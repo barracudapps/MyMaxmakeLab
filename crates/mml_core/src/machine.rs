@@ -56,6 +56,16 @@ pub struct MachineProfile {
 }
 
 impl MachineProfile {
+    /// The HiMill firmware drives its spindle with `M3`/`M4` until it is
+    /// switched to laser with `[LASER_MODE:1]` (and back with
+    /// `[LASER_MODE:0]`), as MaxmakeLAB does; the `$32` laser mode alone
+    /// changes nothing. Its bracketed `[STREAM_START]` start command
+    /// tells that firmware apart, also in profiles saved earlier.
+    pub fn switches_laser_mode(&self) -> bool {
+        self.kind == MachineKind::Cnc
+            && (self.start_gcode.contains("[STREAM_START]") || self.name.contains("HiMill"))
+    }
+
     /// Scan offset at `speed`, interpolated in the table and held at
     /// its ends; 0 without a table.
     pub fn scan_offset(&self, speed: f64) -> f64 {
@@ -315,6 +325,12 @@ impl MachineProfile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_himill_switches_its_laser_mode() {
+        assert!(MachineProfile::maxmake_himill_d1s().switches_laser_mode());
+        assert!(!MachineProfile::generic_laser().switches_laser_mode());
+    }
 
     #[test]
     fn scan_offset_is_interpolated_and_held_at_the_ends() {

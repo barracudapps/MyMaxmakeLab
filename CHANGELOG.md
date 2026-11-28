@@ -8,6 +8,12 @@ yet: GRBL is tested against simulated controllers.
 ## [Unreleased]
 
 ### Fixed
+- **HiMill: the laser lights instead of the spindle turning.** Its
+  firmware drives the spindle with M3 until it is switched to laser
+  with `[LASER_MODE:1]`, which MaxmakeLAB sends and MyMaxmakeLab did
+  not: laser jobs and the lit framing turned the spindle slowly with
+  the laser off. Laser layers and the lit framing now switch to laser,
+  milling layers and the manual spindle button back to the spindle.
 - **The framing outline is lit again above 0 %**: GRBL keeps the laser
   off during jogs, so the outline is now traced with G1 moves at the
   framing power; at 0 % the head still jogs around with the laser off.

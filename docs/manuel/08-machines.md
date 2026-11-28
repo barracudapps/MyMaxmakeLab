@@ -65,6 +65,13 @@ d'autant, si bien qu'une gravure et un fraisage du même dessin tombent au
 même endroit. Pour le mesurer : gravez un point au laser, amenez la pointe
 d'une fraise exactement dessus, et entrez la différence de position.
 
+Le firmware de la HiMill pilote la broche avec `M3` tant qu'il n'est pas
+passé en laser : cocher *Mode laser* ne suffit pas. Comme MaxmakeLAB,
+l'application envoie `[LASER_MODE:1]` avant un cadrage allumé ou un
+calque laser, et `[LASER_MODE:0]` avant un calque de fraisage ou quand
+vous faites tourner la broche à la main. Après un changement de tête,
+la bascule attend que vous ayez repris et que la machine soit arrêtée.
+
 ## Déplacer la tête
 
 La carte **Déplacer la tête** de l'étape Machine a un pavé de flèches, Z+

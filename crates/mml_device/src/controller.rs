@@ -21,6 +21,12 @@ const STATUS_TIMEOUT: Duration = Duration::from_millis(1500);
 /// refuses `M3`/`M5` during a jog.
 pub const WAIT_IDLE: &str = "%wait-idle";
 
+/// How long a bracketed firmware command (`[LASER_MODE:1]`,
+/// `[STREAM_START]`) may take to answer. Such commands are HiMill
+/// extensions that may not answer `ok` like G-code does, so they are
+/// sent alone and their answer, if any, is awaited only this long.
+const BRACKET_ANSWER: Duration = Duration::from_millis(1000);
+
 /// How lines are paced to the controller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum Protocol {
@@ -304,6 +310,9 @@ struct Worker {
     homing_since: Option<Instant>,
     /// When a [`WAIT_IDLE`] line started waiting, all earlier lines done.
     waiting_since: Option<Instant>,
+    /// Bracketed firmware command sent alone, waiting for its optional
+    /// answer: when it went out and who sent it.
+    bracket: Option<(Instant, Origin, String)>,
     protocol: Protocol,
     /// The welcome line was seen (or replaced by a first status).
     greeted: bool,
@@ -331,6 +340,7 @@ impl Worker {
             monitor: SafetyMonitor::default(),
             homing_since: None,
             waiting_since: None,
+            bracket: None,
             protocol: Protocol::Grbl,
             greeted: false,
         }
@@ -427,6 +437,7 @@ impl Worker {
 
     fn clear_buffers(&mut self) {
         self.waiting_since = None;
+        self.bracket = None;
         self.queue.clear();
         self.in_flight.clear();
         self.buffered = 0;
@@ -523,6 +534,28 @@ impl Worker {
             }
         }
         while let Some((line, _)) = self.queue.front() {
+            if let Some((since, _, _)) = &self.bracket {
+                if since.elapsed() < BRACKET_ANSWER {
+                    break;
+                }
+                // No answer: the firmware does not acknowledge it.
+                let (_, origin, sent) = self.bracket.take().unwrap();
+                self.bracket_done(origin, sent, None);
+                continue;
+            }
+            if line.starts_with('[') {
+                if !self.in_flight.is_empty() {
+                    break;
+                }
+                let (line, origin) = self.queue.pop_front().unwrap();
+                self.transport.write_all(line.as_bytes())?;
+                self.transport.write_all(b"\n")?;
+                if origin == Origin::User {
+                    self.emit(Event::Sent(line.clone()));
+                }
+                self.bracket = Some((Instant::now(), origin, line));
+                break;
+            }
             if line == WAIT_IDLE {
                 if !self.in_flight.is_empty() {
                     break;
@@ -564,6 +597,44 @@ impl Worker {
             self.in_flight.push_back((size, origin, line));
         }
         self.transport.flush()
+    }
+
+    /// A bracketed command is done, answered (`ok`, `error:..`) or not.
+    fn bracket_done(&mut self, origin: Origin, sent: String, answer: Option<&str>) {
+        if let Some(code) = answer.and_then(|answer| answer.strip_prefix("error:")) {
+            let code = code.trim().parse().unwrap_or(0);
+            self.emit(Event::Error {
+                code,
+                line: sent.clone(),
+            });
+            // Refused in a job (the laser would not light, say): stop.
+            if let Origin::Job(index) = origin
+                && let Some(job) = self.job.take()
+            {
+                self.queue.clear();
+                self.emit(Event::JobFinished {
+                    outcome: JobOutcome::Error {
+                        line: index + 1,
+                        code,
+                    },
+                    elapsed: job.started.elapsed(),
+                });
+            }
+            return;
+        }
+        match origin {
+            Origin::Job(_) => {
+                if let Some(job) = &mut self.job {
+                    job.acknowledged += 1;
+                }
+            }
+            Origin::User => {
+                if let Some(answer) = answer {
+                    self.emit(Event::Received(answer.to_owned()));
+                }
+                self.emit(Event::Acknowledged(sent));
+            }
+        }
     }
 
     fn on_line(&mut self, line: &str) -> std::io::Result<()> {
@@ -614,6 +685,13 @@ impl Worker {
                     self.finish_job(JobOutcome::Completed);
                 }
             }
+            return Ok(());
+        }
+        if (line == "ok" || line.starts_with("error:"))
+            && self.in_flight.is_empty()
+            && let Some((_, origin, sent)) = self.bracket.take()
+        {
+            self.bracket_done(origin, sent, Some(line));
             return Ok(());
         }
         if line == "ok" || line.starts_with("error:") {
@@ -792,6 +870,8 @@ mod tests {
                         let jogging = jog_until.is_some_and(|until| Instant::now() < until);
                         let reply: &[u8] = if line == "BAD" {
                             b"error:20\r\n"
+                        } else if line.starts_with("[SILENT") {
+                            b""
                         } else if line.starts_with("$J=") && jogging {
                             b"error:9\r\n"
                         } else if line.starts_with("$J=") {
@@ -912,6 +992,43 @@ mod tests {
                 .filter(|line| line.starts_with("$J="))
                 .count(),
             2
+        );
+    }
+
+    #[test]
+    fn bracket_commands_go_alone_answered_or_not() {
+        let grbl = FakeGrbl::default();
+        let received = grbl.received.clone();
+        let controller = Controller::spawn(move || Ok(Box::new(grbl) as Box<dyn Transport>));
+        // `[LASER_MODE:1]` answers ok, `[SILENT]` nothing: both let the
+        // job go on, in order, and every ok still matches its line.
+        let lines: Vec<String> = ["G0 X1", "[LASER_MODE:1]", "G0 X2", "[SILENT]", "G0 X3"]
+            .map(str::to_owned)
+            .to_vec();
+        controller.send(Command::StartJob { lines, guard: None });
+        let events = wait_for(&controller, |event| {
+            matches!(event, Event::JobFinished { .. })
+        });
+        assert!(
+            matches!(
+                events.last(),
+                Some(Event::JobFinished {
+                    outcome: JobOutcome::Completed,
+                    ..
+                })
+            ),
+            "{events:?}"
+        );
+        let received: Vec<String> = received
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| *line != "$$")
+            .cloned()
+            .collect();
+        assert_eq!(
+            received,
+            ["G0 X1", "[LASER_MODE:1]", "G0 X2", "[SILENT]", "G0 X3"]
         );
     }
 
