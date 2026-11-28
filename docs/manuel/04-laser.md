@@ -97,12 +97,13 @@ vérifiez la position sur la pièce, puis vous **approuvez**, corrigez ou
 relancez. Le démarrage reste bloqué tant que le cadrage n'est pas
 approuvé.
 
-Le tour se fait avec des commandes de déplacement (`$J=`), comme
-MaxmakeLAB : le contrôleur les accepte dès qu'il est à l'arrêt. À 0 % de
-**Puissance du cadrage**, la tête fait le tour laser éteint ; vers 0,5 à
-1 %, le laser reste allumé faiblement et le contour se voit sur le
-matériau (portez les lunettes). Quand le travail part de la tête, le
-cadrage revient à son point de départ.
+À 0 % de **Puissance du cadrage**, la tête fait le tour laser éteint,
+avec des commandes de déplacement (`$J=`) envoyées une à une, chacune
+une fois la tête arrêtée. Au-dessus de 0 %, GRBL gardant le laser éteint
+pendant ces déplacements, le contour est tracé avec des mouvements de
+travail (`G1`) à cette puissance : vers 1 à 3 %, il se voit sur le
+matériau sans le marquer (portez les lunettes). Quand le travail part
+de la tête, le cadrage revient à son point de départ.
 
 ## Travail relatif à la tête
 

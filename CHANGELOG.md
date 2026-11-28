@@ -7,6 +7,11 @@ yet: GRBL is tested against simulated controllers.
 
 ## [Unreleased]
 
+### Fixed
+- **The framing outline is lit again above 0 %**: GRBL keeps the laser
+  off during jogs, so the outline is now traced with G1 moves at the
+  framing power; at 0 % the head still jogs around with the laser off.
+
 ## [0.1.27] - 2026-11-28
 
 ### Fixed

@@ -482,35 +482,54 @@ pub fn frame_job(
     // Path: to the first corner (laser off), around, back to the first
     // corner, then (relative) back to the start. Each jog waits for the
     // machine to stop: some grblHAL builds refuse a jog sent during
-    // another one, and GRBL refuses M3/M5 while jogging.
+    // another one, and GRBL refuses M3/M5 while jogging. GRBL keeps the
+    // laser off during jogs, so a lit outline is traced with G1 moves at
+    // the framing power, like a very light engraving.
     let mut path: Vec<Point> = corners.to_vec();
     path.push(corners[0]);
-    let absolute = |to: Point| format!("$J=G21G90X{}Y{}F{feed}", number(to.x), number(to.y));
     let mut at = anchor.unwrap_or_default();
-    let mut jog = |to: Point, lines: &mut Vec<String>| {
+    let mut step = |to: Point, prefix: &str, lines: &mut Vec<String>| {
         lines.push(match anchor {
-            Some(_) => format!(
-                "$J=G21G91X{}Y{}F{feed}",
-                number(to.x - at.x),
-                number(to.y - at.y)
-            ),
-            None => absolute(to),
+            Some(_) => format!("{prefix}X{}Y{}", number(to.x - at.x), number(to.y - at.y)),
+            None => format!("{prefix}X{}Y{}", number(to.x), number(to.y)),
         });
-        lines.push(FRAME_WAIT.to_owned());
         at = to;
     };
-    jog(path[0], &mut lines);
+    let jog_prefix = if anchor.is_some() {
+        "$J=G21G91"
+    } else {
+        "$J=G21G90"
+    };
+    let jog = |to: Point,
+               step: &mut dyn FnMut(Point, &str, &mut Vec<String>),
+               lines: &mut Vec<String>| {
+        step(to, jog_prefix, lines);
+        let last = lines.last_mut().expect("a jog was written");
+        last.push_str(&format!("F{feed}"));
+        lines.push(FRAME_WAIT.to_owned());
+    };
+    jog(path[0], &mut step, &mut lines);
     if s_value > 0.0 {
         lines.push(format!("M3 S{s_value}"));
-    }
-    for corner in &path[1..] {
-        jog(*corner, &mut lines);
-    }
-    if s_value > 0.0 {
+        lines.push(if anchor.is_some() { "G21G91" } else { "G21G90" }.into());
+        for (index, corner) in path[1..].iter().enumerate() {
+            let prefix = if index == 0 {
+                format!("G1F{feed}S{s_value}")
+            } else {
+                String::new()
+            };
+            step(*corner, &prefix, &mut lines);
+        }
         lines.push("M5".into());
+        lines.push("G90".into());
+        lines.push(FRAME_WAIT.to_owned());
+    } else {
+        for corner in &path[1..] {
+            jog(*corner, &mut step, &mut lines);
+        }
     }
     if let Some(anchor) = anchor {
-        jog(anchor, &mut lines);
+        jog(anchor, &mut step, &mut lines);
     }
     let mut program = lines.join("\n");
     program.push('\n');
@@ -735,22 +754,26 @@ mod tests {
         let machine = MachineProfile::maxmake_himill_d1s();
         let frame = frame_job(bounds, Some(Point::new(10.0, 10.0)), &machine, 1.0, 3000.0);
         let lines: Vec<&str> = frame.lines().collect();
-        assert!(
-            lines.iter().all(|line| line.starts_with("$J=")
-                || line.starts_with('M')
-                || *line == FRAME_WAIT)
-        );
-        // Every jog, M3 and M5 is sent only once the machine has stopped.
+        // Jogs to the first corner and back, each followed by a wait.
         for (index, line) in lines.iter().enumerate() {
             if line.starts_with("$J=") {
                 assert_eq!(lines.get(index + 1), Some(&FRAME_WAIT), "{frame}");
             }
         }
         assert_eq!(lines[1], FRAME_WAIT);
+        // Lit outline: G1 moves at the framing power, not jogs, since
+        // GRBL keeps the laser off while jogging.
         assert_eq!(lines[2], "M3 S130");
-        assert_eq!(lines[lines.len() - 2], "$J=G21G91X0Y0F3000");
-        let m5 = lines.iter().position(|line| *line == "M5").unwrap();
-        assert_eq!(lines[m5 - 1], FRAME_WAIT);
+        assert_eq!(lines[3], "G21G91");
+        assert_eq!(lines[4], "G1F3000S130X50Y0");
+        assert_eq!(&lines[5..8], &["X0Y30", "X-50Y0", "X0Y-30"]);
+        assert_eq!(&lines[8..11], &["M5", "G90", FRAME_WAIT]);
+        assert_eq!(lines[11], "$J=G21G91X0Y0F3000");
+        assert_eq!(
+            lines.iter().filter(|line| line.starts_with("$J=")).count(),
+            2
+        );
+        // Laser off: the whole outline is jogged.
         let off = frame_job(bounds, None, &machine, 0.0, 3000.0);
         assert!(!off.contains('M'));
         assert!(
